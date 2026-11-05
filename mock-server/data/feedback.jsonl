@@ -1,0 +1,4 @@
+{"feedbackId":"fb_01","requestId":"req_demo1","decision":"agree","predictedClass":"metastasis","timestamp":"2026-11-05T10:49:31.451Z"}
+{"feedbackId":"fb_02","requestId":"req_demo2","decision":"agree","predictedClass":"paget","timestamp":"2026-11-05T12:49:31.452Z"}
+{"feedbackId":"fb_03","requestId":"req_demo3","decision":"disagree","predictedClass":"oi","reasonCode":"insufficient_context","reasonText":"Need lateral lumbar views","timestamp":"2026-11-05T13:49:31.452Z"}
+{"feedbackId":"fb_04","requestId":"req_demo4","decision":"agree","predictedClass":"healthy","timestamp":"2026-11-05T14:49:31.452Z"}

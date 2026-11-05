@@ -1,0 +1,450 @@
+openapi: 3.1.0
+info:
+  title: OsteoGuard AI Inference & Audit API
+  version: 1.0.0
+  description: >
+    Explainable deep learning & radiomics API for 4-class bone pathology classification
+    (Metastasis, Paget's Disease, Osteogenesis Imperfecta, Healthy Bone) with Grad-CAM,
+    SHAP attribution, entropy-based uncertainty estimation, and clinician audit trails.
+servers:
+  - url: http://localhost:3000
+    description: Unified Full-Stack Dev Server
+  - url: http://localhost:8787
+    description: Standalone Mock API Server
+
+paths:
+  /api/health:
+    get:
+      summary: Health check & operating mode
+      operationId: getHealth
+      responses:
+        '200':
+          description: Operational status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/analyze:
+    post:
+      summary: Multi-class bone pathology inference with explainability
+      operationId: analyzeImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Planar radiograph, CT bone window slice, or bone scan
+                modality:
+                  type: string
+                  enum: [xray, ct, bone_scan]
+                  default: xray
+      responses:
+        '200':
+          description: Successful diagnostic prediction with Grad-CAM and SHAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '400':
+          description: Validation error in uploaded file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal processing or simulation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/feedback:
+    post:
+      summary: Clinician-in-the-loop feedback capture (EU AI Act Art. 14 audit)
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackPayload'
+      responses:
+        '200':
+          description: Feedback recorded into audit ledger
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  feedbackId:
+                    type: string
+        '400':
+          description: Invalid feedback request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/feedback/stats:
+    get:
+      summary: Get aggregate clinical agreement statistics
+      operationId: getFeedbackStats
+      responses:
+        '200':
+          description: Aggregated audit counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackStatsResponse'
+
+  /api/v1/feedback/list:
+    get:
+      summary: Retrieve raw feedback ledger entries
+      operationId: getFeedbackList
+      responses:
+        '200':
+          description: List of audit records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FeedbackRecord'
+
+  /api/v1/events:
+    post:
+      summary: Lightweight telemetry event logger for usability instrumentation
+      operationId: logEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '200':
+          description: Event logged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logged:
+                    type: boolean
+
+  /api/v1/jobs/{id}:
+    get:
+      summary: Poll status of asynchronous deep learning inference job
+      operationId: getJobStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status and progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - mode
+      properties:
+        status:
+          type: string
+          example: ok
+        mode:
+          type: string
+          enum: [simulation, production]
+          example: simulation
+
+    AnalyzeResponse:
+      type: object
+      required:
+        - requestId
+        - timestamp
+        - modality
+        - imageUrl
+        - gradcamUrl
+        - prediction
+        - uncertaintyDetail
+        - shap
+        - counterfactuals
+        - fractureRisk
+        - disclaimer
+      properties:
+        requestId:
+          type: string
+          example: req_506842b450dc
+        timestamp:
+          type: string
+          format: date-time
+        modality:
+          type: string
+          enum: [xray, ct, bone_scan]
+        imageUrl:
+          type: string
+        gradcamUrl:
+          type: string
+        prediction:
+          $ref: '#/components/schemas/PredictionResult'
+        uncertaintyDetail:
+          $ref: '#/components/schemas/UncertaintyDetail'
+        shap:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShapFeature'
+        counterfactuals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Counterfactual'
+        fractureRisk:
+          $ref: '#/components/schemas/FractureRiskResult'
+        disclaimer:
+          type: string
+
+    PredictionResult:
+      type: object
+      required:
+        - topClass
+        - confidence
+        - probabilities
+        - uncertainty
+      properties:
+        topClass:
+          type: string
+          enum: [metastasis, paget, oi, healthy]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        probabilities:
+          type: object
+          properties:
+            metastasis:
+              type: number
+            paget:
+              type: number
+            oi:
+              type: number
+            healthy:
+              type: number
+        uncertainty:
+          type: string
+          enum: [low, medium, high]
+
+    UncertaintyDetail:
+      type: object
+      required:
+        - entropy
+        - confidenceInterval
+        - oodFlag
+        - calibrationBin
+      properties:
+        entropy:
+          type: number
+          description: Normalized Shannon entropy across the 4 Softmax classes (0-1)
+          example: 0.28
+        confidenceInterval:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+          description: 95% Clopper-Pearson or empirical bootstrap interval [lower, upper]
+          example: [0.72, 0.85]
+        oodFlag:
+          type: boolean
+          description: Out-Of-Distribution detector flag triggering diagnostic abstention
+          example: false
+        calibrationBin:
+          type: object
+          properties:
+            predicted:
+              type: number
+            observed:
+              type: number
+
+    ShapFeature:
+      type: object
+      required:
+        - name
+        - value
+      properties:
+        name:
+          type: string
+        value:
+          type: number
+
+    Counterfactual:
+      type: object
+      required:
+        - feature
+        - deltaDirection
+        - percentChange
+        - flipTo
+        - probabilityShift
+      properties:
+        feature:
+          type: string
+          example: Cortical Thickness
+        deltaDirection:
+          type: string
+          enum: [increase, decrease]
+        percentChange:
+          type: number
+          example: 20
+        flipTo:
+          type: string
+          enum: [metastasis, paget, oi, healthy]
+        probabilityShift:
+          type: number
+          example: 0.18
+
+    FractureRiskResult:
+      type: object
+      required:
+        - level
+        - percent
+      properties:
+        level:
+          type: string
+          enum: [low, medium, high]
+        percent:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    FeedbackPayload:
+      type: object
+      required:
+        - requestId
+        - decision
+        - timestamp
+      properties:
+        requestId:
+          type: string
+        decision:
+          type: string
+          enum: [agree, disagree, unsure]
+        predictedClass:
+          type: string
+        reasonCode:
+          type: string
+          enum: [artifact, insufficient_context, missed_lesion, class_confusion, other]
+        reasonText:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    FeedbackRecord:
+      allOf:
+        - $ref: '#/components/schemas/FeedbackPayload'
+        - type: object
+          properties:
+            feedbackId:
+              type: string
+
+    FeedbackStatsResponse:
+      type: object
+      required:
+        - total
+        - agree
+        - disagree
+        - unsure
+        - disagreementRate
+      properties:
+        total:
+          type: integer
+        agree:
+          type: integer
+        disagree:
+          type: integer
+        unsure:
+          type: integer
+        disagreementRate:
+          type: number
+        byClass:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              agree:
+                type: integer
+              disagree:
+                type: integer
+              unsure:
+                type: integer
+
+    EventPayload:
+      type: object
+      required:
+        - type
+        - timestamp
+      properties:
+        type:
+          type: string
+          example: gradcam_toggle
+        requestId:
+          type: string
+        timestamp:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    JobStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+        - progress
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, done, failed]
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+        resultUrl:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, TIMEOUT_ERROR, NETWORK_ERROR, SERVER_ERROR]
+        details:
+          type: string
