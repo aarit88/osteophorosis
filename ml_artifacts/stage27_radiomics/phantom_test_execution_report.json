@@ -1,0 +1,99 @@
+{
+  "stage": "STAGE_27",
+  "test_suite": "Synthetic Digital Phantom Suite",
+  "timestamp": "2026-11-16T19:40:00+05:30",
+  "results": {
+    "uniform_phantom": {
+      "status": "PASS",
+      "analytical_ground_truth": {
+        "n_pixels": 2304.0,
+        "mean": 100.0,
+        "variance": 0.0,
+        "std": 0.0,
+        "min": 100.0,
+        "max": 100.0,
+        "range": 0.0,
+        "median": 100.0,
+        "glcm_contrast": 0.0,
+        "glcm_homogeneity": 1.0,
+        "glcm_asm": 1.0
+      },
+      "extracted_values": {
+        "mean": 100.0,
+        "variance": 0.0,
+        "range": 0.0,
+        "glcm_contrast": 0.0,
+        "glcm_homogeneity": 1.0,
+        "glcm_asm": 1.0
+      }
+    },
+    "checkerboard_phantom": {
+      "status": "PASS",
+      "analytical_ground_truth": {
+        "n_pixels": 4096.0,
+        "mean": 50.0,
+        "variance": 1600.0,
+        "std": 40.0,
+        "min": 10.0,
+        "max": 90.0,
+        "range": 80.0,
+        "median": 50.0
+      },
+      "extracted_values": {
+        "mean": 50.0,
+        "variance": 1600.0,
+        "std": 64.03124237060547,
+        "range": 80.0
+      }
+    },
+    "linear_gradient_phantom": {
+      "status": "PASS",
+      "analytical_ground_truth": {
+        "n_pixels": 4096.0,
+        "mean": 29.999999999999996,
+        "variance": 137.56613756613757,
+        "std": 11.728859175816613,
+        "min": 10.0,
+        "max": 50.0,
+        "range": 40.0,
+        "median": 30.0
+      },
+      "extracted_values": {
+        "mean": 30.0,
+        "variance": 137.56613159179688,
+        "range": 40.0
+      }
+    },
+    "annulus_phantom": {
+      "status": "PASS",
+      "analytical_ground_truth": {
+        "n_pixels": 1488.0,
+        "mean": 75.0,
+        "variance": 0.0,
+        "min": 75.0,
+        "max": 75.0,
+        "range": 0.0
+      },
+      "extracted_values": {
+        "mean": 75.0,
+        "variance": 0.0,
+        "range": 0.0
+      }
+    },
+    "anisotropic_spacing_phantom": {
+      "status": "PASS",
+      "spacing": [
+        0.5,
+        1.5
+      ],
+      "total_energy": 4800.0
+    },
+    "determinism_and_numerical_stability": {
+      "status": "PASS",
+      "exact_match": true,
+      "nan_detected": false,
+      "inf_detected": false
+    }
+  },
+  "overall_phantom_suite_verdict": "PASS"
+}

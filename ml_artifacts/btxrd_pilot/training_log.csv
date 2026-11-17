@@ -1,0 +1,4 @@
+epoch,train_loss,val_loss,macro_f1,balanced_accuracy,overall_accuracy,macro_roc_auc_ovr,macro_pr_auc,brier_score,sens_normal,sens_benign,sens_malignant,f1_normal,f1_benign,f1_malignant,peak_vram_mib,duration_seconds
+1,0.300391,0.177803,0.5645,0.6725,0.6088,0.7811,0.6809,0.5516,0.6332,0.5307,0.8537,0.6824,0.5681,0.443,305.55,268.48
+2,0.238187,0.151777,0.6335,0.7335,0.6735,0.8302,0.7526,0.4858,0.6426,0.6798,0.878,0.7244,0.6582,0.518,305.55,397.98
+3,0.217271,0.138819,0.6254,0.7373,0.6735,0.8527,0.7893,0.4724,0.6646,0.6447,0.9024,0.7336,0.6622,0.4805,305.55,322.45

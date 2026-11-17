@@ -1,0 +1,22 @@
+{
+  "val_loss": 0.76951,
+  "val_duration_sec": 0.86,
+  "total_patients": 42,
+  "positive_patients": 9,
+  "negative_patients": 33,
+  "roc_auc": 0.9091,
+  "pr_auc": 0.7674,
+  "accuracy": 0.7857,
+  "sensitivity": 0.8889,
+  "specificity": 0.7576,
+  "precision": 0.5,
+  "f1_score": 0.64,
+  "balanced_accuracy": 0.8232,
+  "true_positives": 8,
+  "false_positives": 8,
+  "true_negatives": 25,
+  "false_negatives": 1,
+  "best_epoch": 15,
+  "fold": "fold_0",
+  "pos_weight": 3.8788
+}

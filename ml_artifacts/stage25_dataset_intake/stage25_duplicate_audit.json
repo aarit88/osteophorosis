@@ -1,0 +1,22 @@
+{
+  "audit_timestamp": "2026-11-16T19:30:00+05:30",
+  "cross_dataset_deduplication_audit": {
+    "zenodo_13900966_vs_bone_scan_metastasis": {
+      "audit_finding": "IDENTICAL_DUPLICATE_CONFIRMED",
+      "details": "Zenodo record 13900966 represents the exact adult breast cancer bone scintigraphy cohort from IICS-UNA Paraguay already in-tree. Duplicate acquisition prevented.",
+      "disposition": "NO_NEW_DATA_REQUIRED"
+    },
+    "btxrd_center_partitions": {
+      "audit_finding": "MUTUALLY_EXCLUSIVE_PARTITIONS",
+      "details": "Center 1 (588 images), Center 2 (549 images), and Center 3 (259 images) have zero image overlap.",
+      "disposition": "CENTER_2_AND_3_REMAIN_PERMANENTLY_BURNED_HOLDOUTS"
+    },
+    "incoming_vs_intree": {
+      "audit_finding": "NO_INCOMING_FILES_PRESENT",
+      "details": "Zero incoming files were detected in staging; zero hash collisions.",
+      "disposition": "CLEAN"
+    }
+  },
+  "duplicate_ingestion_risk": "ZERO_RISK",
+  "audit_verdict": "PASS"
+}

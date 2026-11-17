@@ -1,0 +1,62 @@
+{
+  "manifest_version": "1.0.0",
+  "stage": "STAGE_27",
+  "timestamp": "2026-11-16T19:40:00+05:30",
+  "radiomics_feature_dim": 102,
+  "semantic_dim": 512,
+  "fusion_dim": 614,
+  "source_code_hashes": {
+    "osteoguard/radiomics/engine.py": "9A2DCFDF98CB0B4CC48D90DC6B3F0393988926D90FA040FB16E2A4528F9553FF",
+    "osteoguard/radiomics/phantom_generator.py": "68077D990B77A9719C817003CABBDF7327FB41054803177B8CDF6825D2451D13",
+    "osteoguard/constants.py": "94479E994F27B17BEB47A7CB3DF7EB0C46187672622543A1A3986B797F2074F4"
+  },
+  "phantom_suite_parameters": {
+    "uniform_phantom": {
+      "shape": [
+        64,
+        64
+      ],
+      "intensity": 100.0,
+      "margin": 8
+    },
+    "checkerboard_phantom": {
+      "shape": [
+        64,
+        64
+      ],
+      "tile_size": 8,
+      "low_val": 10.0,
+      "high_val": 90.0
+    },
+    "linear_gradient_phantom": {
+      "shape": [
+        64,
+        64
+      ],
+      "start_val": 10.0,
+      "end_val": 50.0
+    },
+    "annulus_phantom": {
+      "shape": [
+        64,
+        64
+      ],
+      "r_inner": 10,
+      "r_outer": 24,
+      "intensity": 75.0
+    },
+    "anisotropic_phantom": {
+      "shape": [
+        64,
+        64
+      ],
+      "spacing": [
+        0.5,
+        1.5
+      ],
+      "intensity": 80.0
+    }
+  },
+  "discrepancy_status": "EXPLICITLY_DOCUMENTED",
+  "overall_stage_verdict": "PARTIAL_ENGINEERING_PASS_SPECIFICATION_UNRESOLVED"
+}

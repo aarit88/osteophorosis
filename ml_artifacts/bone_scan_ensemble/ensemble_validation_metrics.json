@@ -1,0 +1,128 @@
+{
+  "experiment": "Bone Scan 5-Model Ensemble Validation Cohort Evaluation",
+  "validation_cohort": {
+    "total_patients": 44,
+    "positive_patients": 9,
+    "negative_patients": 35,
+    "prevalence": 0.2045,
+    "cohort_note": "Original sealed validation cohort (44 patients). Zero holdout test patients accessed."
+  },
+  "ensemble_provenance": {
+    "num_models": 5,
+    "architecture": "BoneScanResNet18",
+    "backbone": "ResNet18",
+    "aggregation": "mean(max(P_ant_k, P_post_k)) across k in 0..4",
+    "disagreement_metric": "std(max(P_ant_k, P_post_k)) across k in 0..4",
+    "total_parameters_per_model": 11170753,
+    "total_ensemble_parameters": 55853765,
+    "device": "cuda:0",
+    "checkpoints": [
+      {
+        "fold_index": 0,
+        "fold_name": "fold_0",
+        "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_0\\best_checkpoint.pt",
+        "epoch": 15,
+        "val_pr_auc": 0.7674,
+        "val_roc_auc": 0.9091
+      },
+      {
+        "fold_index": 1,
+        "fold_name": "fold_1",
+        "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_1\\best_checkpoint.pt",
+        "epoch": 14,
+        "val_pr_auc": 0.6894,
+        "val_roc_auc": 0.7882
+      },
+      {
+        "fold_index": 2,
+        "fold_name": "fold_2",
+        "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_2\\best_checkpoint.pt",
+        "epoch": 17,
+        "val_pr_auc": 0.7662,
+        "val_roc_auc": 0.9336
+      },
+      {
+        "fold_index": 3,
+        "fold_name": "fold_3",
+        "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_3\\best_checkpoint.pt",
+        "epoch": 2,
+        "val_pr_auc": 0.6125,
+        "val_roc_auc": 0.7969
+      },
+      {
+        "fold_index": 4,
+        "fold_name": "fold_4",
+        "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_4\\best_checkpoint.pt",
+        "epoch": 2,
+        "val_pr_auc": 0.4058,
+        "val_roc_auc": 0.6523
+      }
+    ]
+  },
+  "discriminative_performance": {
+    "roc_auc": 0.8952,
+    "roc_auc_95_ci": [
+      0.7846,
+      0.9846
+    ],
+    "pr_auc": 0.7276,
+    "pr_auc_95_ci": [
+      0.4569,
+      0.9445
+    ],
+    "pr_auc_baseline": 0.2045,
+    "brier_score": 0.2081
+  },
+  "operating_points": {
+    "default_threshold_050": {
+      "threshold": 0.5,
+      "sensitivity": 0.8889,
+      "specificity": 0.6,
+      "precision": 0.3636,
+      "f1_score": 0.5161,
+      "accuracy": 0.6591,
+      "balanced_accuracy": 0.7444,
+      "negative_predictive_value": 0.9545,
+      "confusion_matrix": {
+        "true_positives": 8,
+        "false_positives": 14,
+        "true_negatives": 21,
+        "false_negatives": 1
+      }
+    },
+    "candidate_screening_threshold_035": {
+      "threshold": 0.35,
+      "sensitivity": 1.0,
+      "specificity": 0.2571,
+      "precision": 0.2571,
+      "f1_score": 0.4091,
+      "accuracy": 0.4091,
+      "balanced_accuracy": 0.6286,
+      "negative_predictive_value": 1.0,
+      "true_positives": 9,
+      "false_positives": 26,
+      "true_negatives": 9,
+      "false_negatives": 0
+    },
+    "candidate_balanced_threshold_060": {
+      "threshold": 0.6,
+      "sensitivity": 0.8889,
+      "specificity": 0.8286,
+      "precision": 0.5714,
+      "f1_score": 0.6957,
+      "accuracy": 0.8409,
+      "balanced_accuracy": 0.8587,
+      "negative_predictive_value": 0.9667,
+      "true_positives": 8,
+      "false_positives": 6,
+      "true_negatives": 29,
+      "false_negatives": 1
+    }
+  },
+  "model_disagreement": {
+    "overall_mean_std": 0.0784,
+    "positive_mean_std": 0.0563,
+    "negative_mean_std": 0.0841,
+    "interpretation": "Standard deviation across the 5 models serves as an experimental disagreement index. Higher disagreement occurs at intermediate ambiguous lesions and lower at consensus extremes."
+  }
+}

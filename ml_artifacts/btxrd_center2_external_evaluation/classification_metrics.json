@@ -1,0 +1,48 @@
+{
+  "evaluation_cohort": "Center 2 External Holdout (N=549)",
+  "overall_accuracy": {
+    "estimate": 0.5173,
+    "ci_95": [
+      0.4772,
+      0.5574
+    ]
+  },
+  "balanced_accuracy": {
+    "estimate": 0.5374,
+    "ci_95": [
+      0.4916,
+      0.5844
+    ]
+  },
+  "macro_f1": {
+    "estimate": 0.5069,
+    "ci_95": [
+      0.4648,
+      0.5494
+    ]
+  },
+  "weighted_f1": {
+    "estimate": 0.521,
+    "ci_95": [
+      0.4802,
+      0.5598
+    ]
+  },
+  "macro_roc_auc_ovr": {
+    "estimate": 0.718,
+    "ci_95": [
+      0.6841,
+      0.7512
+    ]
+  },
+  "macro_pr_auc_ovr": {
+    "estimate": 0.5683,
+    "ci_95": [
+      0.524,
+      0.6212
+    ]
+  },
+  "multiclass_brier_score": 0.5731,
+  "calibration_status": "uncalibrated_raw_softmax",
+  "decision_rule": "argmax(softmax(logits))"
+}

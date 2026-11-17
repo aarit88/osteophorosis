@@ -1,0 +1,119 @@
+{
+  "total_patients": 203,
+  "positive_patients": 42,
+  "negative_patients": 161,
+  "prevalence_baseline": 0.2069,
+  "roc_auc": 0.8099,
+  "pr_auc": 0.5844,
+  "brier_score": 0.229,
+  "climatological_brier_baseline": 0.1641,
+  "expected_calibration_error_ece": 0.3097,
+  "positive_score_distribution": {
+    "mean": 0.6758,
+    "median": 0.6948,
+    "std": 0.1341,
+    "iqr_25": 0.5826,
+    "iqr_75": 0.7744,
+    "min": 0.3555,
+    "max": 0.8916
+  },
+  "negative_score_distribution": {
+    "mean": 0.4751,
+    "median": 0.4875,
+    "std": 0.176,
+    "iqr_25": 0.343,
+    "iqr_75": 0.6099,
+    "min": 0.1239,
+    "max": 0.8516
+  },
+  "calibration_bins_10": [
+    {
+      "bin": 2,
+      "range": [
+        0.1,
+        0.2
+      ],
+      "count": 16,
+      "mean_pred_prob": 0.1593,
+      "fraction_positives": 0.0,
+      "absolute_error": 0.1593
+    },
+    {
+      "bin": 3,
+      "range": [
+        0.2,
+        0.3
+      ],
+      "count": 17,
+      "mean_pred_prob": 0.2569,
+      "fraction_positives": 0.0,
+      "absolute_error": 0.2569
+    },
+    {
+      "bin": 4,
+      "range": [
+        0.3,
+        0.4
+      ],
+      "count": 20,
+      "mean_pred_prob": 0.3583,
+      "fraction_positives": 0.05,
+      "absolute_error": 0.3083
+    },
+    {
+      "bin": 5,
+      "range": [
+        0.4,
+        0.5
+      ],
+      "count": 36,
+      "mean_pred_prob": 0.4586,
+      "fraction_positives": 0.1111,
+      "absolute_error": 0.3475
+    },
+    {
+      "bin": 6,
+      "range": [
+        0.5,
+        0.6
+      ],
+      "count": 39,
+      "mean_pred_prob": 0.5461,
+      "fraction_positives": 0.1538,
+      "absolute_error": 0.3922
+    },
+    {
+      "bin": 7,
+      "range": [
+        0.6,
+        0.7
+      ],
+      "count": 37,
+      "mean_pred_prob": 0.645,
+      "fraction_positives": 0.2973,
+      "absolute_error": 0.3477
+    },
+    {
+      "bin": 8,
+      "range": [
+        0.7,
+        0.8
+      ],
+      "count": 27,
+      "mean_pred_prob": 0.7319,
+      "fraction_positives": 0.4074,
+      "absolute_error": 0.3245
+    },
+    {
+      "bin": 9,
+      "range": [
+        0.8,
+        0.9
+      ],
+      "count": 11,
+      "mean_pred_prob": 0.8509,
+      "fraction_positives": 0.8182,
+      "absolute_error": 0.0327
+    }
+  ]
+}

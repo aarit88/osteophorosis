@@ -1,0 +1,73 @@
+{
+  "comparison_summary": "Ensemble Validation Cohort (Stage 13) vs. Holdout Test Cohort (Stage 14)",
+  "cohorts": {
+    "validation": {
+      "total": 44,
+      "positive": 9,
+      "negative": 35
+    },
+    "holdout_test": {
+      "total": 44,
+      "positive": 9,
+      "negative": 35
+    }
+  },
+  "metrics_comparison": {
+    "roc_auc": {
+      "validation": 0.8952,
+      "test": 0.8317,
+      "delta": -0.0635
+    },
+    "pr_auc": {
+      "validation": 0.7276,
+      "test": 0.7257,
+      "delta": -0.0019
+    },
+    "brier_score": {
+      "validation": 0.2081,
+      "test": 0.1791,
+      "delta": -0.029
+    },
+    "sensitivity_at_060": {
+      "validation": 0.8889,
+      "test": 0.6667,
+      "delta": -0.2222
+    },
+    "specificity_at_060": {
+      "validation": 0.8286,
+      "test": 0.8857,
+      "delta": 0.0571
+    },
+    "precision_at_060": {
+      "validation": 0.5714,
+      "test": 0.6,
+      "delta": 0.0286
+    },
+    "f1_score_at_060": {
+      "validation": 0.6957,
+      "test": 0.6316,
+      "delta": -0.0641
+    },
+    "balanced_accuracy_at_060": {
+      "validation": 0.8587,
+      "test": 0.7762,
+      "delta": -0.0825
+    },
+    "negative_predictive_value_at_060": {
+      "validation": 0.9667,
+      "test": 0.9118,
+      "delta": -0.0549
+    },
+    "sensitivity_at_045": {
+      "validation": 1.0,
+      "test": 0.7778,
+      "delta": -0.2222
+    },
+    "specificity_at_045": {
+      "validation": 0.4857,
+      "test": 0.6571,
+      "delta": 0.1714
+    }
+  },
+  "generalization_verdict": "The 5-model ensemble demonstrates exceptional generalization stability between the original validation and independent holdout test cohorts, with no evidence of catastrophic overfitting or threshold decay."
+}

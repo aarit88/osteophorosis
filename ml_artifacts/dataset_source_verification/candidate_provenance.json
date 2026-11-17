@@ -1,0 +1,54 @@
+{
+  "audit_stage": "STAGE_23",
+  "timestamp": "2026-11-16T09:10:00+05:30",
+  "forensic_discoveries": {
+    "zenodo_13900966_deduplication": {
+      "finding": "Zenodo DOI 10.5281/zenodo.13900966 is confirmed to be the identical Bone Scan Images Dataset for Study of Bone Metastases in Adult Breast Cancer Patients at IICS-UNA Paraguay already in ml_service/data/raw/bone_scan_metastasis.",
+      "action": "Flagged as duplicate; no new download required; recognized as in-tree asset."
+    },
+    "figshare_oi_animal_microct_correction": {
+      "finding": "Figshare DOI 10.6084/m9.figshare.c.3795019 represents micro-CT reconstructions of tibiae in oim mice (Ranzoni et al.), NOT human clinical radiographs.",
+      "action": "Formally reclassified as ANIMAL_OR_SYNTHETIC_ONLY; strictly rejected from clinical model pipeline."
+    },
+    "pmc11324408_access_barrier": {
+      "finding": "PMC11324408 utilizes the Brittle Bone Disorders Consortium (BBDC) Natural History Study under RDCRN. Full radiographic series are not open downloads and require a formal Data Management and Coordinating Center (DMCC) application.",
+      "action": "Reclassified as CONTROLLED_ACCESS_REQUEST_REQUIRED."
+    },
+    "radiopaedia_terms_of_reference": {
+      "finding": "Radiopaedia terms strictly prohibit automated harvesting or scraping of images for machine-learning model training without a formal license agreement.",
+      "action": "Reclassified as EDUCATIONAL_ONLY; commercial deployment strictly prohibited."
+    },
+    "stanford_mura_anatomical_scope": {
+      "finding": "Stanford AIMI MURA normal cohort is radiologist-verified with patient IDs, but covers upper extremities ONLY (elbow, finger, forearm, hand, humerus, shoulder, wrist).",
+      "action": "Reclassified as upper-extremity comparator only; cannot represent whole-skeleton normal control."
+    }
+  },
+  "four_class_status": {
+    "secondary_bone_metastasis": {
+      "verified_in_tree_data": "60 patients (120 images) in planar scintigraphy (IICS-UNA Paraguay)",
+      "best_external_candidate": "TCIA Spine-Mets-CT-SEG (55 patients, CT modality)",
+      "access_status": "CONTROLLED_ACCESS_REQUEST_REQUIRED",
+      "modality_limitation": "Scintigraphy and CT only; zero plain X-rays in-tree"
+    },
+    "pagets_disease_of_bone": {
+      "verified_in_tree_data": "0 patients, 0 images",
+      "best_external_candidate": "Hospital Clinical Collaboration / Radiopaedia Educational Cohort",
+      "access_status": "CONTROLLED_ACCESS_REQUEST_REQUIRED / EDUCATIONAL_ONLY",
+      "modality_limitation": "No standardized public ML benchmark exists; educational cases require written license"
+    },
+    "osteogenesis_imperfecta": {
+      "verified_in_tree_data": "0 patients, 0 images",
+      "best_external_candidate": "Brittle Bone Disorders Consortium (BBDC / RDCRN)",
+      "access_status": "CONTROLLED_ACCESS_REQUEST_REQUIRED",
+      "modality_limitation": "Pediatric skewed; requires formal consortium DUA approval"
+    },
+    "healthy_skeletal_control": {
+      "verified_in_tree_data": "1,600 clean radiographs (BTXRD Center 1 normal - unverified patient IDs)",
+      "best_external_candidate": "Stanford AIMI MURA (9,045 normal studies)",
+      "access_status": "CONTROLLED_ACCESS_REQUEST_REQUIRED (Stanford DUA)",
+      "modality_limitation": "MURA is upper extremity only; FracAtlas non-fractured rejected as trauma"
+    }
+  },
+  "master_decision": "NOT READY \u2014 DATA ACQUISITION REQUIRED",
+  "governance_rule": "No model training or automated dataset downloads permitted."
+}

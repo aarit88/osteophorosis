@@ -1,0 +1,19 @@
+{
+  "class_to_idx": {
+    "NORMAL_BONE_RADIOGRAPH": 0,
+    "BENIGN_BONE_TUMOR": 1,
+    "PRIMARY_MALIGNANT_TUMOR": 2
+  },
+  "idx_to_class": {
+    "0": "NORMAL_BONE_RADIOGRAPH",
+    "1": "BENIGN_BONE_TUMOR",
+    "2": "PRIMARY_MALIGNANT_TUMOR"
+  },
+  "num_classes": 3,
+  "clinical_definitions": {
+    "NORMAL_BONE_RADIOGRAPH": "Normal skeletal bone radiograph with intact cortical margin and physiological trabecular pattern",
+    "BENIGN_BONE_TUMOR": "Benign primary bone tumour (e.g. osteochondroma, enchondroma, non-ossifying fibroma, giant cell tumour)",
+    "PRIMARY_MALIGNANT_TUMOR": "Primary malignant bone sarcoma (e.g. osteosarcoma, chondrosarcoma, Ewing sarcoma)"
+  }
+}
+

@@ -1,0 +1,64 @@
+{
+  "validation_cohort_size": 44,
+  "positive_cases": 9,
+  "negative_cases": 35,
+  "prevalence_baseline": 0.2045,
+  "uncalibrated_metrics": {
+    "brier_score": 0.2081,
+    "expected_calibration_error_ece": 0.3132,
+    "reliability_bins_5": [
+      {
+        "bin": 2,
+        "range": [
+          0.2,
+          0.4
+        ],
+        "count": 13,
+        "mean_pred": 0.3256,
+        "actual_fraction": 0.0,
+        "error": 0.3256
+      },
+      {
+        "bin": 3,
+        "range": [
+          0.4,
+          0.6
+        ],
+        "count": 17,
+        "mean_pred": 0.4861,
+        "actual_fraction": 0.0588,
+        "error": 0.4273
+      },
+      {
+        "bin": 4,
+        "range": [
+          0.6,
+          0.8
+        ],
+        "count": 13,
+        "mean_pred": 0.6994,
+        "actual_fraction": 0.5385,
+        "error": 0.1609
+      },
+      {
+        "bin": 5,
+        "range": [
+          0.8,
+          1.0
+        ],
+        "count": 1,
+        "mean_pred": 0.8058,
+        "actual_fraction": 1.0,
+        "error": 0.1942
+      }
+    ]
+  },
+  "temperature_scaling_experimental": {
+    "optimal_temperature_T": 1.0,
+    "original_nll": 0.6061,
+    "scaled_nll": 0.6061,
+    "scaled_brier_score": 0.2081,
+    "scaled_ece": 0.3132,
+    "clinical_caveat": "Temperature scaling fitted on N=44 patients with only 9 positive cases is prone to sampling noise. It demonstrates that temperature scaling can compress over-confident logits, but raw probabilities should be presented as ranking scores or dual-threshold bands rather than definitive Bayesian risk probabilities until tested on larger multi-center cohorts."
+  }
+}

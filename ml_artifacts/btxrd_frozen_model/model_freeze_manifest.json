@@ -1,0 +1,117 @@
+{
+  "manifest_version": "1.0.0",
+  "model_identifier": "OsteoGuard-AI-BTXRD-ResNet34",
+  "stage": "STAGE_18",
+  "freeze_timestamp": "2026-11-16T07:15:00+05:30",
+  "source_experiment": "Stage 17 BTXRD Full-Scale Three-Class Training",
+  "source_checkpoint": "ml_artifacts/btxrd_full_training/best_checkpoint.pt",
+  "checkpoint_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+  "checkpoint_size_bytes": 244849703,
+  "best_epoch": 18,
+  "model_selection_policy": {
+    "primary_metric": "validation_macro_f1",
+    "secondary_metric": "validation_macro_pr_auc",
+    "tie_breaker": "higher macro PR-AUC resolves macro-F1 ties"
+  },
+  "architecture_summary": {
+    "model_family": "ResNet-34",
+    "input_channels": 3,
+    "input_resolution": [512, 512],
+    "output_classes": 3,
+    "head_dropout": 0.4,
+    "total_parameters": 21286211,
+    "trainable_parameters": 19938307,
+    "frozen_parameters": 1347904,
+    "unfrozen_blocks": ["layer3", "layer4", "classifier"],
+    "frozen_blocks": ["conv1", "bn1", "layer1", "layer2"],
+    "weights_provenance": "ResNet34_Weights.IMAGENET1K_V1"
+  },
+  "frozen_validation_performance": {
+    "cohort": "Center 1 Clean Validation (N=588)",
+    "macro_f1": 0.8103,
+    "macro_pr_auc": 0.87,
+    "balanced_accuracy": 0.829,
+    "overall_accuracy": 0.818,
+    "macro_roc_auc_ovr": 0.9114,
+    "brier_score": 0.3168,
+    "per_class": {
+      "NORMAL_BONE_RADIOGRAPH": {
+        "class_index": 0,
+        "support": 319,
+        "prevalence": 0.5425,
+        "sensitivity_recall": 0.9091,
+        "specificity": 0.7546,
+        "precision_ppv": 0.8146,
+        "f1_score": 0.8593,
+        "roc_auc_ovr": 0.8935,
+        "pr_auc": 0.8771
+      },
+      "BENIGN_BONE_TUMOR": {
+        "class_index": 1,
+        "support": 228,
+        "prevalence": 0.3878,
+        "sensitivity_recall": 0.6754,
+        "specificity": 0.9194,
+        "precision_ppv": 0.8415,
+        "f1_score": 0.7494,
+        "roc_auc_ovr": 0.8538,
+        "pr_auc": 0.8382
+      },
+      "PRIMARY_MALIGNANT_TUMOR": {
+        "class_index": 2,
+        "support": 41,
+        "prevalence": 0.0697,
+        "sensitivity_recall": 0.9024,
+        "specificity": 0.9781,
+        "precision_ppv": 0.7551,
+        "f1_score": 0.8222,
+        "roc_auc_ovr": 0.9868,
+        "pr_auc": 0.8949
+      }
+    },
+    "confusion_matrix": [
+      [290, 26, 3],
+      [65, 154, 9],
+      [1, 3, 37]
+    ]
+  },
+  "inference_specification": {
+    "primary_decision_rule": "argmax(softmax(logits))",
+    "classification_thresholds": "Default argmax (no post-hoc threshold shifting)",
+    "probability_calibration_status": "Uncalibrated raw softmax outputs (Brier score: 0.3168)",
+    "preprocessing_pipeline": "Aspect-ratio preserving letterbox with symmetrical black padding to 512x512",
+    "normalization": {
+      "mean": [0.485, 0.456, 0.406],
+      "std": [0.229, 0.224, 0.225]
+    }
+  },
+  "external_evaluation_targets": {
+    "center_2": {
+      "description": "Primary external multi-center three-class validation benchmark",
+      "cohort_size": 549,
+      "class_distribution": {
+        "NORMAL_BONE_RADIOGRAPH": 259,
+        "BENIGN_BONE_TUMOR": 214,
+        "PRIMARY_MALIGNANT_TUMOR": 76
+      },
+      "status": "SEALED_HOLDOUT"
+    },
+    "center_3": {
+      "description": "Secondary external multi-center three-class stress test",
+      "cohort_size": 259,
+      "class_distribution": {
+        "NORMAL_BONE_RADIOGRAPH": 27,
+        "BENIGN_BONE_TUMOR": 201,
+        "PRIMARY_MALIGNANT_TUMOR": 31
+      },
+      "status": "SEALED_HOLDOUT",
+      "epidemiological_notes": "Extreme imbalance for Normal class (prevalence 10.42%); specificity and sensitivity metrics require cautious contextual interpretation"
+    }
+  },
+  "scientific_disclaimers": [
+    "Research prototype only: Not cleared for clinical diagnostic use.",
+    "Patient-level internal independence cannot be formally guaranteed within Center 1 due to BTXRD metadata limitations.",
+    "Primary malignant bone tumours (e.g. osteosarcoma) are strictly modeled independently from secondary bone metastases."
+  ]
+}
+

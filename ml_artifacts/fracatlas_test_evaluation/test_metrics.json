@@ -1,0 +1,112 @@
+{
+  "dataset": "FracAtlas Holdout Test Split",
+  "checkpoint_used": "ml_artifacts\\fracatlas_full_training\\best_checkpoint.pt",
+  "checkpoint_epoch": 9,
+  "total_test_samples": 614,
+  "test_fractured": 110,
+  "test_non_fractured": 504,
+  "test_prevalence": 0.1792,
+  "roc_auc": 0.9117,
+  "pr_auc": 0.7537,
+  "frozen_primary_threshold_031": {
+    "threshold": 0.31,
+    "tp": 99,
+    "fp": 129,
+    "tn": 375,
+    "fn": 11,
+    "accuracy": 0.772,
+    "sensitivity_recall": 0.9,
+    "specificity": 0.744,
+    "precision_ppv": 0.4342,
+    "npv": 0.9715,
+    "f1_score": 0.5858,
+    "balanced_accuracy": 0.822,
+    "youden_j": 0.644,
+    "false_positive_rate": 0.256,
+    "false_negative_rate": 0.1
+  },
+  "secondary_threshold_050": {
+    "threshold": 0.5,
+    "tp": 65,
+    "fp": 27,
+    "tn": 477,
+    "fn": 45,
+    "accuracy": 0.8827,
+    "sensitivity_recall": 0.5909,
+    "specificity": 0.9464,
+    "precision_ppv": 0.7065,
+    "npv": 0.9138,
+    "f1_score": 0.6436,
+    "balanced_accuracy": 0.7687,
+    "youden_j": 0.5373,
+    "false_positive_rate": 0.0536,
+    "false_negative_rate": 0.4091
+  },
+  "confidence_intervals_95": {
+    "roc_auc": {
+      "ci_lower_95": 0.8838,
+      "ci_upper_95": 0.937
+    },
+    "pr_auc": {
+      "ci_lower_95": 0.6775,
+      "ci_upper_95": 0.8171
+    },
+    "sensitivity": {
+      "ci_lower_95": 0.8468,
+      "ci_upper_95": 0.9508
+    },
+    "specificity": {
+      "ci_lower_95": 0.7062,
+      "ci_upper_95": 0.7817
+    },
+    "precision": {
+      "ci_lower_95": 0.3728,
+      "ci_upper_95": 0.4977
+    },
+    "f1_score": {
+      "ci_lower_95": 0.5247,
+      "ci_upper_95": 0.645
+    },
+    "balanced_accuracy": {
+      "ci_lower_95": 0.791,
+      "ci_upper_95": 0.854
+    }
+  },
+  "validation_comparison_primary_031": {
+    "roc_auc": {
+      "val": 0.8871,
+      "test": 0.9117,
+      "delta": 0.0246
+    },
+    "pr_auc": {
+      "val": 0.7556,
+      "test": 0.7537,
+      "delta": -0.0019
+    },
+    "sensitivity": {
+      "val": 0.8598,
+      "test": 0.9,
+      "delta": 0.0402
+    },
+    "specificity": {
+      "val": 0.7248,
+      "test": 0.744,
+      "delta": 0.0192
+    },
+    "precision": {
+      "val": 0.3983,
+      "test": 0.4342,
+      "delta": 0.0359
+    },
+    "f1_score": {
+      "val": 0.5444,
+      "test": 0.5858,
+      "delta": 0.0414
+    },
+    "balanced_accuracy": {
+      "val": 0.7923,
+      "test": 0.822,
+      "delta": 0.0297
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "audit_stage": "STAGE_22",
+  "timestamp": "2026-11-16T08:50:00+05:30",
+  "target_classes": {
+    "0": "secondary_bone_metastasis",
+    "1": "pagets_disease",
+    "2": "osteogenesis_imperfecta",
+    "3": "healthy_control"
+  },
+  "in_tree_datasets": {
+    "fracatlas": {
+      "images": 4083,
+      "fractured": 719,
+      "non_fractured": 3364,
+      "modality": "Planar Radiography (X-ray)",
+      "suitability_for_four_class": "UNSUITABLE",
+      "negative_class_interpretation": "Patients presenting to emergency triage with acute trauma/suspected fracture where no acute fracture was found. Heavily confounded by trauma, degenerative arthritis, or osteopenia."
+    },
+    "bone_scintigraphy": {
+      "patients": 291,
+      "images": 582,
+      "metastasis_positive": 60,
+      "metastasis_negative": 231,
+      "modality": "Planar Whole-Body Scintigraphy (99mTc-MDP)",
+      "suitability_for_four_class": {
+        "metastasis_target": "CONDITIONALLY SUITABLE (Nuclear medicine modality only; breast cancer primary only)",
+        "healthy_control_target": "UNSUITABLE (Oncologic patients on systemic therapy; modality mismatch)"
+      }
+    },
+    "btxrd": {
+      "images": 3746,
+      "normal": 1879,
+      "benign": 1525,
+      "malignant": 342,
+      "modality": "Conventional Plain Radiography (X-ray)",
+      "center_distribution": {
+        "center_1": 2938,
+        "center_2": 549,
+        "center_3": 259
+      },
+      "suitability_for_four_class": {
+        "metastasis_target": "UNSUITABLE (Primary osteosarcoma/chondrosarcoma != secondary metastasis)",
+        "healthy_control_target": "CONDITIONALLY SUITABLE (Center 1 normal radiographs only; lacks patient IDs; requires clinical re-reading)"
+      },
+      "burned_holdouts": [
+        "center_2",
+        "center_3"
+      ]
+    }
+  },
+  "coverage_status": {
+    "secondary_bone_metastasis": "CONDITIONALLY_COVERED (Scintigraphy only; lacking plain X-ray radiographs)",
+    "pagets_disease": "COMPLETELY_MISSING (0 images in-tree)",
+    "osteogenesis_imperfecta": "COMPLETELY_MISSING (0 images in-tree)",
+    "healthy_control": "PARTIALLY_COVERED (BTXRD Center 1 normal conditionally suitable; lacks verified patient IDs; FracAtlas negative rejected)"
+  },
+  "overall_readiness": "NOT READY \u2014 DATA ACQUISITION REQUIRED"
+}

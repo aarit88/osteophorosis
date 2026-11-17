@@ -1,0 +1,28 @@
+experiment: Bone Scan Metastasis ResNet-18 Pilot
+dataset_manifest: ml_service\data\splits\bone_scan_train_cv_manifest.csv
+validation_fold: fold_0
+train_patients: 161
+train_positive_patients: 33
+train_negative_patients: 128
+val_patients: 42
+val_positive_patients: 9
+val_negative_patients: 33
+architecture: ResNet18
+in_channels: 1
+input_dimensions: 256 x 1024 (aspect ratio 1:4 preserved)
+intensity_preprocessing: clip at 25000 counts, scale to [0, 1]
+dropout_rate: 0.4
+loss: BCEWithLogitsLoss
+pos_weight: 3.8788
+optimizer: AdamW
+fc_lr: 0.0001
+layer4_lr: 1.0e-05
+weight_decay: 0.01
+max_epochs: 3
+micro_batch_size: 1
+grad_accum_steps: 4
+effective_batch_size_patients: 4
+effective_batch_size_images: 8
+random_seed: 42
+device: NVIDIA GeForce RTX 3050 A Laptop GPU
+vram_total_mb: 4093.5

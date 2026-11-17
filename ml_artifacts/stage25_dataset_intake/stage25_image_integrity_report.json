@@ -1,0 +1,51 @@
+{
+  "audit_timestamp": "2026-11-16T19:30:00+05:30",
+  "incoming_directory_status": {
+    "path": "ml_service/data/incoming",
+    "exists": false,
+    "incoming_file_count": 0,
+    "unauthorized_payload_detected": false
+  },
+  "in_tree_baseline_integrity": {
+    "bone_scan_metastasis": {
+      "file_count": 582,
+      "corrupted_files_detected": 0,
+      "read_only_status": "VERIFIED_UNMODIFIED"
+    },
+    "btxrd": {
+      "file_count": 3746,
+      "corrupted_files_detected": 0,
+      "read_only_status": "VERIFIED_UNMODIFIED"
+    },
+    "fracatlas": {
+      "file_count": 4085,
+      "corrupted_files_detected": 0,
+      "read_only_status": "VERIFIED_UNMODIFIED"
+    }
+  },
+  "sample_decoding_verification": {
+    "bone_scan_metastasis_sample": {
+      "file_path": "ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A100.png",
+      "format": "PNG",
+      "mode": "I;16",
+      "dimensions": [
+        256,
+        1024
+      ],
+      "decoding_status": "SUCCESS"
+    },
+    "btxrd_sample": {
+      "file_path": "ml_service/data/raw/btxrd/images/IMG000001.jpeg",
+      "format": "JPEG",
+      "mode": "L",
+      "dimensions": [
+        3213,
+        2397
+      ],
+      "decoding_status": "SUCCESS"
+    }
+  },
+  "new_images_ingested_in_stage25": 0,
+  "new_bytes_copied_in_stage25": 0,
+  "integrity_verdict": "BASELINE_DATASETS_INTACT_ZERO_NEW_DATA_INGESTED"
+}

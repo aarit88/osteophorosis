@@ -1,0 +1,28 @@
+# OsteoGuard AI - ML Service Runtime Dependencies
+# Python >= 3.10, compatible with Python 3.13
+
+# Core Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Scientific Computing & Radiomics
+numpy>=1.22.0
+scipy>=1.9.0
+scikit-image>=0.20.0
+opencv-python-headless>=4.7.0
+Pillow>=9.5.0
+pydicom>=3.0.0
+nibabel>=5.0.0
+imagehash>=4.3.0
+openpyxl>=3.1.5
+
+# API & Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+pyyaml>=6.0.0
+
+# Explainability
+shap>=0.42.0

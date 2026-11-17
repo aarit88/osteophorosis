@@ -1,0 +1,85 @@
+patient_id,view,file_path,actual_label,probability,pred_label_050
+PT_BS_019,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A19.png,1,0.546387,1
+PT_BS_019,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P19.png,1,0.564453,1
+PT_BS_029,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A29.png,1,0.592773,1
+PT_BS_029,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P29.png,1,0.581543,1
+PT_BS_033,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A33.png,1,0.566895,1
+PT_BS_033,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P33.png,1,0.589844,1
+PT_BS_036,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A36.png,1,0.562012,1
+PT_BS_036,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P36.png,1,0.567871,1
+PT_BS_034,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A34.png,1,0.578613,1
+PT_BS_034,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P34.png,1,0.567383,1
+PT_BS_030,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A30.png,1,0.513184,1
+PT_BS_030,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P30.png,1,0.549316,1
+PT_BS_001,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A1.png,1,0.545898,1
+PT_BS_001,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P1.png,1,0.572266,1
+PT_BS_017,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A17.png,1,0.508789,1
+PT_BS_017,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P17.png,1,0.560547,1
+PT_BS_014,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Anterior/A14.png,1,0.54834,1
+PT_BS_014,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/Bone metastases/Posterior/P14.png,1,0.576172,1
+PT_BS_109,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A109.png,0,0.489014,0
+PT_BS_109,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P109.png,0,0.443359,0
+PT_BS_066,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A66.png,0,0.549316,1
+PT_BS_066,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P66.png,0,0.535156,1
+PT_BS_148,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A148.png,0,0.574707,1
+PT_BS_148,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P148.png,0,0.57373,1
+PT_BS_220,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A220.png,0,0.560547,1
+PT_BS_220,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P220.png,0,0.476562,0
+PT_BS_063,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A63.png,0,0.540039,1
+PT_BS_063,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P63.png,0,0.533203,1
+PT_BS_113,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A113.png,0,0.584961,1
+PT_BS_113,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P113.png,0,0.489746,0
+PT_BS_064,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A64.png,0,0.537598,1
+PT_BS_064,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P64.png,0,0.562988,1
+PT_BS_284,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A284.png,0,0.516113,1
+PT_BS_284,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P284.png,0,0.512207,1
+PT_BS_076,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A76.png,0,0.541504,1
+PT_BS_076,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P76.png,0,0.500977,1
+PT_BS_200,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A200.png,0,0.544922,1
+PT_BS_200,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P200.png,0,0.553711,1
+PT_BS_159,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A159.png,0,0.537109,1
+PT_BS_159,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P159.png,0,0.494873,0
+PT_BS_215,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A215.png,0,0.47168,0
+PT_BS_215,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P215.png,0,0.493408,0
+PT_BS_090,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A90.png,0,0.53125,1
+PT_BS_090,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P90.png,0,0.451172,0
+PT_BS_062,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A62.png,0,0.534668,1
+PT_BS_062,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P62.png,0,0.536133,1
+PT_BS_272,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A272.png,0,0.494141,0
+PT_BS_272,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P272.png,0,0.467285,0
+PT_BS_082,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A82.png,0,0.496338,0
+PT_BS_082,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P82.png,0,0.463867,0
+PT_BS_201,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A201.png,0,0.566895,1
+PT_BS_201,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P201.png,0,0.500488,1
+PT_BS_140,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A140.png,0,0.484619,0
+PT_BS_140,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P140.png,0,0.530762,1
+PT_BS_282,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A282.png,0,0.529297,1
+PT_BS_282,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P282.png,0,0.515625,1
+PT_BS_180,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A180.png,0,0.56543,1
+PT_BS_180,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P180.png,0,0.528809,1
+PT_BS_222,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A222.png,0,0.544434,1
+PT_BS_222,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P222.png,0,0.515137,1
+PT_BS_243,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A243.png,0,0.487549,0
+PT_BS_243,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P243.png,0,0.541504,1
+PT_BS_209,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A209.png,0,0.489502,0
+PT_BS_209,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P209.png,0,0.512695,1
+PT_BS_211,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A211.png,0,0.515137,1
+PT_BS_211,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P211.png,0,0.513184,1
+PT_BS_289,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A289.png,0,0.478516,0
+PT_BS_289,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P289.png,0,0.515625,1
+PT_BS_264,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A264.png,0,0.494141,0
+PT_BS_264,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P264.png,0,0.477295,0
+PT_BS_161,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A161.png,0,0.505859,1
+PT_BS_161,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P161.png,0,0.459473,0
+PT_BS_192,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A192.png,0,0.543457,1
+PT_BS_192,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P192.png,0,0.491211,0
+PT_BS_147,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A147.png,0,0.575195,1
+PT_BS_147,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P147.png,0,0.555176,1
+PT_BS_085,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A85.png,0,0.491455,0
+PT_BS_085,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P85.png,0,0.542969,1
+PT_BS_265,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A265.png,0,0.543945,1
+PT_BS_265,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P265.png,0,0.520996,1
+PT_BS_229,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A229.png,0,0.492188,0
+PT_BS_229,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P229.png,0,0.433838,0
+PT_BS_190,anterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Anterior/A190.png,0,0.581543,1
+PT_BS_190,posterior,C:/Users/archi/OneDrive/Desktop/osteophorosis-main/ml_service/data/raw/bone_scan_metastasis/No bone metastases/Posterior/P190.png,0,0.563477,1

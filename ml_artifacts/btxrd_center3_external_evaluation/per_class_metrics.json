@@ -1,0 +1,164 @@
+{
+  "NORMAL_BONE_RADIOGRAPH": {
+    "class_index": 0,
+    "support": 27,
+    "prevalence": 0.1042,
+    "sensitivity": {
+      "estimate": 0.1852,
+      "ci_95": [
+        0.05,
+        0.3448
+      ]
+    },
+    "specificity": {
+      "estimate": 0.7845,
+      "ci_95": [
+        0.7276,
+        0.834
+      ]
+    },
+    "precision_ppv": {
+      "estimate": 0.0909,
+      "ci_95": [
+        0.0217,
+        0.1719
+      ]
+    },
+    "npv": {
+      "estimate": 0.8922,
+      "ci_95": [
+        0.8469,
+        0.933
+      ]
+    },
+    "f1_score": {
+      "estimate": 0.122,
+      "ci_95": [
+        0.029,
+        0.2201
+      ]
+    },
+    "roc_auc_ovr": {
+      "estimate": 0.5121,
+      "ci_95": [
+        0.4151,
+        0.6197
+      ]
+    },
+    "pr_auc": {
+      "estimate": 0.1141,
+      "ci_95": [
+        0.0734,
+        0.2065
+      ]
+    }
+  },
+  "BENIGN_BONE_TUMOR": {
+    "class_index": 1,
+    "support": 201,
+    "prevalence": 0.7761,
+    "sensitivity": {
+      "estimate": 0.4776,
+      "ci_95": [
+        0.4088,
+        0.5507
+      ]
+    },
+    "specificity": {
+      "estimate": 0.7069,
+      "ci_95": [
+        0.5873,
+        0.8116
+      ]
+    },
+    "precision_ppv": {
+      "estimate": 0.8496,
+      "ci_95": [
+        0.7857,
+        0.9127
+      ]
+    },
+    "npv": {
+      "estimate": 0.2808,
+      "ci_95": [
+        0.2061,
+        0.3561
+      ]
+    },
+    "f1_score": {
+      "estimate": 0.6115,
+      "ci_95": [
+        0.5448,
+        0.6726
+      ]
+    },
+    "roc_auc_ovr": {
+      "estimate": 0.6793,
+      "ci_95": [
+        0.6,
+        0.7533
+      ]
+    },
+    "pr_auc": {
+      "estimate": 0.8718,
+      "ci_95": [
+        0.8233,
+        0.9175
+      ]
+    }
+  },
+  "PRIMARY_MALIGNANT_TUMOR": {
+    "class_index": 2,
+    "support": 31,
+    "prevalence": 0.1197,
+    "sensitivity": {
+      "estimate": 0.6774,
+      "ci_95": [
+        0.5132,
+        0.8333
+      ]
+    },
+    "specificity": {
+      "estimate": 0.693,
+      "ci_95": [
+        0.634,
+        0.7523
+      ]
+    },
+    "precision_ppv": {
+      "estimate": 0.2308,
+      "ci_95": [
+        0.1477,
+        0.3229
+      ]
+    },
+    "npv": {
+      "estimate": 0.9405,
+      "ci_95": [
+        0.8994,
+        0.9713
+      ]
+    },
+    "f1_score": {
+      "estimate": 0.3443,
+      "ci_95": [
+        0.2342,
+        0.4531
+      ]
+    },
+    "roc_auc_ovr": {
+      "estimate": 0.749,
+      "ci_95": [
+        0.6479,
+        0.8326
+      ]
+    },
+    "pr_auc": {
+      "estimate": 0.3815,
+      "ci_95": [
+        0.2318,
+        0.5807
+      ]
+    }
+  }
+}

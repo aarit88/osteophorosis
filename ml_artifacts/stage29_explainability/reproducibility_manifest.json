@@ -1,0 +1,20 @@
+{
+  "stage": "STAGE 29 \u2014 EXPLAINABILITY ENGINE (GRAD-CAM & SHAP) ARCHITECTURAL AUDIT AND SYNTHETIC VERIFICATION",
+  "timestamp": "2026-11-16T21:33:30.825498",
+  "cryptographic_verification": {
+    "btxrd_frozen_checkpoint": "ml_artifacts\\btxrd_frozen_model\\best_checkpoint.pt",
+    "expected_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+    "verified_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+    "status": "STRICT_MATCH_CONFIRMED"
+  },
+  "modules_evaluated": [
+    "osteoguard.explainability.gradcam",
+    "osteoguard.explainability.shap_engine",
+    "osteoguard.explainability.synthetic_fixtures"
+  ],
+  "datasets_used": "NONE (100% Deterministic Synthetic Digital Fixtures)",
+  "patient_data_accessed": false,
+  "holdout_accessed": false,
+  "models_trained": false,
+  "stage27_radiomics_discrepancy_visible": true
+}

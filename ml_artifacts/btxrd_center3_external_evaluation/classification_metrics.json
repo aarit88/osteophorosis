@@ -1,0 +1,49 @@
+{
+  "evaluation_cohort": "Center 3 External Stress Test (N=259)",
+  "overall_accuracy": {
+    "estimate": 0.471,
+    "ci_95": [
+      0.4093,
+      0.5328
+    ]
+  },
+  "balanced_accuracy": {
+    "estimate": 0.4467,
+    "ci_95": [
+      0.3694,
+      0.526
+    ]
+  },
+  "macro_f1": {
+    "estimate": 0.3592,
+    "ci_95": [
+      0.3007,
+      0.4183
+    ]
+  },
+  "weighted_f1": {
+    "estimate": 0.5285,
+    "ci_95": [
+      0.4687,
+      0.5866
+    ]
+  },
+  "macro_roc_auc_ovr": {
+    "estimate": 0.6468,
+    "ci_95": [
+      0.5853,
+      0.7043
+    ]
+  },
+  "macro_pr_auc_ovr": {
+    "estimate": 0.4558,
+    "ci_95": [
+      0.406,
+      0.5327
+    ]
+  },
+  "multiclass_brier_score": 0.6486,
+  "calibration_status": "uncalibrated_raw_softmax",
+  "decision_rule": "argmax(softmax(logits))",
+  "epidemiological_notice": "Specialized oncology referral cohort with severe imbalance (only 27 normal controls, 10.42%). Normal specificity and sensitivity estimates have wider confidence intervals."
+}

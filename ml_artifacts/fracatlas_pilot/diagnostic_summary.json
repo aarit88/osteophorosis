@@ -1,0 +1,595 @@
+{
+  "validation_samples": 612,
+  "actual_fractured_count": 107,
+  "actual_non_fractured_count": 505,
+  "roc_auc": 0.7675,
+  "pr_auc": 0.4068,
+  "prevalence_baseline": 0.1748,
+  "probability_stats": {
+    "fractured": {
+      "count": 107,
+      "mean": 0.37669903457721815,
+      "std": 0.058782366916505256,
+      "min": 0.22422528266906738,
+      "p5": 0.25535811185836793,
+      "p10": 0.3000759959220886,
+      "p25": 0.347551167011261,
+      "median": 0.3803560733795166,
+      "p75": 0.4194127023220062,
+      "p90": 0.4472960114479065,
+      "p95": 0.462177726626396,
+      "max": 0.47816330194473267
+    },
+    "non_fractured": {
+      "count": 505,
+      "mean": 0.31017981387010896,
+      "std": 0.06822001696588013,
+      "min": 0.14438998699188232,
+      "p5": 0.19924589693546296,
+      "p10": 0.21942359209060672,
+      "p25": 0.25720494985580444,
+      "median": 0.30964961647987366,
+      "p75": 0.363646924495697,
+      "p90": 0.39455082416534426,
+      "p95": 0.41325816512107844,
+      "max": 0.49150165915489197
+    },
+    "all": {
+      "count": 612,
+      "mean": 0.3218098083401428,
+      "std": 0.07129356389760295,
+      "min": 0.14438998699188232,
+      "p5": 0.20431054532527923,
+      "p10": 0.22640738487243653,
+      "p25": 0.2650238052010536,
+      "median": 0.32632510364055634,
+      "p75": 0.3751697838306427,
+      "p90": 0.41183808743953704,
+      "p95": 0.43916491270065305,
+      "max": 0.49150165915489197
+    }
+  },
+  "threshold_summary": {
+    "best_f1": {
+      "threshold": 0.35,
+      "tp": 77,
+      "fp": 156,
+      "tn": 349,
+      "fn": 30,
+      "sensitivity_recall": 0.7196,
+      "specificity": 0.6911,
+      "precision": 0.3305,
+      "f1_score": 0.4529,
+      "accuracy": 0.6961,
+      "balanced_accuracy": 0.7054,
+      "youden_j": 0.4107
+    },
+    "best_youden_j": {
+      "threshold": 0.35,
+      "tp": 77,
+      "fp": 156,
+      "tn": 349,
+      "fn": 30,
+      "sensitivity_recall": 0.7196,
+      "specificity": 0.6911,
+      "precision": 0.3305,
+      "f1_score": 0.4529,
+      "accuracy": 0.6961,
+      "balanced_accuracy": 0.7054,
+      "youden_j": 0.4107
+    },
+    "threshold_80_sensitivity": {
+      "threshold": 0.32,
+      "tp": 89,
+      "fp": 238,
+      "tn": 267,
+      "fn": 18,
+      "sensitivity_recall": 0.8318,
+      "specificity": 0.5287,
+      "precision": 0.2722,
+      "f1_score": 0.4101,
+      "accuracy": 0.5817,
+      "balanced_accuracy": 0.6802,
+      "youden_j": 0.3605
+    },
+    "threshold_90_sensitivity": {
+      "threshold": 0.29,
+      "tp": 97,
+      "fp": 301,
+      "tn": 204,
+      "fn": 10,
+      "sensitivity_recall": 0.9065,
+      "specificity": 0.404,
+      "precision": 0.2437,
+      "f1_score": 0.3842,
+      "accuracy": 0.4918,
+      "balanced_accuracy": 0.6553,
+      "youden_j": 0.3105
+    }
+  },
+  "image_loading_audit": {
+    "total_images": 4083,
+    "truncated_count": 59,
+    "truncated_images": [
+      {
+        "image_id": "IMG0004028.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004028.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (20 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004029.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004029.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (22 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004036.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004036.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (14 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004070.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004070.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (41 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004073.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004073.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (3 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004076.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004076.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (0 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004079.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004079.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (24 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004084.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004084.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (5 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004092.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004092.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (3 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004098.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004098.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (17 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004100.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004100.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (15 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004109.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004109.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (5 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004119.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004119.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (6 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004120.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004120.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (8 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004121.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004121.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (40 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004122.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004122.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (26 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004123.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004123.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (17 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004129.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004129.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (6 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004130.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004130.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (8 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004134.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004134.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (1 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004142.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004142.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (32 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004143.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004143.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (10 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004145.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004145.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (10 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004148.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004148.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (14 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004149.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004149.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (33 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004154.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004154.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (22 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004155.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004155.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (18 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004159.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004159.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (8 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004169.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004169.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (14 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004170.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004170.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (11 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004173.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004173.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (0 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004174.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004174.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (4 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004177.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004177.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (34 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004189.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004189.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (16 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004194.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004194.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (10 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004226.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004226.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (23 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004227.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004227.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (30 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004228.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004228.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (17 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004251.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004251.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (19 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004252.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004252.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (67 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004255.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004255.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (20 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004256.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004256.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (66 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004258.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004258.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (0 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004259.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004259.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (7 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004263.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004263.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (24 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004273.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004273.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (8 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004275.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004275.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (24 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004278.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004278.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (29 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004279.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004279.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (5 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004285.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004285.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (9 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004286.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004286.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (46 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004288.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004288.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (1 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004290.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004290.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (54 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004291.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004291.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (13 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004297.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004297.jpg",
+        "split": "val",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (5 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004298.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004298.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (19 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004304.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004304.jpg",
+        "split": "train",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (22 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004308.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004308.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (40 bytes not processed)",
+        "recovered_with_load_truncated": true
+      },
+      {
+        "image_id": "IMG0004347.jpg",
+        "file_path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\raw\\fracatlas\\images\\Non_fractured\\IMG0004347.jpg",
+        "split": "test",
+        "target_class": "candidate_control_radiograph",
+        "error_message": "image file is truncated (40 bytes not processed)",
+        "recovered_with_load_truncated": true
+      }
+    ],
+    "fatal_errors": []
+  },
+  "model_head": {
+    "weight_norm_class_0": 0.6098440885543823,
+    "weight_norm_class_1": 0.6031103730201721,
+    "bias_class_0": -0.00968996062874794,
+    "bias_class_1": 0.004889929201453924
+  }
+}

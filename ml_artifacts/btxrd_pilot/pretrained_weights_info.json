@@ -1,0 +1,29 @@
+{
+  "model_architecture": "ResNet-34",
+  "weights_source": "torchvision.models.ResNet34_Weights.IMAGENET1K_V1",
+  "weights_file": "resnet34-b627a593.pth",
+  "num_classes": 3,
+  "classification_head": "Dropout(p=0.4) -> Linear(512, 3)",
+  "frozen_layers": [
+    "conv1",
+    "bn1",
+    "layer1",
+    "layer2",
+    "layer3"
+  ],
+  "trainable_layers": [
+    "layer4",
+    "classifier"
+  ],
+  "parameter_counts": {
+    "model_architecture": "ResNet-34",
+    "weights_provenance": "ResNet34_Weights.IMAGENET1K_V1",
+    "num_classes": 3,
+    "dropout_p": 0.4,
+    "freeze_early_backbone": true,
+    "total_parameters": 21286211,
+    "trainable_parameters": 13115907,
+    "frozen_parameters": 8170304,
+    "trainable_percentage": 61.62
+  }
+}

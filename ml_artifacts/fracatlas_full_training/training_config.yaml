@@ -1,0 +1,38 @@
+dataset: FracAtlas Full Classification
+manifest_path: ml_service\data\splits\fracatlas_classification_split.csv
+total_train_samples: 2857
+train_fractured: 502
+train_non_fractured: 2355
+total_val_samples: 612
+val_fractured: 107
+val_non_fractured: 505
+total_test_samples: 614
+test_status: quarantined_untouched
+architecture: ResNet101
+weights: ResNet101_Weights.IMAGENET1K_V2
+cached_weights_sha256: cd907fc2a0de2292b2ba2b27d2216bc672d84632d1cf20058d01c0c03b5e020e
+class_prior_pi: 0.17570878543927196
+fc_bias_init:
+- 0.0
+- -1.545695886758789
+loss: FocalLoss
+focal_gamma: 2.0
+focal_alpha:
+- 0.25
+- 0.75
+micro_batch_size: 2
+grad_accum_steps: 8
+effective_batch_size: 16
+mixed_precision: FP16 (torch.amp)
+optimizer: AdamW
+weight_decay: 0.01
+scheduler: CosineAnnealingLR
+max_epochs: 30
+warmup_epochs: 5
+patience: 7
+fc_lr_init: 0.0001
+layer4_lr_init: 1.0e-05
+layer3_lr_init: 3.0e-06
+random_seed: 42
+gpu_name: NVIDIA GeForce RTX 3050 A Laptop GPU
+total_vram_mb: 4093.5

@@ -1,0 +1,190 @@
+{
+  "audit_stage": "STAGE_21",
+  "description": "Comprehensive cross-center error analysis cataloging false negatives, false positives, and confusion patterns.",
+  "center1_errors": {
+    "cohort": "Center 1 Clean Val (N=588)",
+    "confusion_matrix": [
+      [
+        290,
+        26,
+        3
+      ],
+      [
+        65,
+        154,
+        9
+      ],
+      [
+        1,
+        3,
+        37
+      ]
+    ],
+    "malignant": {
+      "support": 41,
+      "true_positives": 37,
+      "false_negatives": 4,
+      "fn_breakdown": {
+        "called_normal": 1,
+        "called_benign": 3
+      },
+      "false_positives": 12,
+      "fp_breakdown": {
+        "normal_called_malignant": 3,
+        "benign_called_malignant": 9
+      }
+    },
+    "normal": {
+      "support": 319,
+      "true_positives": 290,
+      "false_negatives": 29,
+      "fn_breakdown": {
+        "called_benign": 26,
+        "called_malignant": 3
+      },
+      "false_positives": 66,
+      "fp_breakdown": {
+        "benign_called_normal": 65,
+        "malignant_called_normal": 1
+      }
+    },
+    "benign": {
+      "support": 228,
+      "true_positives": 154,
+      "false_negatives": 74,
+      "fn_breakdown": {
+        "called_normal": 65,
+        "called_malignant": 9
+      },
+      "false_positives": 29,
+      "fp_breakdown": {
+        "normal_called_benign": 26,
+        "malignant_called_benign": 3
+      }
+    }
+  },
+  "center2_errors": {
+    "cohort": "Center 2 External Holdout (N=549)",
+    "confusion_matrix": [
+      [
+        119,
+        107,
+        33
+      ],
+      [
+        53,
+        120,
+        41
+      ],
+      [
+        10,
+        21,
+        45
+      ]
+    ],
+    "malignant": {
+      "support": 76,
+      "true_positives": 45,
+      "false_negatives": 31,
+      "fn_breakdown": {
+        "called_normal": 10,
+        "called_benign": 21
+      },
+      "false_positives": 74,
+      "fp_breakdown": {
+        "normal_called_malignant": 33,
+        "benign_called_malignant": 41
+      }
+    },
+    "normal": {
+      "support": 259,
+      "true_positives": 119,
+      "false_negatives": 140,
+      "fn_breakdown": {
+        "called_benign": 107,
+        "called_malignant": 33
+      },
+      "false_positives": 63,
+      "fp_breakdown": {
+        "benign_called_normal": 53,
+        "malignant_called_normal": 10
+      }
+    },
+    "benign": {
+      "support": 214,
+      "true_positives": 120,
+      "false_negatives": 94,
+      "fn_breakdown": {
+        "called_normal": 53,
+        "called_malignant": 41
+      },
+      "false_positives": 128,
+      "fp_breakdown": {
+        "normal_called_benign": 107,
+        "malignant_called_benign": 21
+      }
+    }
+  },
+  "center3_errors": {
+    "cohort": "Center 3 External Stress Test (N=259)",
+    "confusion_matrix": [
+      [
+        5,
+        13,
+        9
+      ],
+      [
+        44,
+        96,
+        61
+      ],
+      [
+        6,
+        4,
+        21
+      ]
+    ],
+    "malignant": {
+      "support": 31,
+      "true_positives": 21,
+      "false_negatives": 10,
+      "fn_breakdown": {
+        "called_normal": 6,
+        "called_benign": 4
+      },
+      "false_positives": 70,
+      "fp_breakdown": {
+        "normal_called_malignant": 9,
+        "benign_called_malignant": 61
+      }
+    },
+    "normal": {
+      "support": 27,
+      "true_positives": 5,
+      "false_negatives": 22,
+      "fn_breakdown": {
+        "called_benign": 13,
+        "called_malignant": 9
+      },
+      "false_positives": 50,
+      "fp_breakdown": {
+        "benign_called_normal": 44,
+        "malignant_called_normal": 6
+      }
+    },
+    "benign": {
+      "support": 201,
+      "true_positives": 96,
+      "false_negatives": 105,
+      "fn_breakdown": {
+        "called_normal": 44,
+        "called_malignant": 61
+      },
+      "false_positives": 17,
+      "fp_breakdown": {
+        "normal_called_benign": 13,
+        "malignant_called_benign": 4
+      }
+    }
+  }
+}

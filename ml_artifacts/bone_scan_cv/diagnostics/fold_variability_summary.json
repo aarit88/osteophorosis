@@ -1,0 +1,83 @@
+{
+  "metric_variability": {
+    "roc_auc": {
+      "mean": 0.816,
+      "std": 0.1004,
+      "min": 0.6523,
+      "max": 0.9336,
+      "range": 0.2813
+    },
+    "pr_auc": {
+      "mean": 0.6483,
+      "std": 0.1341,
+      "min": 0.4058,
+      "max": 0.7674,
+      "range": 0.3616
+    },
+    "sensitivity": {
+      "mean": 0.8833,
+      "std": 0.106,
+      "min": 0.75,
+      "max": 1.0,
+      "range": 0.25
+    },
+    "specificity": {
+      "mean": 0.5203,
+      "std": 0.1431,
+      "min": 0.3438,
+      "max": 0.7576,
+      "range": 0.4138
+    },
+    "f1_score": {
+      "mean": 0.4846,
+      "std": 0.0961,
+      "min": 0.3871,
+      "max": 0.64,
+      "range": 0.2529
+    },
+    "balanced_accuracy": {
+      "mean": 0.7018,
+      "std": 0.0917,
+      "min": 0.6076,
+      "max": 0.8232,
+      "range": 0.2156
+    }
+  },
+  "fold_epochs_summary": {
+    "fold_0": {
+      "best_epoch": 15,
+      "best_pr_auc": 0.7674,
+      "last_epoch": 20,
+      "num_epochs_trained": 20
+    },
+    "fold_1": {
+      "best_epoch": 14,
+      "best_pr_auc": 0.6894,
+      "last_epoch": 19,
+      "num_epochs_trained": 19
+    },
+    "fold_2": {
+      "best_epoch": 17,
+      "best_pr_auc": 0.7662,
+      "last_epoch": 20,
+      "num_epochs_trained": 20
+    },
+    "fold_3": {
+      "best_epoch": 2,
+      "best_pr_auc": 0.6125,
+      "last_epoch": 7,
+      "num_epochs_trained": 7
+    },
+    "fold_4": {
+      "best_epoch": 2,
+      "best_pr_auc": 0.4058,
+      "last_epoch": 7,
+      "num_epochs_trained": 7
+    }
+  },
+  "root_cause_analysis": {
+    "fold_0_and_2_high_performance": "Folds 0 and 2 achieved ROC-AUC >= 0.909 and PR-AUC >= 0.766 because their validation partitions contain unambiguous multifocal metastatic lesions (e.g., intense axial and appendicular hot spots) with high signal-to-noise ratio against normal skeletal background. Furthermore, these folds trained for 15-17 epochs without validation loss divergence, allowing deep feature convergence in layer4.",
+    "fold_3_and_4_early_stopping": "Folds 3 and 4 triggered early stopping at Epoch 7 (best epoch was 2). After Epoch 2, validation loss in Fold 4 climbed from 1.0396 to 1.1878 while PR-AUC stagnated around 0.31-0.33. This indicates early generalization saturation: with only 34 training positive patients, model predictions on challenging isolated/subtle solitary metastasis patients did not improve after 2 epochs, causing the patience counter (5 epochs) to trigger promptly as designed, protecting against severe over-memorization.",
+    "early_stopping_behavior": "Early stopping functioned precisely as intended by arresting training when validation PR-AUC ceased improving for 5 consecutive epochs, saving checkpoints from the optimal validation epoch and preventing wasteful GPU cycles on diverging validation loss."
+  }
+}

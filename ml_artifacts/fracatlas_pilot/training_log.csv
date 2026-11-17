@@ -1,0 +1,4 @@
+epoch,train_loss,val_loss,train_duration_sec,val_duration_sec,peak_vram_mb,lr_layer4,lr_fc,val_accuracy,val_precision,val_recall_sensitivity,val_specificity,val_f1_score,val_roc_auc,val_pr_auc
+1,0.612239,0.575559,30.91,11.39,414.37,1e-05,0.0001,0.8252,0.0,0.0,1.0,0.0,0.6539,0.265
+2,0.558088,0.557572,29.45,10.56,414.37,1e-05,0.0001,0.8252,0.0,0.0,1.0,0.0,0.7273,0.3353
+3,0.522203,0.536814,29.26,10.79,414.37,1e-05,0.0001,0.8252,0.0,0.0,1.0,0.0,0.7675,0.4066

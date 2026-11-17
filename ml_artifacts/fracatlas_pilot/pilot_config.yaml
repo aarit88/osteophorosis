@@ -1,0 +1,55 @@
+experiment:
+  name: fracatlas_resnet101_pilot
+  stage: 08B
+  date: '2026-11-15'
+  random_seed: 42
+hardware:
+  device: cuda:0
+  gpu_name: NVIDIA GeForce RTX 3050 A Laptop GPU
+  compute_capability: '8.9'
+  total_vram_mb: 4093.5
+  mixed_precision: FP16
+model:
+  architecture: ResNet101
+  weights_enum: ResNet101_Weights.IMAGENET1K_V2
+  weights_url: https://download.pytorch.org/models/resnet101-cd907fc2.pth
+  local_cache_path: C:\Users\archi\.cache\torch\hub\checkpoints\resnet101-cd907fc2.pth
+  cache_sha256: cd907fc2a0de2292b2ba2b27d2216bc672d84632d1cf20058d01c0c03b5e020e
+  total_parameters: 42504258
+  trainable_parameters: 14968834
+  frozen_parameters: 27535424
+  trainable_percentage: 35.22
+  classifier_head: Linear(in_features=2048, out_features=2, bias=True)
+  output_mapping:
+    0: candidate_control_radiograph
+    1: acute_bone_fracture
+dataset:
+  task: binary_acute_fracture_classification
+  original_manifest: C:\Users\archi\OneDrive\Desktop\osteophorosis-main\ml_service\data\splits\fracatlas_classification_split.csv
+  pilot_sample_manifest: C:\Users\archi\OneDrive\Desktop\osteophorosis-main\ml_artifacts\fracatlas_pilot\pilot_sample_manifest.csv
+  sampling:
+    random_seed: 42
+    total_available_train: 2857
+    available_fractured: 502
+    available_non_fractured: 2355
+    sampled_total: 1024
+    sampled_fractured: 180
+    sampled_non_fractured: 844
+    sampled_prevalence: 0.17578125
+    total_val_records: 612
+    val_fractured: 107
+    val_non_fractured: 505
+training:
+  epochs: 3
+  micro_batch_size: 2
+  gradient_accumulation_steps: 8
+  effective_batch_size: 16
+  optimizer: AdamW
+  learning_rates:
+    layer4: 1.0e-05
+    fc: 0.0001
+  weight_decay: 0.01
+  loss: CrossEntropyLoss(weighted)
+  class_weights:
+  - 1.0
+  - 4.688889

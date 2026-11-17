@@ -1,0 +1,103 @@
+# ==============================================================================
+# OsteoGuard AI - Training Configuration Specification
+# Model: FracAtlas ResNet-101 Binary Fracture Classification
+# ==============================================================================
+experiment_name: "fracatlas_resnet101_binary_fracture"
+version: "1.0.0"
+date_created: "2026-11-15"
+
+# ------------------------------------------------------------------------------
+# 1. Model Architecture
+# ------------------------------------------------------------------------------
+model:
+  architecture: "resnet101"
+  backbone: "ResNet-101"
+  num_classes: 2
+  in_channels: 3
+  pretrained: false  # Safe initialization; ImageNet weights optional upon verification
+  weights_source: "torchvision.models.ResNet101_Weights.DEFAULT"
+  dropout_rate: 0.2
+  pooling: "AdaptiveAvgPool2d(1, 1)"
+  head: "Linear(2048, 2)"
+
+# ------------------------------------------------------------------------------
+# 2. Dataset & Input Dimensions
+# ------------------------------------------------------------------------------
+dataset:
+  name: "fracatlas"
+  task: "binary_acute_fracture_classification"
+  manifest_path: "ml_service/data/splits/fracatlas_classification_split.csv"
+  target_classes:
+    0: "candidate_control_radiograph"
+    1: "acute_bone_fracture"
+  input_dimensions:
+    channels: 3
+    height: 224
+    width: 224
+  class_balance:
+    fractured: 719
+    non_fractured: 3364
+    imbalance_ratio: 4.6787  # 3364 / 719
+
+# ------------------------------------------------------------------------------
+# 3. DataLoader Specifications
+# ------------------------------------------------------------------------------
+dataloader:
+  batch_size: 16       # Conservative batch size suitable for local CPU/4GB GPU
+  num_workers: 0      # Windows multiprocessing stability (avoids spawn deadlocks)
+  pin_memory: false   # Disabled for CPU execution
+  shuffle_train: true
+  drop_last: false
+
+# ------------------------------------------------------------------------------
+# 4. Optimization & Hyperparameters
+# ------------------------------------------------------------------------------
+training:
+  epochs: 30
+  random_seed: 42
+  optimizer:
+    name: "AdamW"
+    learning_rate: 0.0001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  lr_scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 30
+    eta_min: 1.0e-6
+  loss:
+    name: "CrossEntropyLoss"
+    label_smoothing: 0.05
+    use_class_weights: true
+    class_weights: [1.0, 4.68]  # Up-weights minority fracture class
+  early_stopping:
+    enabled: true
+    patience: 7
+    metric: "val_loss"
+    mode: "min"
+    min_delta: 0.0001
+
+# ------------------------------------------------------------------------------
+# 5. Device & Execution Environment
+# ------------------------------------------------------------------------------
+hardware:
+  device: "auto"        # Selects CUDA if torch.cuda.is_available() else CPU
+  preferred_device: "cuda"
+  fallback_device: "cpu"
+  mixed_precision: false  # Set true only when executing on CUDA with AMP
+
+# ------------------------------------------------------------------------------
+# 6. Checkpoint & Artifact Governance
+# ------------------------------------------------------------------------------
+checkpoints:
+  checkpoint_dir: "ml_artifacts/checkpoints/fracatlas_binary"
+  save_best_only: true
+  save_frequency_epochs: 1
+  monitor_metric: "val_loss"
+  keep_top_k: 3
+
+logging:
+  log_dir: "ml_artifacts/logs/fracatlas_binary"
+  log_interval_batches: 20
+  metrics_output: "ml_artifacts/metrics/fracatlas_training_metrics.json"
+

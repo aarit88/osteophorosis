@@ -1,0 +1,96 @@
+{
+  "audit_stage": "STAGE_21",
+  "description": "Cross-center generalization gap analysis comparing Center 1 development validation against external cohorts.",
+  "center1_to_center2_gap": {
+    "macro_f1": {
+      "center1": 0.8103,
+      "center2": 0.5069,
+      "absolute_drop": -0.3034,
+      "relative_drop_pct": -37.44
+    },
+    "balanced_accuracy": {
+      "center1": 0.829,
+      "center2": 0.5374,
+      "absolute_drop": -0.2916,
+      "relative_drop_pct": -35.17
+    },
+    "overall_accuracy": {
+      "center1": 0.818,
+      "center2": 0.5173,
+      "absolute_drop": -0.3007,
+      "relative_drop_pct": -36.76
+    },
+    "macro_roc_auc": {
+      "center1": 0.9114,
+      "center2": 0.718,
+      "absolute_drop": -0.1934,
+      "relative_drop_pct": -21.22
+    },
+    "malignant_sensitivity": {
+      "center1": 0.9024,
+      "center2": 0.5921,
+      "absolute_drop": -0.3103,
+      "relative_drop_pct": -34.39
+    },
+    "malignant_roc_auc": {
+      "center1": 0.9868,
+      "center2": 0.8198,
+      "absolute_drop": -0.167,
+      "relative_drop_pct": -16.92
+    },
+    "brier_score_degradation": {
+      "center1": 0.3168,
+      "center2": 0.5731,
+      "absolute_increase": 0.2563
+    }
+  },
+  "center1_to_center3_gap": {
+    "macro_f1": {
+      "center1": 0.8103,
+      "center3": 0.3592,
+      "absolute_drop": -0.4511,
+      "relative_drop_pct": -55.67
+    },
+    "balanced_accuracy": {
+      "center1": 0.829,
+      "center3": 0.4467,
+      "absolute_drop": -0.3823,
+      "relative_drop_pct": -46.12
+    },
+    "overall_accuracy": {
+      "center1": 0.818,
+      "center3": 0.471,
+      "absolute_drop": -0.347,
+      "relative_drop_pct": -42.42
+    },
+    "macro_roc_auc": {
+      "center1": 0.9114,
+      "center3": 0.6468,
+      "absolute_drop": -0.2646,
+      "relative_drop_pct": -29.03
+    },
+    "malignant_sensitivity": {
+      "center1": 0.9024,
+      "center3": 0.6774,
+      "absolute_drop": -0.225,
+      "relative_drop_pct": -24.93
+    },
+    "normal_sensitivity_collapse": {
+      "center1": 0.9091,
+      "center3": 0.1852,
+      "absolute_drop": -0.7239,
+      "relative_drop_pct": -79.63
+    },
+    "normal_f1_collapse": {
+      "center1": 0.8593,
+      "center3": 0.122,
+      "absolute_drop": -0.7373,
+      "relative_drop_pct": -85.8
+    },
+    "brier_score_degradation": {
+      "center1": 0.3168,
+      "center3": 0.6486,
+      "absolute_increase": 0.3318
+    }
+  }
+}

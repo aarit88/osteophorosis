@@ -1,0 +1,49 @@
+{
+  "labels": [
+    "NORMAL_BONE_RADIOGRAPH",
+    "BENIGN_BONE_TUMOR",
+    "PRIMARY_MALIGNANT_TUMOR"
+  ],
+  "confusion_matrix_counts": [
+    [
+      119,
+      107,
+      33
+    ],
+    [
+      53,
+      120,
+      41
+    ],
+    [
+      10,
+      21,
+      45
+    ]
+  ],
+  "confusion_matrix_row_percentages": [
+    [
+      45.95,
+      41.31,
+      12.74
+    ],
+    [
+      24.77,
+      56.07,
+      19.16
+    ],
+    [
+      13.16,
+      27.63,
+      59.21
+    ]
+  ],
+  "malignant_oncological_audit": {
+    "total_malignant": 76,
+    "correct_malignant_detected": 45,
+    "sensitivity": 0.5921,
+    "false_benign_count": 21,
+    "false_normal_count": 10,
+    "false_positives_non_malignant_called_malignant": 74
+  }
+}

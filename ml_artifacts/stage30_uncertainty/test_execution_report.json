@@ -1,0 +1,160 @@
+{
+  "stage": "STAGE 30",
+  "execution_date": "2026-11-16 21:50:45",
+  "canonical_distributions": {
+    "highly_confident": {
+      "probabilities": [
+        0.94,
+        0.02,
+        0.02,
+        0.02
+      ],
+      "predicted_class": 0,
+      "max_prob": 0.94,
+      "top_two_margin": 0.92,
+      "raw_entropy_nats": 0.292884,
+      "normalized_entropy": 0.211271
+    },
+    "moderately_confident": {
+      "probabilities": [
+        0.65,
+        0.15,
+        0.1,
+        0.1
+      ],
+      "predicted_class": 0,
+      "max_prob": 0.65,
+      "top_two_margin": 0.5,
+      "raw_entropy_nats": 1.025094,
+      "normalized_entropy": 0.739449
+    },
+    "ambiguous_two_class": {
+      "probabilities": [
+        0.48,
+        0.48,
+        0.02,
+        0.02
+      ],
+      "predicted_class": 0,
+      "max_prob": 0.48,
+      "top_two_margin": 0.0,
+      "raw_entropy_nats": 0.861091,
+      "normalized_entropy": 0.621146
+    },
+    "uniform_four_class": {
+      "probabilities": [
+        0.25,
+        0.25,
+        0.25,
+        0.25
+      ],
+      "predicted_class": 0,
+      "max_prob": 0.25,
+      "top_two_margin": 0.0,
+      "raw_entropy_nats": 1.386294,
+      "normalized_entropy": 1.0
+    },
+    "near_equal": {
+      "probabilities": [
+        0.28,
+        0.26,
+        0.24,
+        0.22
+      ],
+      "predicted_class": 0,
+      "max_prob": 0.28,
+      "top_two_margin": 0.02,
+      "raw_entropy_nats": 1.382286,
+      "normalized_entropy": 0.997108
+    },
+    "one_hot_zero_entropy": {
+      "probabilities": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "predicted_class": 0,
+      "max_prob": 1.0,
+      "top_two_margin": 1.0,
+      "raw_entropy_nats": 0.0,
+      "normalized_entropy": 0.0
+    },
+    "extremely_small_probs": {
+      "probabilities": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "predicted_class": 0,
+      "max_prob": 1.0,
+      "top_two_margin": 1.0,
+      "raw_entropy_nats": 5e-06,
+      "normalized_entropy": 4e-06
+    }
+  },
+  "entropy_threshold_audit": {
+    "proposal_threshold": 0.6,
+    "applied_scale": "Normalized Shannon Entropy (H_norm in [0.0, 1.0])",
+    "equivalent_raw_entropy_nats": 0.8318,
+    "mathematical_formula": "H_norm(p) = -sum(p_i * log(p_i)) / log(K)",
+    "abstention_comparison_operator": ">"
+  },
+  "uncertainty_decomposition": {
+    "agreeing_ensemble_mi_nats": 0.0,
+    "disagreeing_ensemble_mi_nats": 0.630315,
+    "mc_dropout_passes": 8,
+    "mc_dropout_epistemic_mi_nats": 0.003094
+  },
+  "ood_detectors": {
+    "msp_threshold": 0.5,
+    "energy_threshold": -2.0,
+    "mahalanobis_threshold": 3.5,
+    "mahalanobis_in_dist": 0.8043983195824045,
+    "mahalanobis_ood_dist": 43.802036708000145
+  },
+  "calibration_results": {
+    "uncalibrated_ece": 0.14662,
+    "calibrated_ece": 0.160857,
+    "fitted_temperature": 0.1
+  },
+  "risk_coverage_curve": [
+    {
+      "coverage": 0.2,
+      "threshold": 0.2659,
+      "retained_count": 20,
+      "selective_risk": 0.15,
+      "selective_accuracy": 0.85
+    },
+    {
+      "coverage": 0.4,
+      "threshold": 0.4219,
+      "retained_count": 40,
+      "selective_risk": 0.15,
+      "selective_accuracy": 0.85
+    },
+    {
+      "coverage": 0.6,
+      "threshold": 0.5678,
+      "retained_count": 60,
+      "selective_risk": 0.1667,
+      "selective_accuracy": 0.8333
+    },
+    {
+      "coverage": 0.8,
+      "threshold": 0.7155,
+      "retained_count": 80,
+      "selective_risk": 0.1625,
+      "selective_accuracy": 0.8375
+    },
+    {
+      "coverage": 1.0,
+      "threshold": 0.9628,
+      "retained_count": 100,
+      "selective_risk": 0.17,
+      "selective_accuracy": 0.83
+    }
+  ],
+  "overall_status": "PASS (ENGINEERING & MATHEMATICAL VALIDATION COMPLETE; CLINICAL CALIBRATION UNVERIFIED)"
+}

@@ -1,0 +1,20 @@
+{
+  "stage": "STAGE 28 \u2014 BIOMECHANICAL FRACTURE-RISK GEOMETRY ENGINE AND MIRELS INPUT VALIDATION",
+  "timestamp": "2026-11-16T21:08:31.223566",
+  "cryptographic_verification": {
+    "btxrd_frozen_checkpoint": "ml_artifacts\\btxrd_frozen_model\\best_checkpoint.pt",
+    "expected_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+    "verified_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+    "status": "STRICT_MATCH_CONFIRMED"
+  },
+  "modules_evaluated": [
+    "osteoguard.biomechanics.mirels",
+    "osteoguard.biomechanics.geometry_engine",
+    "osteoguard.biomechanics.phantom_suite",
+    "osteoguard.biomechanics.fracture_risk"
+  ],
+  "datasets_used": "NONE (100% Deterministic Synthetic Digital Phantoms)",
+  "patient_data_accessed": false,
+  "holdout_accessed": false,
+  "models_trained": false
+}

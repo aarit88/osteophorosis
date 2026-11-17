@@ -1,0 +1,42 @@
+{
+  "experiment": "BTXRD Three-Class ResNet-34 Full Training",
+  "stage": "STAGE_17",
+  "protocol": "Protocol B (Center 1 Internal Development)",
+  "center_1_train": {
+    "total": 2346,
+    "counts": {
+      "NORMAL_BONE_RADIOGRAPH": 1272,
+      "BENIGN_BONE_TUMOR": 880,
+      "PRIMARY_MALIGNANT_TUMOR": 194
+    },
+    "proportions": {
+      "NORMAL_BONE_RADIOGRAPH": 0.5422,
+      "BENIGN_BONE_TUMOR": 0.3751,
+      "PRIMARY_MALIGNANT_TUMOR": 0.0827
+    }
+  },
+  "center_1_val": {
+    "total": 588,
+    "counts": {
+      "NORMAL_BONE_RADIOGRAPH": 319,
+      "BENIGN_BONE_TUMOR": 228,
+      "PRIMARY_MALIGNANT_TUMOR": 41
+    },
+    "proportions": {
+      "NORMAL_BONE_RADIOGRAPH": 0.5425,
+      "BENIGN_BONE_TUMOR": 0.3878,
+      "PRIMARY_MALIGNANT_TUMOR": 0.0697
+    }
+  },
+  "external_centers_isolated": [
+    "center_2",
+    "center_3"
+  ],
+  "conflicting_duplicate_quarantine": [
+    "IMG000591.jpeg",
+    "IMG003456.jpeg",
+    "IMG000707.jpeg",
+    "IMG003346.jpeg"
+  ],
+  "patient_independence_scope": "Internal patient-level independence cannot be claimed due to absence of patient/study identifiers in raw BTXRD metadata."
+}

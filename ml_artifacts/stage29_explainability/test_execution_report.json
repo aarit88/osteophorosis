@@ -1,0 +1,148 @@
+{
+  "stage": "STAGE 29",
+  "execution_date": "2026-11-16 21:33:30",
+  "gradcam_evaluation": {
+    "target_layer": "conv1",
+    "tests": {
+      "bright_spot_top_left": {
+        "shape": [
+          32,
+          32
+        ],
+        "min": 0.0,
+        "max": 1.0,
+        "top_left_energy": 0.8562499284744263,
+        "bottom_right_energy": 0.0,
+        "peak_coord": [
+          5,
+          5
+        ],
+        "localization_pass": true
+      },
+      "shifted_spot_bottom_right": {
+        "peak_coord": [
+          21,
+          21
+        ],
+        "top_left_energy": 0.0,
+        "bottom_right_energy": 0.8562499284744263,
+        "shift_detected": true
+      },
+      "uniform_flat": {
+        "min": 0.0,
+        "max": 1.0,
+        "has_nan": false,
+        "has_inf": false
+      },
+      "parameter_randomization_check": {
+        "max_difference": 1.0,
+        "active_region_difference": 0.8562499284744263,
+        "overall_l1_difference": 0.0625,
+        "l1_difference": 0.0625,
+        "sanity_check_pass": true,
+        "verdict": "Grad-CAM is sensitive to learned model parameters and does not function as an edge detector."
+      }
+    },
+    "overall_status": "PASS"
+  },
+  "shap_evaluation": {
+    "library_installed": false,
+    "adapter_status": "PARTIAL_DEPENDENCY_NOT_INSTALLED",
+    "exact_combinatorial_calculator": "VERIFIED_ON_ANALYTICAL_FIXTURE",
+    "max_local_accuracy_residual": 0.0,
+    "instances_evaluated": [
+      {
+        "instance_idx": 0,
+        "input_values": [
+          2.5,
+          120.0,
+          0.2,
+          550.0,
+          1.0
+        ],
+        "model_output": -493.2,
+        "base_value": -729.2275,
+        "analytical_base_value": -729.2275,
+        "sum_attributions": 236.0275,
+        "local_accuracy_residual": 0.0,
+        "analytical_phis": [
+          -2.775,
+          159.5,
+          -0.2475,
+          93.75,
+          -14.2
+        ],
+        "calculated_phis": [
+          -2.775,
+          159.5,
+          -0.2475,
+          93.75,
+          -14.2
+        ],
+        "match_analytical": true
+      },
+      {
+        "instance_idx": 1,
+        "input_values": [
+          4.0,
+          250.0,
+          0.7,
+          900.0,
+          8.0
+        ],
+        "model_output": -894.95,
+        "base_value": -729.2275,
+        "analytical_base_value": -729.2275,
+        "sum_attributions": -165.7225,
+        "local_accuracy_residual": 0.0,
+        "analytical_phis": [
+          1.725,
+          -100.5,
+          0.5025,
+          -81.25,
+          13.8
+        ],
+        "calculated_phis": [
+          1.725,
+          -100.5,
+          0.5025,
+          -81.25,
+          13.8
+        ],
+        "match_analytical": true
+      },
+      {
+        "instance_idx": 2,
+        "input_values": [
+          3.0,
+          180.0,
+          0.4,
+          700.0,
+          3.0
+        ],
+        "model_output": -678.4,
+        "base_value": -729.2275,
+        "analytical_base_value": -729.2275,
+        "sum_attributions": 50.8275,
+        "local_accuracy_residual": 0.0,
+        "analytical_phis": [
+          -1.275,
+          39.5,
+          0.0525,
+          18.75,
+          -6.2
+        ],
+        "calculated_phis": [
+          -1.275,
+          39.5,
+          0.0525,
+          18.75,
+          -6.2
+        ],
+        "match_analytical": true
+      }
+    ],
+    "overall_status": "PASS (EXACT REFERENCE ENGINE) / PARTIAL (THIRD-PARTY DEPENDENCY)"
+  },
+  "overall_status": "PASS (ENGINEERING & MATHEMATICAL VALIDATION COMPLETE; CLINICAL EXPLANATIONS UNVERIFIED)"
+}

@@ -1,0 +1,14 @@
+{
+  "architecture": "BoneScanResNet18",
+  "base_model": "ResNet18",
+  "pretrained": true,
+  "weights_enum": "ResNet18_Weights.IMAGENET1K_V1",
+  "local_cache_path": "C:\\Users\\archi\\.cache\\torch\\hub\\checkpoints\\resnet18-f37072fd.pth",
+  "cache_sha256": "f37072fd47e89c5e827621c5baffa7500819f7896bbacec160b1a16c560e07ec",
+  "in_channels": 1,
+  "total_parameters": 11170753,
+  "trainable_parameters": 8394241,
+  "frozen_parameters": 2776512,
+  "trainable_percentage": 75.14,
+  "classifier_head": "Dropout(p=0.4) -> Linear(in_features=512, out_features=1)"
+}

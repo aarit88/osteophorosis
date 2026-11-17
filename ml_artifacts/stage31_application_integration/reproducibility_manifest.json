@@ -1,0 +1,73 @@
+{
+  "stage": "Stage 31 Application Integration & Research Prototype",
+  "project_name": "OsteoGuard AI",
+  "generated_at": "2026-11-16T17:15:00Z",
+  "status": "COMPLETED",
+  "environment": {
+    "os": "Windows 11 / Windows Server",
+    "python_version": "3.13.3",
+    "node_version": "v22.x",
+    "frameworks": {
+      "backend": "FastAPI 0.115.x / Pydantic v2",
+      "frontend": "React 18.3.1 / Vite 6.2.0 / TypeScript 5.7.3 / Tailwind CSS v4",
+      "deep_learning": "PyTorch 2.14.1+cu126",
+      "testing": "pytest 9.2.0 / vitest 5.1.0"
+    }
+  },
+  "primary_model_checkpoint": {
+    "path": "ml_artifacts/btxrd_frozen_model/best_checkpoint.pt",
+    "sha256": "21064670fa6277b0e96135333708de4692ddb80e428b792f3675405b5dc109cd",
+    "cryptographic_verification": "PASS_IMMUTABLE",
+    "training_stage": "Stage 18 Frozen Locked"
+  },
+  "research_tracks": [
+    {
+      "track_id": "track_a",
+      "title": "FracAtlas Fracture Detection",
+      "modality": "Plain Radiography",
+      "status": "HISTORICAL_RESEARCH_FROZEN",
+      "limitations": "Missing patient IDs in source metadata"
+    },
+    {
+      "track_id": "track_b",
+      "title": "Bone Scintigraphy Metastasis",
+      "modality": "Tc-99m Whole-Body Scintigraphy",
+      "status": "HISTORICAL_RESEARCH_FROZEN",
+      "limitations": "Negative class is staging breast cancer, not healthy control"
+    },
+    {
+      "track_id": "track_c",
+      "title": "BTXRD Primary Bone Tumour",
+      "modality": "Plain Radiography",
+      "status": "HISTORICAL_FROZEN_MODEL (GENERALIZATION LIMITED)",
+      "limitations": "Domain collapse (Center 1: 78.4% -> Center 2: 48.2% -> Center 3: 42.1%)"
+    },
+    {
+      "track_id": "track_d",
+      "title": "Four-Class Differential Diagnosis",
+      "modality": "Multimodal (Radiography + Scintigraphy + CT)",
+      "status": "BLOCKED — APPROVED CLINICAL DATA AND GOVERNANCE REQUIRED",
+      "limitations": "0 / 4 approved cohorts acquired; inference gate strictly returns HTTP 503"
+    }
+  ],
+  "engines_integrated": {
+    "radiomics": "Stage 27 IBSIRadiomicsEngine (81 verified / 21 unverified features on synthetic phantoms)",
+    "biomechanics": "Stage 28 CrossSectionalGeometryEngine & ConventionalMirelsScorer",
+    "explainability": "Stage 29 GradCAMExplainer on ControlledSpatialCNN (SHAP partial status)",
+    "uncertainty": "Stage 30 SelectivePredictionEngine (Normalized entropy threshold H_norm >= 0.60)"
+  },
+  "test_suite_results": {
+    "total_tests_run": 108,
+    "tests_passed": 108,
+    "tests_failed": 0,
+    "pass_rate_pct": 100.0,
+    "stage_31_tests": "14 passed"
+  },
+  "frontend_build": {
+    "modules_transformed": 3285,
+    "tsc_lint_errors": 0,
+    "vite_build_exit_code": 0,
+    "dist_created": true
+  }
+}
+

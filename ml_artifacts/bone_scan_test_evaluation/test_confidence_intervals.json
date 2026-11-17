@@ -1,0 +1,43 @@
+{
+  "sample_size": 44,
+  "n_bootstraps": 1000,
+  "resampling_level": "patient",
+  "confidence_level": 0.95,
+  "metrics": {
+    "roc_auc": {
+      "point": 0.8317,
+      "ci_95": [
+        0.6214,
+        0.9825
+      ]
+    },
+    "pr_auc": {
+      "point": 0.7257,
+      "ci_95": [
+        0.4285,
+        0.9286
+      ]
+    },
+    "sensitivity_at_060": {
+      "point": 0.6667,
+      "ci_95": [
+        0.3333,
+        1.0
+      ]
+    },
+    "specificity_at_060": {
+      "point": 0.8857,
+      "ci_95": [
+        0.7647,
+        0.9722
+      ]
+    },
+    "f1_score_at_060": {
+      "point": 0.6316,
+      "ci_95": [
+        0.3077,
+        0.8462
+      ]
+    }
+  }
+}

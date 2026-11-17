@@ -1,0 +1,61 @@
+{
+  "project": "OsteoGuard AI",
+  "stage": "STAGE 09 \u2014 FULL-SCALE FRACATLAS RESNET101 TRAINING",
+  "timestamp_start": "2026-11-15T10:24:15Z",
+  "timestamp_end": "2026-11-15T13:19:18Z",
+  "duration_minutes": 174.81,
+  "device": "NVIDIA GeForce RTX 3050 A Laptop GPU",
+  "total_vram_mb": 4093.5,
+  "epochs_completed": 16,
+  "best_epoch": 9,
+  "best_val_pr_auc": 0.7556,
+  "best_val_roc_auc": 0.8871,
+  "early_stopped": true,
+  "quarantined_test_samples": 614,
+  "best_checkpoint_file": "ml_artifacts\\fracatlas_full_training\\best_checkpoint.pt",
+  "last_checkpoint_file": "ml_artifacts\\fracatlas_full_training\\last_checkpoint.pt",
+  "operating_points": {
+    "best_f1_operating_point": {
+      "threshold": 0.47,
+      "tp": 72,
+      "fp": 33,
+      "tn": 472,
+      "fn": 35,
+      "sensitivity": 0.6729,
+      "specificity": 0.9347,
+      "precision": 0.6857,
+      "f1_score": 0.6792,
+      "balanced_accuracy": 0.8038,
+      "youden_j": 0.6076,
+      "false_positive_rate": 0.0653
+    },
+    "best_youden_j_operating_point": {
+      "threshold": 0.38,
+      "tp": 84,
+      "fp": 81,
+      "tn": 424,
+      "fn": 23,
+      "sensitivity": 0.785,
+      "specificity": 0.8396,
+      "precision": 0.5091,
+      "f1_score": 0.6176,
+      "balanced_accuracy": 0.8123,
+      "youden_j": 0.6247,
+      "false_positive_rate": 0.1604
+    },
+    "high_sensitivity_operating_point": {
+      "threshold": 0.31,
+      "tp": 92,
+      "fp": 139,
+      "tn": 366,
+      "fn": 15,
+      "sensitivity": 0.8598,
+      "specificity": 0.7248,
+      "precision": 0.3983,
+      "f1_score": 0.5444,
+      "balanced_accuracy": 0.7923,
+      "youden_j": 0.5846,
+      "false_positive_rate": 0.2752
+    }
+  }
+}

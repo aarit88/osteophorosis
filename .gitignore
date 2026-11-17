@@ -1,0 +1,121 @@
+# ==============================================================================
+# OsteoGuard AI - Version Control Exclusion (.gitignore)
+# Strictly excludes raw medical images, private patient data, checkpoints, and logs.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Medical Image Data & Patient Records (Rule 10 & Stage 04 Directive)
+# ------------------------------------------------------------------------------
+ml_service/data/raw/*
+!ml_service/data/raw/.gitkeep
+ml_service/data/interim/*
+!ml_service/data/interim/.gitkeep
+ml_service/data/processed/*
+!ml_service/data/processed/.gitkeep
+ml_service/data/splits/*
+!ml_service/data/splits/.gitkeep
+
+# Medical image file extensions
+*.dcm
+*.dicom
+*.nii
+*.nii.gz
+*.mhd
+*.raw
+*.nrrd
+*.svs
+
+# Large archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# User uploads & ephemeral demo assets
+public/uploads/*
+!public/uploads/.gitkeep
+osteophorosis-main/public/uploads/*
+!osteophorosis-main/public/uploads/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 2. ML Model Weights & Checkpoints (Rule 6 Directive)
+# ------------------------------------------------------------------------------
+ml_artifacts/checkpoints/*
+!ml_artifacts/checkpoints/.gitkeep
+osteophorosis-main/ml_artifacts/checkpoints/*
+!osteophorosis-main/ml_artifacts/checkpoints/.gitkeep
+
+*.pt
+*.pth
+*.onnx
+*.engine
+*.bin
+*.ckpt
+*.safetensors
+
+# ------------------------------------------------------------------------------
+# 3. Training & Audit Logs
+# ------------------------------------------------------------------------------
+ml_artifacts/logs/*
+!ml_artifacts/logs/.gitkeep
+osteophorosis-main/ml_artifacts/logs/*
+!osteophorosis-main/ml_artifacts/logs/.gitkeep
+*.log
+
+# ------------------------------------------------------------------------------
+# 4. Python Environment & Build Artifacts
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Pytest & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# ------------------------------------------------------------------------------
+# 5. Environment Variables & Secrets
+# ------------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+
+# ------------------------------------------------------------------------------
+# 6. Frontend / Node.js
+# ------------------------------------------------------------------------------
+node_modules/
+osteophorosis-main/node_modules/
+osteophorosis-main/dist/
+.npm
+.eslintcache
+
+
+# Scratch scripts & temporary experiments
+scratch/

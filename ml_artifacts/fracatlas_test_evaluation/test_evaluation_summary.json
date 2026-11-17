@@ -1,0 +1,18 @@
+{
+  "project": "OsteoGuard AI",
+  "stage": "STAGE 10 \u2014 FINAL FRACATLAS HOLDOUT TEST EVALUATION",
+  "timestamp": "2026-11-15T13:43:54Z",
+  "checkpoint": "ml_artifacts\\fracatlas_full_training\\best_checkpoint.pt",
+  "device": "NVIDIA GeForce RTX 3050 A Laptop GPU",
+  "evaluation_samples": 614,
+  "frozen_primary_threshold": 0.31,
+  "test_roc_auc": 0.9117,
+  "test_pr_auc": 0.7537,
+  "test_sensitivity_031": 0.9,
+  "test_specificity_031": 0.744,
+  "test_precision_031": 0.4342,
+  "test_f1_031": 0.5858,
+  "test_balanced_acc_031": 0.822,
+  "generalization_delta_roc_auc": 0.0246,
+  "generalization_delta_pr_auc": -0.0019
+}

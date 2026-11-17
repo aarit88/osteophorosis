@@ -1,0 +1,69 @@
+{
+  "status": "NOT_READY",
+  "total_samples": 0,
+  "total_patients": 0,
+  "classes_present": [],
+  "missing_classes": [
+    "metastasis",
+    "paget",
+    "oi",
+    "healthy"
+  ],
+  "class_distribution": {
+    "metastasis": {
+      "samples": 0,
+      "patients": 0,
+      "studies": 0
+    },
+    "paget": {
+      "samples": 0,
+      "patients": 0,
+      "studies": 0
+    },
+    "oi": {
+      "samples": 0,
+      "patients": 0,
+      "studies": 0
+    },
+    "healthy": {
+      "samples": 0,
+      "patients": 0,
+      "studies": 0
+    }
+  },
+  "modality_distribution": {
+    "ct": {
+      "samples": 0,
+      "patients": 0
+    },
+    "xray": {
+      "samples": 0,
+      "patients": 0
+    },
+    "bone_scan": {
+      "samples": 0,
+      "patients": 0
+    },
+    "unknown": {
+      "samples": 0,
+      "patients": 0
+    }
+  },
+  "exact_duplicates_count": 0,
+  "near_duplicates_count": 0,
+  "duplicate_pairs": [],
+  "conflicting_patients_count": 0,
+  "conflicting_patients": {},
+  "missing_annotations_count": 0,
+  "uncertain_cases_count": 0,
+  "uncertain_cases": [],
+  "blockers": [
+    "ZERO clinical image samples exist on disk.",
+    "All 4 target classes have 0 samples.",
+    "Missing clinical cohorts for target classes: ['metastasis', 'paget', 'oi', 'healthy']",
+    "Class 'metastasis' has only 0 patients (< 10 required).",
+    "Class 'paget' has only 0 patients (< 10 required).",
+    "Class 'oi' has only 0 patients (< 10 required).",
+    "Class 'healthy' has only 0 patients (< 10 required)."
+  ]
+}

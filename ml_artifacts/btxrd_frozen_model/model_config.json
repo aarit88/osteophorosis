@@ -1,0 +1,26 @@
+{
+  "model_architecture": "ResNet-34",
+  "backbone": "resnet34",
+  "weights_provenance": "ResNet34_Weights.IMAGENET1K_V1",
+  "pretrained_weights_file": "resnet34-b627a593.pth",
+  "num_classes": 3,
+  "dropout_p": 0.4,
+  "freeze_early_backbone": true,
+  "progressive_unfreezing_epoch": 6,
+  "unfrozen_blocks": [
+    "layer3",
+    "layer4",
+    "classifier"
+  ],
+  "frozen_blocks": [
+    "conv1",
+    "bn1",
+    "layer1",
+    "layer2"
+  ],
+  "total_parameters": 21286211,
+  "trainable_parameters_at_best_epoch": 19938307,
+  "frozen_parameters_at_best_epoch": 1347904,
+  "batchnorm_eval_locked": true
+}
+

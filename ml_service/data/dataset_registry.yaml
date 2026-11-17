@@ -1,0 +1,391 @@
+# ==============================================================================
+# OsteoGuard AI - Master Dataset Registry Specification
+# ==============================================================================
+version: "1.0.0"
+dataset_ready: false  # STRICT RULE: Must remain false until authentic clinical datasets are acquired and verified.
+last_updated: "2026-11-14T22:56:00Z"
+
+# ------------------------------------------------------------------------------
+# 1. Target Pathology Taxonomy & Strict Negative Mapping Rules
+# ------------------------------------------------------------------------------
+target_classes:
+  secondary_bone_metastasis:
+    canonical_name: "secondary_bone_metastasis"
+    short_code: "metastasis"
+    class_index: 0
+    icd10_code: "C79.51"
+    clinical_definition: >
+      Secondary osteolytic, osteoblastic, or mixed metastatic osseous lesions
+      originating from extra-skeletal primary carcinomas (breast, prostate, lung, kidney, thyroid).
+    strict_exclusion_rules:
+      - "NEVER map primary malignant bone tumours (Osteosarcoma, Ewing's sarcoma, Chondrosarcoma) to secondary metastasis."
+      - "NEVER map multiple myeloma or haematological bone malignancies to secondary carcinoma metastasis without explicit clinical tagging."
+      - "NEVER map benign enchondromas or bone cysts as metastatic lesions."
+
+  pagets_disease:
+    canonical_name: "pagets_disease"
+    short_code: "paget"
+    class_index: 1
+    icd10_code: "M88.0-M88.9"
+    clinical_definition: >
+      Chronic osteometabolic disorder characterized by disordered, accelerated bone remodeling,
+      loss of corticomedullary differentiation, 'cotton-wool' skull appearance, and trabecular coarsening.
+    strict_exclusion_rules:
+      - "NEVER map generic abnormal radiographs, severe osteoarthritis, or subchondral sclerosis to Paget's disease."
+      - "NEVER map fibrous dysplasia, osteopetrosis, or hyperparathyroidism 'brown tumours' to Paget's disease."
+      - "Requires radiologist-confirmed Pagetic skeletal diagnosis."
+
+  osteogenesis_imperfecta:
+    canonical_name: "osteogenesis_imperfecta"
+    short_code: "oi"
+    class_index: 2
+    icd10_code: "Q78.0"
+    clinical_definition: >
+      Heritable connective tissue disorder caused by COL1A1/COL1A2 mutations resulting
+      in quantitative or qualitative type I collagen defects, severe osseous fragility, bowing, and osteopenia.
+    strict_exclusion_rules:
+      - "NEVER map post-menopausal, senile, or disuse osteoporosis to osteogenesis imperfecta."
+      - "NEVER map rickets, osteomalacia, or non-accidental trauma to osteogenesis imperfecta."
+      - "Requires verified pediatric or adult clinical/genetic OI diagnosis."
+
+  healthy_control:
+    canonical_name: "healthy_control"
+    short_code: "healthy"
+    class_index: 3
+    icd10_code: "Z00.00"
+    clinical_definition: >
+      Asymptomatic skeletal controls demonstrating anatomical integrity, normal bone mineral density,
+      and absolute absence of focal lesions, fractures, or metabolic remodeling.
+    strict_exclusion_rules:
+      - "NEVER assume unaffected or contralateral limb scans from cancer patients are healthy controls."
+      - "NEVER map asymptomatic radiographs with degenerative joint changes or mild osteopenia as healthy controls."
+      - "Requires verified radiologically normal skeletal reading."
+
+# ------------------------------------------------------------------------------
+# 2. Registered Data Sources Dossier
+# ------------------------------------------------------------------------------
+sources:
+  # ----------------------------------------------------------------------------
+  # Source 1: TCIA Spine-Mets-CT-Seg (Secondary Metastasis)
+  # ----------------------------------------------------------------------------
+  - source_id: "TCIA_SPINE_METS_CT_SEG"
+    target_class: "secondary_bone_metastasis"
+    short_code: "metastasis"
+    title: "Computed Tomography Images of Patients with Spine Metastases with Vertebrae and Lesion Segmentations"
+    url: "https://www.cancerimagingarchive.net/collection/spine-mets-ct-seg/"
+    doi: "10.7937/TCIA.V2WY-KG44"
+    available_format: "DICOM, NIfTI (v3/segmentations)"
+    available_modality: "Computed Tomography (CT)"
+    available_labels: "Pathologist-confirmed secondary spinal metastases (breast, lung, prostate, renal); individual vertebral segmentations."
+    patient_level_metadata: "Fully anonymized TCIA subject IDs (e.g., Spine-Mets-001); patient age, biological sex, primary cancer site."
+    segmentation_annotations: "Voxel-level 3D binary masks of metastatic osteolytic/osteoblastic lesions and anatomical vertebra bodies."
+    download_method: "TCIA NBIA Data Retriever (.tcia manifest file) or RESTful API"
+    access_category: "RESTRICTED_APPROVAL"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0) with TCIA Restricted Data Use Agreement"
+    intended_ml_use: "Training deep 3D/2D axial semantic backbone (ResNet-101/Swin-T), U-Net segmentation, and CT radiomics."
+    known_limitations: "Axial slice thickness varies between 1.0mm and 2.5mm; restricted to spinal column anatomy."
+
+  # ----------------------------------------------------------------------------
+  # Source 2: Zenodo Metastases Dataset (Secondary Metastasis)
+  # ----------------------------------------------------------------------------
+  - source_id: "ZENODO_BONE_METS_13900966"
+    target_class: "secondary_bone_metastasis"
+    short_code: "metastasis"
+    title: "Zenodo Bone Metastases CT and Radiomic Benchmark Cohort"
+    url: "https://zenodo.org/records/13900966"
+    doi: "10.5281/zenodo.13900966"
+    available_format: "NIfTI, PNG (exported slices), CSV (radiomic tables)"
+    available_modality: "Computed Tomography (CT) & Planar Radiographs"
+    available_labels: "Radiologist-validated osteolytic and osteoblastic metastatic bone lesions."
+    patient_level_metadata: "De-identified patient IDs, age, gender, anatomical lesion site."
+    segmentation_annotations: "2D/3D region-of-interest (ROI) masks for metastatic lesion contours."
+    download_method: "Direct HTTPS download via Zenodo API or web browser"
+    access_category: "PUBLIC_DOWNLOAD"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+    intended_ml_use: "Cross-modality differential feature extraction, 102-D IBSI radiomic benchmarking, late fusion."
+    known_limitations: "Cohort predominantly pelvic and femoral metastases; variable resolution."
+
+  # ----------------------------------------------------------------------------
+  # Source 3: Wikimedia Commons Paget's Disease Repository (Paget's Disease)
+  # ----------------------------------------------------------------------------
+  - source_id: "WIKIMEDIA_PAGET_COMMONS"
+    target_class: "pagets_disease"
+    short_code: "paget"
+    title: "Wikimedia Commons - Curated Category: Paget's Disease of Bone"
+    url: "https://commons.wikimedia.org/wiki/Category:Paget%27s_disease_of_bone"
+    doi: null
+    available_format: "JPEG, PNG, TIFF"
+    available_modality: "Planar Radiographs (X-ray), Bone Scintigraphy (99mTc-MDP), CT"
+    available_labels: "Clinically confirmed Paget's disease cases published under open-access biomedical journals."
+    patient_level_metadata: "Case descriptions, publication citation, anatomic location (tibia, pelvis, skull)."
+    segmentation_annotations: "None (requires manual contouring or expert bounding-box annotation)."
+    download_method: "Direct HTTPS download via Wikimedia Commons REST API or batch curl"
+    access_category: "PUBLIC_DOWNLOAD"
+    license: "Creative Commons Attribution-ShareAlike (CC BY-SA 3.0 / 4.0)"
+    intended_ml_use: "Planar radiograph semantic feature representation, bone scintigraphy radionuclide hotspot calibration."
+    known_limitations: "Compressed 8-bit images; absence of raw 16-bit DICOM pixel data; small cohort size."
+
+  # ----------------------------------------------------------------------------
+  # Source 4: NLM MedPix Paget's Disease Cases (Paget's Disease)
+  # ----------------------------------------------------------------------------
+  - source_id: "NLM_MEDPIX_PAGET"
+    target_class: "pagets_disease"
+    short_code: "paget"
+    title: "National Library of Medicine (NLM) MedPix Teaching File Database - Paget Disease"
+    url: "https://medpix.nlm.nih.gov/"
+    doi: null
+    available_format: "JPEG, PNG, DICOM (teaching format)"
+    available_modality: "Planar Radiography, Computed Tomography, MRI"
+    available_labels: "Board-certified radiologist diagnosis of Paget's disease with differential diagnosis commentary."
+    patient_level_metadata: "Age, sex, presenting symptoms, anatomical location, case history."
+    segmentation_annotations: "Radiologist-annotated anatomical arrows and bounding regions."
+    download_method: "MedPix Case Search and export (manual case-by-case acquisition)"
+    access_category: "RESTRICTED_APPROVAL"
+    license: "U.S. National Library of Medicine Terms of Service (Educational and Research Use)"
+    intended_ml_use: "Few-shot validation cohort, qualitative Grad-CAM saliency alignment."
+    known_limitations: "Requires NIH/NLM user account registration; automated batch web scraping is restricted by rate limits."
+
+  # ----------------------------------------------------------------------------
+  # Source 5: PMC11324408 Osteogenesis Imperfecta Cohort (Osteogenesis Imperfecta)
+  # ----------------------------------------------------------------------------
+  - source_id: "PMC_11324408_OI"
+    target_class: "osteogenesis_imperfecta"
+    short_code: "oi"
+    title: "Skeletal Manifestations and Longitudinal Deformities in Osteogenesis Imperfecta"
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC11324408/"
+    doi: "10.3390/children11080976"
+    available_format: "High-resolution JPEG, TIFF, supplementary ZIP files"
+    available_modality: "Planar Radiographs (Full limb, spine, femur, tibia)"
+    available_labels: "Genetically confirmed Sillence classification (Types I, III, IV) and fracture history."
+    patient_level_metadata: "Patient identifier, pediatric/adult age, biological sex, genetic mutation (COL1A1/COL1A2)."
+    segmentation_annotations: "None (requires anatomical skeletal segmentation by U-Net)."
+    download_method: "Direct HTTPS download from PubMed Central Open Access subset"
+    access_category: "PUBLIC_DOWNLOAD"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+    intended_ml_use: "Planar radiograph training, cortical thinning radiomics, continuous fracture risk calibration."
+    known_limitations: "Pediatric-skewed population; severe limb bowing requires robust data augmentation."
+
+  # ----------------------------------------------------------------------------
+  # Source 6: Figshare OI Radiological Collection (Osteogenesis Imperfecta)
+  # ----------------------------------------------------------------------------
+  - source_id: "FIGSHARE_OI_COLLECTION_3795019"
+    target_class: "osteogenesis_imperfecta"
+    short_code: "oi"
+    title: "Radiological Features and Phenotypic Spectrum of Osteogenesis Imperfecta"
+    url: "https://doi.org/10.6084/m9.figshare.c.3795019"
+    doi: "10.6084/m9.figshare.c.3795019"
+    available_format: "DICOM, TIFF, PNG"
+    available_modality: "Planar Radiographs (Spine, long bones, skull)"
+    available_labels: "Clinically classified Osteogenesis Imperfecta severity scores."
+    patient_level_metadata: "De-identified patient IDs, age, gender, Sillence phenotypic type."
+    segmentation_annotations: "None."
+    download_method: "Figshare REST API or direct browser collection download"
+    access_category: "PUBLIC_DOWNLOAD"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+    intended_ml_use: "Training ResNet-101 deep visual feature extractor and IBSI first-order histogram features."
+    known_limitations: "Heterogeneous radiograph exposure settings; requires CLAHE standardization."
+
+  # ----------------------------------------------------------------------------
+  # Source 7: Figshare Normal Skeletal Radiographs (Healthy Controls)
+  # ----------------------------------------------------------------------------
+  - source_id: "FIGSHARE_NORMAL_SKELETAL_27865398"
+    target_class: "healthy_control"
+    short_code: "healthy"
+    title: "Normal Skeletal Plain Radiographs Reference Cohort"
+    url: "https://doi.org/10.6084/m9.figshare.27865398"
+    doi: "10.6084/m9.figshare.27865398"
+    available_format: "PNG, DICOM"
+    available_modality: "Planar Radiography (X-ray: spine, pelvis, extremities)"
+    available_labels: "Radiologist-verified normal skeletal studies (negative for fracture, lesion, or osteopenia)."
+    patient_level_metadata: "De-identified IDs, adult age ranges, biological sex."
+    segmentation_annotations: "None."
+    download_method: "Direct HTTPS download via Figshare API"
+    access_category: "PUBLIC_DOWNLOAD"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+    intended_ml_use: "Baseline healthy control class representation in 4-class Focal Loss classification."
+    known_limitations: "Restricted anatomical views; requires anatomic region filtering."
+
+  # ----------------------------------------------------------------------------
+  # Source 8: Stanford AIMI MURA Musculoskeletal Radiographs (Healthy Controls)
+  # ----------------------------------------------------------------------------
+  - source_id: "STANFORD_AIMI_MURA"
+    target_class: "healthy_control"
+    short_code: "healthy"
+    title: "MURA: Musculoskeletal Radiographs Normal Cohort"
+    url: "https://aimi.stanford.edu/datasets/mura-msk-xrays"
+    doi: "10.48550/arXiv.1712.06957"
+    available_format: "PNG (16-bit and 8-bit grayscale), CSV manifests"
+    available_modality: "Planar Radiography (Upper & lower extremity studies)"
+    available_labels: "Board-certified radiologist consensus labels (0 = Normal, 1 = Abnormal)."
+    patient_level_metadata: "Patient IDs (e.g., patient00001), study type (XR_WRIST, XR_SHOULDER, XR_HUMERUS, etc.)."
+    segmentation_annotations: "None."
+    download_method: "Stanford AIMI Research Data Use Agreement portal download"
+    access_category: "RESTRICTED_APPROVAL"
+    license: "Stanford University Research Data Use Agreement (Non-Commercial Academic Use Only)"
+    intended_ml_use: "High-volume negative class calibration for extremity radiograph feature extraction."
+    known_limitations: "Focuses on extremities (elbow, finger, forearm, hand, humerus, shoulder, wrist); does not cover axial spine."
+
+  # ----------------------------------------------------------------------------
+  # Source 9: TCIA Healthy Total Body CTs (Healthy Controls)
+  # ----------------------------------------------------------------------------
+  - source_id: "TCIA_HEALTHY_TOTAL_BODY_CTS"
+    target_class: "healthy_control"
+    short_code: "healthy"
+    title: "Healthy Total Body Computed Tomography Collection"
+    url: "https://www.cancerimagingarchive.net/collection/healthy-total-body-cts/"
+    doi: "10.7937/TCIA.2019.4Q8A8J7V"
+    available_format: "DICOM"
+    available_modality: "Computed Tomography (CT)"
+    available_labels: "Radiologically normal total body scans evaluated for asymptomatic trauma triage."
+    patient_level_metadata: "De-identified TCIA IDs, acquisition parameters, kVp, slice thickness, patient sex."
+    segmentation_annotations: "None (requires U-Net bone mask segmentation)."
+    download_method: "TCIA NBIA Data Retriever (.tcia manifest)"
+    access_category: "RESTRICTED_APPROVAL"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0) with TCIA Open Access Terms"
+    intended_ml_use: "Normative CT Hounsfield Unit distribution modeling (+400 HU WL / 1500 HU WW), healthy 3D radiomics."
+    known_limitations: "Full-body scans are multi-gigabyte files requiring high local disk capacity."
+
+# ------------------------------------------------------------------------------
+# 3. Acquired & Verified Dataset Cohorts (Stage 06.1 Ingestion)
+# ------------------------------------------------------------------------------
+# Independent readiness statuses maintained per dataset.
+# Master 4-class pipeline remains NOT READY until all 4 target classes are complete.
+acquired_datasets:
+  fracatlas:
+    dataset_id: "FRACATLAS_FRACTURE_COHORT"
+    title: "FracAtlas: A Dataset for Fracture Classification, Localization and Segmentation"
+    archive_filename: "FracAtlas.zip"
+    extracted_path: "ml_service/data/raw/fracatlas"
+    modality: "Planar Radiography (X-ray)"
+    total_images_in_archive: 4085
+    classification_records: 4083
+    authoritative_label_source: "dataset.csv"
+    class_distribution:
+      fractured: 719
+      non_fractured: 3364
+    anatomical_regions:
+      - "hand"
+      - "leg"
+      - "hip"
+      - "shoulder"
+      - "mixed"
+    annotations:
+      coco_json: "COCO_fracture_masks.json (719 fractured images, 924 polygonal fracture segmentations)"
+      pascal_voc_xml: 4083
+      yolo_txt: 4087
+      vgg_json: "VGG_fracture_masks.json"
+    pre_existing_splits:
+      fracture_split_only: "train: 574, valid: 82, test: 63 (Sum = 719 fractured images)"
+    forensic_audit_findings:
+      - "Exact content duplicate files: IMG0003375.jpg and IMG0003376.jpg exist in both Fractured/ and Non_fractured/ directories."
+      - "SHA-256 digests prove identical content between copies."
+      - "dataset.csv is authoritative: both IMG0003375.jpg and IMG0003376.jpg are confirmed fractured (fractured=1, fracture_count=1)."
+      - "Fracture masks delineate focal fracture lines, NOT whole-bone segmentation masks."
+    intended_ml_use: "Biomechanical fracture risk stratification calibration and fracture detection benchmark."
+    status: "ACQUIRED_AND_AUDITED"
+    split_readiness: "CLASSIFICATION_AND_SEGMENTATION_SPLITS_VERIFIED"
+    experiment_readiness: "READY_FOR_FRACTURE_EXPERIMENTS"
+    split_manifests:
+      classification_split: "ml_service/data/splits/fracatlas_classification_split.csv"
+      classification_counts:
+        train: 2857  # (502 fractured, 2355 non-fractured)
+        val: 612     # (107 fractured, 505 non-fractured)
+        test: 614    # (110 fractured, 504 non-fractured)
+      segmentation_split: "ml_service/data/splits/fracatlas_segmentation_split.csv"
+      segmentation_counts:
+        train: 574
+        val: 82
+        test: 63
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+
+  bone_scan_metastasis:
+    dataset_id: "IICS_UNA_BONE_SCAN_METASTASIS"
+    title: "Bone Scan Images Dataset for Study of Bone Metastases in Adult Breast Cancer Patients at IICS-UNA Paraguay"
+    archive_filename: "Bone Scan Images Dataset for Study of Bone Metastases in Adult Breast Cancer Patients at IICS-UNA Paraguay.zip"
+    extracted_path: "ml_service/data/raw/bone_scan_metastasis"
+    modality: "Whole-Body Planar Scintigraphy (Nuclear Medicine, 99mTc-MDP)"
+    total_patients: 291
+    total_images: 582
+    views_per_patient: "2 paired views: 1 Anterior (A*.png) and 1 Posterior (P*.png)"
+    metadata_file: "Bone Scan Images Dataset.xlsx"
+    class_distribution:
+      bone_metastases: 60
+      no_bone_metastases: 231
+    patient_demographics:
+      female: 289
+      male: 2
+      age_available: true
+      weight_available: true
+      height_available: true
+    forensic_audit_findings:
+      - "Missing images: 0 (all 582 images referenced in Excel are present)."
+      - "Duplicate content hashes: 0 (all 582 images are distinct)."
+      - "Patient mapping: Patient 1..60 = Bone metastases; Patient 61..291 = No bone metastases."
+    clinical_governance_rules:
+      - "Strict Rule: Treat as an independent binary nuclear-medicine classification task."
+      - "Strict Rule: NEVER combine planar scintigraphy with ordinary X-rays or CT scans."
+      - "Strict Rule: NEVER map 'no bone metastases' breast cancer staging scans to healthy skeletal controls."
+    intended_ml_use: "Nuclear medicine planar scintigraphy differential metastasis classifier."
+    status: "ACQUIRED_AND_AUDITED"
+    split_readiness: "PATIENT_LEVEL_AND_5FOLD_SPLITS_VERIFIED"
+    experiment_readiness: "READY_FOR_BONE_SCAN_EXPERIMENTS"
+    split_manifests:
+      patient_level_split: "ml_service/data/splits/bone_scan_split_manifest.csv"
+      patient_counts:
+        train: 203  # 42 mets, 161 non-mets (406 paired images)
+        val: 44     # 9 mets, 35 non-mets (88 paired images)
+        test: 44    # 9 mets, 35 non-mets (88 paired images)
+      cross_validation: "5_fold_patient_stratified (12 mets per fold)"
+    license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+
+  btxrd:
+    dataset_id: "BTXRD_BONE_TUMOR_COHORT"
+    title: "BTXRD: A Large-Scale Bone Tumor X-Ray Dataset with Bounding and Segmentation Annotations"
+    archive_filename: "BTXRD.zip"
+    extracted_path: "ml_service/data/raw/btxrd"
+    modality: "Conventional Plain Radiography (X-ray)"
+    total_images: 3746
+    metadata_file: "dataset.xlsx (3746 records)"
+    class_distribution:
+      tumor: 1867
+      benign: 1525
+      malignant: 342
+      osteochondroma: 754
+      multiple_osteochondromas: 263
+      simple_bone_cyst: 206
+      giant_cell_tumor: 93
+      osteofibroma: 44
+      synovial_osteochondroma: 51
+      other_bt: 115
+      osteosarcoma: 297
+      other_mt: 45
+      non_tumor_normal: 1879
+    acquisition_centers:
+      center_1: 2938
+      center_2: 549
+      center_3: 259
+    annotations: "1867 LabelMe JSON files with polygonal segmentation contours for tumor cases"
+    forensic_audit_findings:
+      - "Duplicate image content hashes: 21 (repeated scans or identical radiographs across different IDs)."
+      - "Excel lock file '~$dataset(total).xlsx' present in archive (165 bytes, non-data file)."
+    clinical_governance_rules:
+      - "Strict Rule: NEVER map primary bone malignancy (Osteosarcoma, Other MT) to secondary bone metastasis."
+      - "Non-tumor normal bone radiographs (1879 cases) are candidate negative skeletal controls."
+    intended_ml_use: "Bone tumor differential diagnosis, multi-center generalization, and candidate normal controls."
+    status: "ACQUIRED_AND_AUDITED"
+    split_readiness: "DUPLICATE_GROUPED_AND_CENTER_HOLDOUT_SPLITS_VERIFIED"
+    experiment_readiness: "READY_FOR_TUMOR_EXPERIMENTS"
+    split_manifests:
+      manifest: "ml_service/data/splits/btxrd_split_manifest.csv"
+      stratified_split:
+        train: 2622
+        val: 562
+        test: 562
+      center_holdout_split:
+        center_1_train_val: 2938
+        center_2_external_test: 549
+        center_3_external_test: 259
+      conflict_quarantine: "4 images (2 duplicate pairs) flagged with conflict_flag: TRUE"
+    license: "Scientific research open-access"
+
+

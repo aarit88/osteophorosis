@@ -1,0 +1,65 @@
+{
+  "labels": [
+    "NORMAL_BONE_RADIOGRAPH",
+    "BENIGN_BONE_TUMOR",
+    "PRIMARY_MALIGNANT_TUMOR"
+  ],
+  "confusion_matrix_counts": [
+    [
+      5,
+      13,
+      9
+    ],
+    [
+      44,
+      96,
+      61
+    ],
+    [
+      6,
+      4,
+      21
+    ]
+  ],
+  "confusion_matrix_row_percentages": [
+    [
+      18.52,
+      48.15,
+      33.33
+    ],
+    [
+      21.89,
+      47.76,
+      30.35
+    ],
+    [
+      19.35,
+      12.9,
+      67.74
+    ]
+  ],
+  "error_analysis": {
+    "malignant": {
+      "support": 31,
+      "correct_detected": 21,
+      "sensitivity": 0.6774,
+      "misclassified_as_benign": 4,
+      "misclassified_as_normal": 6,
+      "false_positives_from_other_classes": 70
+    },
+    "normal": {
+      "support": 27,
+      "correct_detected": 5,
+      "sensitivity": 0.1852,
+      "misclassified_as_benign": 13,
+      "misclassified_as_malignant": 9
+    },
+    "benign": {
+      "support": 201,
+      "correct_detected": 96,
+      "sensitivity": 0.4776,
+      "misclassified_as_normal": 44,
+      "misclassified_as_malignant": 61
+    }
+  }
+}

@@ -1,0 +1,41 @@
+checkpoint_selection_policy:
+  primary_metric: validation_macro_f1
+  secondary_metric: validation_macro_pr_auc
+  tie_breaker: higher macro PR-AUC resolves macro-F1 ties
+dataset:
+  aspect_ratio_handling: Symmetrical black padding letterbox
+  center: center_1
+  channels: 3
+  input_resolution: 512x512
+  name: BTXRD (Bone Tumor X-Ray Dataset)
+  train_samples: 2346
+  val_samples: 588
+experiment: BTXRD Three-Class ResNet-34 Full Training
+loss:
+  alpha:
+  - 0.3333
+  - 0.4817
+  - 2.185
+  gamma: 2.0
+  type: MulticlassFocalLoss
+model:
+  architecture: ResNet-34
+  dropout: 0.4
+  freeze_early: true
+  num_classes: 3
+  progressive_unfreezing: Unfreeze layer3 at Epoch 6 with LR 3e-6
+  weights: ResNet34_Weights.IMAGENET1K_V1
+stage: STAGE_17
+training:
+  batch_size: 2
+  classifier_lr: 0.0001
+  early_stopping_patience: 7
+  effective_batch_size: 16
+  grad_accum_steps: 8
+  layer3_lr: 3.0e-06
+  layer4_lr: 1.0e-05
+  max_epochs: 25
+  mixed_precision: FP16
+  optimizer: AdamW
+  seed: 42
+  weight_decay: 0.01

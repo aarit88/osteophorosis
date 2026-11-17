@@ -1,0 +1,123 @@
+{
+  "best_epoch": 2,
+  "best_macro_f1": 0.6335,
+  "validation_metrics": {
+    "macro_f1": 0.6335,
+    "balanced_accuracy": 0.7335,
+    "overall_accuracy": 0.6735,
+    "macro_roc_auc_ovr": 0.8302,
+    "macro_pr_auc": 0.7526,
+    "brier_score": 0.4858,
+    "per_class_metrics": {
+      "NORMAL_BONE_RADIOGRAPH": {
+        "class_index": 0,
+        "support": 319,
+        "prevalence": 0.5425,
+        "recall_sensitivity": 0.6426,
+        "specificity": 0.8439,
+        "precision_ppv": 0.83,
+        "f1_score": 0.7244,
+        "roc_auc_ovr": 0.8096,
+        "pr_auc": 0.8219
+      },
+      "BENIGN_BONE_TUMOR": {
+        "class_index": 1,
+        "support": 228,
+        "prevalence": 0.3878,
+        "recall_sensitivity": 0.6798,
+        "specificity": 0.7556,
+        "precision_ppv": 0.6379,
+        "f1_score": 0.6582,
+        "roc_auc_ovr": 0.7711,
+        "pr_auc": 0.7433
+      },
+      "PRIMARY_MALIGNANT_TUMOR": {
+        "class_index": 2,
+        "support": 41,
+        "prevalence": 0.0697,
+        "recall_sensitivity": 0.878,
+        "specificity": 0.8867,
+        "precision_ppv": 0.3673,
+        "f1_score": 0.518,
+        "roc_auc_ovr": 0.91,
+        "pr_auc": 0.6926
+      }
+    },
+    "confusion_matrix": [
+      [
+        205,
+        84,
+        30
+      ],
+      [
+        41,
+        155,
+        32
+      ],
+      [
+        1,
+        4,
+        36
+      ]
+    ]
+  },
+  "training_summary": [
+    {
+      "epoch": 1,
+      "train_loss": 0.300391,
+      "val_loss": 0.177803,
+      "macro_f1": 0.5645,
+      "balanced_accuracy": 0.6725,
+      "overall_accuracy": 0.6088,
+      "macro_roc_auc_ovr": 0.7811,
+      "macro_pr_auc": 0.6809,
+      "brier_score": 0.5516,
+      "sens_normal": 0.6332,
+      "sens_benign": 0.5307,
+      "sens_malignant": 0.8537,
+      "f1_normal": 0.6824,
+      "f1_benign": 0.5681,
+      "f1_malignant": 0.443,
+      "peak_vram_mib": 305.55,
+      "duration_seconds": 268.48
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.238187,
+      "val_loss": 0.151777,
+      "macro_f1": 0.6335,
+      "balanced_accuracy": 0.7335,
+      "overall_accuracy": 0.6735,
+      "macro_roc_auc_ovr": 0.8302,
+      "macro_pr_auc": 0.7526,
+      "brier_score": 0.4858,
+      "sens_normal": 0.6426,
+      "sens_benign": 0.6798,
+      "sens_malignant": 0.878,
+      "f1_normal": 0.7244,
+      "f1_benign": 0.6582,
+      "f1_malignant": 0.518,
+      "peak_vram_mib": 305.55,
+      "duration_seconds": 397.98
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.217271,
+      "val_loss": 0.138819,
+      "macro_f1": 0.6254,
+      "balanced_accuracy": 0.7373,
+      "overall_accuracy": 0.6735,
+      "macro_roc_auc_ovr": 0.8527,
+      "macro_pr_auc": 0.7893,
+      "brier_score": 0.4724,
+      "sens_normal": 0.6646,
+      "sens_benign": 0.6447,
+      "sens_malignant": 0.9024,
+      "f1_normal": 0.7336,
+      "f1_benign": 0.6622,
+      "f1_malignant": 0.4805,
+      "peak_vram_mib": 305.55,
+      "duration_seconds": 322.45
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "stage": "STAGE_19",
+  "evaluation_name": "BTXRD Center 2 External Holdout Evaluation",
+  "timestamp": "2026-11-16T07:46:08.316486",
+  "checkpoint_sha256": "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD",
+  "model_version": "1.0.0",
+  "dataset_manifest": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_service\\data\\splits\\btxrd_split_manifest.csv",
+  "cohort_center": "center_2",
+  "cohort_partition": "external_test_center2",
+  "total_images_evaluated": 549,
+  "excluded_or_unreadable_images": 0,
+  "class_mapping": {
+    "NORMAL_BONE_RADIOGRAPH": 0,
+    "BENIGN_BONE_TUMOR": 1,
+    "PRIMARY_MALIGNANT_TUMOR": 2
+  },
+  "preprocessing_configuration": {
+    "target_resolution": [
+      512,
+      512
+    ],
+    "aspect_ratio_mode": "letterbox_black_padding",
+    "padding_color": [
+      0,
+      0,
+      0
+    ],
+    "normalization_mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "normalization_std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  },
+  "decision_rule": "argmax(softmax(logits))",
+  "calibration_status": "uncalibrated_raw_softmax",
+  "summary_metrics": {
+    "overall_accuracy": 0.5173,
+    "balanced_accuracy": 0.5374,
+    "macro_f1": 0.5069,
+    "weighted_f1": 0.521,
+    "macro_roc_auc_ovr": 0.718,
+    "macro_pr_auc_ovr": 0.5683,
+    "multiclass_brier_score": 0.5731
+  },
+  "center_3_status": "SEALED_UNTOUCHED"
+}

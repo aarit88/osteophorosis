@@ -1,0 +1,86 @@
+{
+  "experiment": "BTXRD Three-Class ResNet-34 Full Training",
+  "stage": "STAGE_17",
+  "total_epochs_trained": 25,
+  "early_stopping_triggered": true,
+  "best_epoch": 18,
+  "best_macro_f1": 0.8103,
+  "best_macro_pr_auc": 0.87,
+  "balanced_accuracy": 0.829,
+  "overall_accuracy": 0.818,
+  "macro_roc_auc_ovr": 0.9114,
+  "brier_score": 0.3168,
+  "per_class_summary": {
+    "NORMAL_BONE_RADIOGRAPH": {
+      "class_index": 0,
+      "support": 319,
+      "prevalence": 0.5425,
+      "recall_sensitivity": 0.9091,
+      "specificity": 0.7546,
+      "precision_ppv": 0.8146,
+      "f1_score": 0.8593,
+      "roc_auc_ovr": 0.8935,
+      "pr_auc": 0.8771
+    },
+    "BENIGN_BONE_TUMOR": {
+      "class_index": 1,
+      "support": 228,
+      "prevalence": 0.3878,
+      "recall_sensitivity": 0.6754,
+      "specificity": 0.9194,
+      "precision_ppv": 0.8415,
+      "f1_score": 0.7494,
+      "roc_auc_ovr": 0.8538,
+      "pr_auc": 0.8382
+    },
+    "PRIMARY_MALIGNANT_TUMOR": {
+      "class_index": 2,
+      "support": 41,
+      "prevalence": 0.0697,
+      "recall_sensitivity": 0.9024,
+      "specificity": 0.9781,
+      "precision_ppv": 0.7551,
+      "f1_score": 0.8222,
+      "roc_auc_ovr": 0.9868,
+      "pr_auc": 0.8949
+    }
+  },
+  "confusion_matrix": [
+    [
+      290,
+      26,
+      3
+    ],
+    [
+      65,
+      154,
+      9
+    ],
+    [
+      1,
+      3,
+      37
+    ]
+  ],
+  "peak_vram_mib": 426.87060546875,
+  "model_metadata": {
+    "model_architecture": "ResNet-34",
+    "weights_provenance": "ResNet34_Weights.IMAGENET1K_V1",
+    "num_classes": 3,
+    "dropout_p": 0.4,
+    "freeze_early_backbone": true,
+    "total_parameters": 21286211,
+    "trainable_parameters": 13115907,
+    "frozen_parameters": 8170304,
+    "trainable_percentage": 61.62
+  },
+  "checkpoint_selection_policy": {
+    "primary": "validation_macro_f1",
+    "secondary": "validation_macro_pr_auc"
+  },
+  "scientific_disclaimers": [
+    "Research prototype only: Not cleared for clinical diagnostic use.",
+    "Patient-level independence cannot be established internally due to BTXRD metadata limitations.",
+    "Primary malignant bone tumours (e.g. osteosarcoma) are strictly modeled independently from secondary bone metastases."
+  ]
+}
