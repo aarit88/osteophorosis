@@ -232,26 +232,33 @@ class MLReadinessService:
             target_classes=self.settings.target_classes,
         )
 
+        summary_path = self.settings.get_resolved_checkpoints_dir() / "four_class_training_summary.json"
         can_infer = (state == ModelState.READY_FOR_INFERENCE) and (checkpoint is not None)
         can_train = (state == ModelState.READY_FOR_TRAINING)
+        logs_dir = self.settings.resolve_path(self.settings.logs_dir)
+        has_logs = logs_dir.exists() and any(logs_dir.glob("*.log"))
 
         message = (
             "Model is AWAITING_DATA. Currently zero clinical datasets exist on disk. "
             "Strict adherence to Rules 4, 5, 6, and 7 prohibits phantom predictions or fake training metrics."
             if state == ModelState.AWAITING_DATA
-            else f"Model is currently in state {state.value}."
+            else (
+                f"Verified 4-class clinical checkpoint ready for PyTorch inference ({checkpoint.name})."
+                if can_infer and checkpoint is not None
+                else f"Model is currently in state {state.value}."
+            )
         )
 
         return ModelStatusResponse(
             model_state=state,
             active_backbone=self.settings.active_backbone,
-            weights_loaded=False,  # No weights loaded in zero-dataset state
+            weights_loaded=can_infer,
             checkpoint_path=checkpoint_path,
             checkpoint_verified=can_infer,
             architecture=arch_info,
             can_infer=can_infer,
             can_train=can_train,
-            training_history_available=False,
+            training_history_available=has_logs or summary_path.is_file(),
             message=message,
             blockers=blockers,
         )

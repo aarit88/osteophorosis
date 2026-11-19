@@ -1,0 +1,6 @@
+{
+  "name": "OsteoGuard AI — Explainable Bone Pathology Classification",
+  "description": "Explainable deep learning system classifying bone radiographs into Metastasis, Paget's Disease, Osteogenesis Imperfecta, and Healthy Bone with Grad-CAM and SHAP attribution.",
+  "permissions": [],
+  "capabilities": []
+}

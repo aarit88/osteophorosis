@@ -106,6 +106,8 @@ coverage.xml
 .env
 .env.local
 .env.*.local
+mock-server/data/.audit-secret.key
+*.key
 
 # ------------------------------------------------------------------------------
 # 6. Frontend / Node.js

@@ -41,6 +41,19 @@ class DatasetValidator:
         """Verifies if an image file can be read and contains valid pixels."""
         if not file_path.exists():
             return False, "File does not exist"
+        if file_path.suffix.lower() in (".dcm", ".dicom"):
+            try:
+                import pydicom  # type: ignore
+
+                ds = pydicom.dcmread(str(file_path), force=True)
+                arr = ds.pixel_array
+                if arr.ndim < 2 or arr.shape[0] < 32 or arr.shape[1] < 32:
+                    return False, f"DICOM resolution too small: {arr.shape}"
+                return True, None
+            except ImportError:
+                return False, "DICOM file detected but pydicom is not installed"
+            except Exception as e:
+                return False, f"DICOM corruption error: {str(e)}"
         try:
             with Image.open(file_path) as img:
                 img.verify()
@@ -52,6 +65,58 @@ class DatasetValidator:
             return True, None
         except Exception as e:
             return False, f"Image corruption error: {str(e)}"
+
+    @staticmethod
+    def extract_patient_id(file_path: Path) -> str:
+        """
+        Parses patient ID from filename stem:
+        everything before the last underscore is patient ID (e.g. PATIENT01_slice02 -> PATIENT01).
+        """
+        stem = file_path.stem
+        if "_" in stem:
+            return stem.rsplit("_", 1)[0]
+        return stem
+
+    def collect_validated_samples(
+        self,
+        data_root: Path,
+        modality: str = "xray",
+    ) -> List[SampleRecord]:
+        """
+        Scans a validated 4-class directory tree and builds SampleRecord objects
+        suitable for patient-level stratified partitioning.
+        """
+        root = Path(data_root)
+        if not root.exists() or not root.is_dir():
+            return []
+
+        records: List[SampleRecord] = []
+        supported_exts = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dcm", ".dicom")
+
+        for subdir in sorted(p for p in root.iterdir() if p.is_dir()):
+            class_name = subdir.name.lower()
+            if class_name not in self.allowed_classes:
+                continue
+
+            for idx, file_path in enumerate(sorted(subdir.glob("*.*"))):
+                if file_path.suffix.lower() not in supported_exts:
+                    continue
+                valid, _ = self.validate_image_file(file_path)
+                if not valid:
+                    continue
+
+                patient_id = self.extract_patient_id(file_path)
+                records.append(
+                    SampleRecord(
+                        sample_id=f"{class_name}_{idx:05d}_{file_path.stem}",
+                        patient_id=patient_id,
+                        label=class_name,
+                        file_path=str(file_path.resolve()),
+                        modality=modality,
+                    )
+                )
+
+        return records
 
     def audit_dataset_directory(self, data_root: Path) -> DatasetValidationReport:
         """
@@ -90,7 +155,7 @@ class DatasetValidator:
                 continue
 
             for file_path in subdir.glob("*.*"):
-                if file_path.suffix.lower() not in (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dcm"):
+                if file_path.suffix.lower() not in (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dcm", ".dicom"):
                     continue
 
                 valid, err = self.validate_image_file(file_path)
@@ -99,13 +164,7 @@ class DatasetValidator:
                     messages.append(f"Corrupt image: {file_path.name} - {err}")
                     continue
 
-                # Parse patient ID: everything before the last underscore is patient ID (e.g. PATIENT01_slice02 -> PATIENT01)
-                stem = file_path.stem
-                if "_" in stem:
-                    patient_id = stem.rsplit("_", 1)[0]
-                else:
-                    patient_id = stem
-
+                patient_id = self.extract_patient_id(file_path)
                 samples_per_class[class_name] += 1
                 patients_per_class[class_name].add(patient_id)
 

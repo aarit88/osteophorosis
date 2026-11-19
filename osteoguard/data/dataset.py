@@ -52,12 +52,29 @@ class OsteoGuardDataset(Dataset):
         record = self.samples[idx]
         file_path = Path(record.file_path)
 
-        # 1. Load image as single-channel grayscale
+        # 1. Load image as single-channel grayscale (supports standard images & DICOM)
+        ct_metadata: Optional[Dict[str, float]] = None
         try:
-            with Image.open(file_path) as pil_img:
-                gray_img = pil_img.convert("L")
-                resized_img = gray_img.resize(self.image_size, Image.Resampling.BILINEAR)
-                raw_np = np.array(resized_img, dtype=np.float32)
+            if file_path.suffix.lower() in (".dcm", ".dicom"):
+                import pydicom  # type: ignore
+
+                ds = pydicom.dcmread(str(file_path), force=True)
+                arr = ds.pixel_array.astype(np.float32)
+                if arr.ndim == 3:
+                    arr = arr[:, :, 0]
+                if hasattr(ds, "RescaleSlope") or hasattr(ds, "RescaleIntercept"):
+                    ct_metadata = {
+                        "rescale_slope": float(getattr(ds, "RescaleSlope", 1.0)),
+                        "rescale_intercept": float(getattr(ds, "RescaleIntercept", -1024.0)),
+                    }
+                pil_dcm = Image.fromarray(arr)
+                resized_dcm = pil_dcm.resize(self.image_size, Image.Resampling.BILINEAR)
+                raw_np = np.array(resized_dcm, dtype=np.float32)
+            else:
+                with Image.open(file_path) as pil_img:
+                    gray_img = pil_img.convert("L")
+                    resized_img = gray_img.resize(self.image_size, Image.Resampling.BILINEAR)
+                    raw_np = np.array(resized_img, dtype=np.float32)
         except Exception as e:
             raise RuntimeError(f"Failed to read image at {file_path}: {e}")
 
@@ -65,6 +82,7 @@ class OsteoGuardDataset(Dataset):
         calibrated_np = ModalityStrategyEngine.preprocess_image(
             raw_np,
             modality=record.modality,
+            ct_metadata=ct_metadata,
         )
 
         # 3. Radiomic extraction (or cached retrieval)
