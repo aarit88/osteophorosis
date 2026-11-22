@@ -73,6 +73,12 @@ from ml_service.app.schemas.research import (
     SyntheticWorkbenchRunRequest,
     SyntheticWorkbenchRunResponse,
     BlockedInferenceResponse,
+    TrackDDatasetReadinessResponse,
+    DatasetSourcesResponse,
+    DatasetAcquisitionStatusResponse,
+    DatasetGovernanceStatusResponse,
+    CohortPlanningResponse,
+    WorkflowTransitionRequest,
 )
 
 
@@ -694,3 +700,104 @@ class ResearchService:
 
     def get_blocked_inference(self) -> BlockedInferenceResponse:
         return BlockedInferenceResponse()
+
+    def get_track_d_dataset_readiness(self) -> TrackDDatasetReadinessResponse:
+        from pathlib import Path
+        from ml_service.datasets.track_d_intake import run_track_d_intake_pipeline
+
+        repo_root = Path(__file__).resolve().parents[3]
+        result = run_track_d_intake_pipeline(root_dir=repo_root, write_outputs=False)
+        report = result["readiness"]
+        quarantined = result["validation"]["quarantined_records"]
+        q_reasons: Dict[str, int] = {}
+        for rec in quarantined:
+            for r in rec.get("rejection_reasons", []):
+                q_reasons[r] = q_reasons.get(r, 0) + 1
+
+        has_real = report["total_inspected_samples"] > 0
+        return TrackDDatasetReadinessResponse(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            track="track_d",
+            readiness_status=report["readiness_status"],
+            ready_for_training=report["ready_for_training"],
+            data_origin="REAL_DISK_DATA_PRESENT" if has_real else "REAL_CLINICAL_DATA_UNAVAILABLE",
+            synthetic_data_excluded=True,
+            total_inspected_samples=report["total_inspected_samples"],
+            valid_samples=report["valid_samples"],
+            quarantined_samples=report["quarantined_samples"],
+            unique_patients=report["unique_patients"],
+            institution_count=report["institution_count"],
+            institutions=report["institutions"],
+            dataset_sources=report["dataset_sources"],
+            permissions_verified=report["permissions_verified"],
+            ethics_references=report["ethics_references"],
+            class_counts=report["class_counts"],
+            modality_counts=report["modality_counts"],
+            class_modality_matrix=report["class_modality_matrix"],
+            missing_metadata_count=report["missing_metadata_count"],
+            duplicate_samples_count=report["duplicate_samples_count"],
+            ontology_version=report["ontology_version"],
+            accepted_by_class=report["accepted_by_class"],
+            adjudication_summary=report["adjudication_summary"],
+            healthy_control_eligibility_failures=report["healthy_control_eligibility_failures"],
+            conflicting_diagnoses_count=report["conflicting_diagnoses_count"],
+            label_provenance_completeness_pct=report["label_provenance_completeness_pct"],
+            split_distribution=report["split_distribution"],
+            gates=report["gates"],
+            protected_holdouts={
+                "btxrd_center2_samples": 549,
+                "btxrd_center3_samples": 259,
+                "isolation_enforced": True,
+            },
+            blockers=report["blockers"],
+            outstanding_requirements=[
+                "Paget's Disease of Bone: Retrospective Hospital Radiology PACS IRB/IEC approval + DUA (radiographic triad + elevated serum ALP).",
+                "Osteogenesis Imperfecta (OI): Multi-center pediatric ethics approval + DUA (RDCRN BBDC / tertiary pediatric orthopedic centers).",
+                "Secondary Bone Metastasis: Hospital PACS biopsy/PET-CT confirmed cohort + TCIA Spine-Mets-CT-Seg (.tcia DUA) + Zenodo 13900966 validation.",
+                "Healthy Skeletal Controls: Verified asymptomatic normal PACS controls + Stanford AIMI MURA DUA (matched anatomical sites).",
+            ],
+            clinical_sample_size_justification_note=report["clinical_sample_size_justification_note"],
+            quarantine_reasons=q_reasons,
+        )
+
+    def _get_acquisition_service(self):
+        from pathlib import Path
+        from ml_service.app.services.acquisition_governance import AcquisitionGovernanceService
+
+        repo_root = Path(__file__).resolve().parents[3]
+        return AcquisitionGovernanceService(root_dir=repo_root)
+
+    def get_dataset_sources(self) -> DatasetSourcesResponse:
+        return DatasetSourcesResponse(**self._get_acquisition_service().get_sources_payload())
+
+    def get_dataset_acquisition_status(self) -> DatasetAcquisitionStatusResponse:
+        return DatasetAcquisitionStatusResponse(
+            **self._get_acquisition_service().get_acquisition_status_payload()
+        )
+
+    def get_dataset_governance_status(self) -> DatasetGovernanceStatusResponse:
+        return DatasetGovernanceStatusResponse(
+            **self._get_acquisition_service().get_governance_status_payload()
+        )
+
+    def get_cohort_planning(self) -> CohortPlanningResponse:
+        return CohortPlanningResponse(**self._get_acquisition_service().get_cohort_planning_payload())
+
+    def validate_workflow_transition(self, req: WorkflowTransitionRequest) -> Dict[str, Any]:
+        from ml_service.app.services.acquisition_governance import transition_workflow_state
+
+        svc = self._get_acquisition_service()
+        reg = svc.load_registry()
+        source = next((s for s in reg.get("sources") or [] if s.get("source_id") == req.source_id), None)
+        if source is None:
+            raise KeyError(f"Unknown source_id '{req.source_id}'")
+        updated = transition_workflow_state(
+            source=source,
+            target_state=req.target_state,
+            reviewer_pseudo_id=req.reviewer_pseudo_id,
+            reviewer_role=req.reviewer_role,
+            reason=req.reason,
+            evidence_reference=req.evidence_reference,
+        )
+        return updated["workflow_history"][-1]
+

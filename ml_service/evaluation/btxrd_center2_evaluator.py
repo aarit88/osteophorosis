@@ -284,7 +284,7 @@ def run_stage_19_center2_evaluation() -> Dict[str, Any]:
     print(f"\n[Model] Loading ResNet-34 on device: {device}...", flush=True)
     model = BTXRDResNet34(num_classes=3, pretrained=False, dropout_p=0.4, freeze_early=True)
     model.unfreeze_layer3()
-    ckpt = torch.load(frozen_ckpt_path, map_location=device)
+    ckpt = torch.load(frozen_ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state_dict"])
     model.to(device)
     model.eval()

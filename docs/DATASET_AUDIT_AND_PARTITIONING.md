@@ -121,3 +121,92 @@ Because zero real clinical datasets currently reside on local disk:
 
 All 4 artifacts are generated and tracked in `ml_service/data/splits/` and mirrored to `ml_artifacts/reports/`.
 
+---
+
+## 6. Stage 33 — Track D Clinical Dataset Intake, Modality Isolation & Readiness Gate
+
+Stage 33 extends the foundational Stage 06 audit engine with a dedicated, pure-stdlib **Track D Clinical Intake Pipeline** (`ml_service/datasets/track_d_intake.py` + `ml_service/scripts/run_track_d_intake.py`) operating directly inside AI Studio without requiring PyTorch weights or external GPU services.
+
+### 6.1 Standardized Modality-Separated Directory Structure (`ml_service/data/`)
+Modalities (`xray`, `bone_scan`, `ct`) are strictly separated and never assumed interchangeable:
+```
+ml_service/data/
+├── raw/{xray,bone_scan,ct}/{metastasis,paget,oi,healthy}/
+├── interim/{xray,bone_scan,ct}/{metastasis,paget,oi,healthy}/
+├── processed/{xray,bone_scan,ct}/{metastasis,paget,oi,healthy}/
+├── quarantine/{xray,bone_scan,ct}/{metastasis,paget,oi,healthy}/
+├── manifests/
+│   ├── track_d_manifest.schema.json
+│   ├── track_d_manifest.example.json   (non-ingested schema template)
+│   └── track_d_manifest.example.csv    (non-ingested schema template)
+├── splits/
+│   └── track_d_split_manifest.csv / track_d_split_summary.json
+└── reports/
+    ├── track_d_quality_report.json
+    ├── track_d_quarantine_report.json
+    └── track_d_readiness_report.json
+```
+
+### 6.2 Machine-Readable Manifest (16 Required Fields & PHI Prohibition)
+Every clinical sample manifest entry must supply 16 verified fields:
+`sample_id`, `patient_id` (pseudonymized `PT_*` / `SUBJ_*` only), `diagnostic_class`, `imaging_modality`, `image_path`, `image_format`, `image_dimensions`, `image_bit_depth`, `anatomical_region`, `institution_id`, `dataset_source`, `license_permissions`, `ethics_approval_ref`, `deidentification_status`, `qc_status`, and `split_assignment`.
+
+Direct PHI keys (`patient_name`, `mrn`, `email`, `ssn`, `address`, `dob`, `phone`) and unpseudonymized patterns are automatically blocked and quarantined.
+
+### 6.3 Quality Validation, Negative Mapping & External Holdout Protection
+- **Image Header & Stream Verification**: Inspects PNG (`IHDR` + zlib `IDAT`), JPEG (`SOF`), TIFF (`IFD`), BMP, DICOM (`DICM` tags), and NIfTI headers (`>= 32x32` px, non-zero size, format consistency).
+- **Duplicate & Conflict Checks**: SHA-256 exact duplicate detection, 64-bit grayscale `dHash` near-duplicate detection (`Hamming <= 3`), and cross-record patient diagnosis conflict blocking.
+- **Uncertain Diagnosis Non-Conversion**: Equivocal/borderline/rule-out studies are isolated for clinical review and **never** converted into another class.
+- **Protected External Holdout Isolation**: Blocks and quarantines any sample matching **BTXRD Center 2 (`N=549`)**, **BTXRD Center 3 (`N=259`)**, or **FracAtlas burned test holdouts** by hash, sample ID, or site identifier.
+
+### 6.4 Readiness Gate & Honest Zero-Data Reporting
+Readiness passes (`READY_FOR_TRAINING`) only when all 7 structural gates succeed: documented provenance, verified permissions/DUA, verified de-identification, documented diagnostic label evidence, patient-level zero-leakage split integrity, image quality pass rate, and 4-class coverage. No arbitrary minimum clinical sample size is fabricated in software; statistical cohort power requires documented biostatistical and IEC approval. When zero real cohorts exist, both the CLI (`run_track_d_intake.py --all`) and `GET /api/v1/datasets/readiness` report **`NOT_AVAILABLE`** with **`0`** sample counts.
+
+---
+
+## 7. Stage 34 — Clinical Label Ontology, Diagnostic Adjudication & Dataset Safety Audit
+
+### 7.1 Diagnostic Mapping Audit Findings
+An exhaustive audit across `ml_service/datasets/`, manifest schemas, readiness endpoints, and UI code confirmed that no positive equivalence rules converted `Osteoporosis -> OI`, `Osteoarthritis -> Paget's`, `Contralateral -> Healthy`, or `Primary bone malignancy -> Metastasis` (`registry_verifier.py` already enforced negative exclusion Rules 2.1–2.4). However, Stage 33 had five structural gaps remediated in Stage 34:
+1. Inline `CLASS_ALIASES` lacked a single centralized clinical ontology with explicit `OUT_OF_SCOPE` / `UNCERTAIN` / `REQUIRES_ADJUDICATION` tracking.
+2. `diagnostic_evidence` was optional during validation.
+3. `healthy` lacked positive eligibility checks (contralateral screening, confirmed radiology report, non-generic `anatomical_region`, cohort `control_selection_criteria`, and documented `patient_skeletal_history`).
+4. `track_d_manifest.schema.json` lacked formal provenance & adjudication metadata (`source_report_ref`, `diagnostic_evidence_category`, `histopathology_confirmation_status`, `radiology_report_confirmation_status`, `clinical_adjudication_status`, `reviewer_pseudo_id`, `review_date`, `conflicting_diagnosis_indicator`, `label_provenance`, `label_ontology_version`).
+5. The Governance Dashboard and `/api/v1/datasets/readiness` did not expose ontology adjudication breakdown counts.
+
+### 7.2 Centralized Ontology & Adjudication Engine (`clinical_ontology.py` & `adjudication_engine.py`)
+All label normalization, status management (`ACCEPTED`, `OUT_OF_SCOPE`, `UNCERTAIN`, `REQUIRES_ADJUDICATION`, `REJECTED`), and chronological label provenance tracking are centralized under **`OSTEO_ONTOLOGY_V1.0_STAGE34`** (`ml_service/datasets/clinical_ontology.py` + `ml_service/app/services/adjudication_engine.py`):
+- **Canonical Classes**: `SECONDARY_BONE_METASTASIS`, `PAGETS_DISEASE`, `OSTEOGENESIS_IMPERFECTA`, `HEALTHY_SKELETAL_CONTROL`.
+- **Adjudication Outcomes**: `ACCEPTED`, `OUT_OF_SCOPE`, `UNCERTAIN`, `REQUIRES_ADJUDICATION`, `REJECTED`.
+- **Zero Unsupported Equivalences**:
+  - `Osteoporosis`, `osteopenia`, `rickets`, `osteomalacia` $\rightarrow$ `OUT_OF_SCOPE` (never `OI`).
+  - `Osteoarthritis`, `degenerative sclerosis`, `fibrous dysplasia`, `osteopetrosis` $\rightarrow$ `OUT_OF_SCOPE` (never `Paget's`).
+  - `Osteosarcoma`, `Ewing sarcoma`, `chondrosarcoma`, `multiple myeloma`, `primary bone malignancy` $\rightarrow$ `OUT_OF_SCOPE` (never `Secondary Metastasis`).
+  - `Contralateral` / `fellow limb` / `unaffected limb` / `no fracture detected` / `incomplete medical history` $\rightarrow$ `REJECTED` (never `Healthy`).
+  - `Uncertain` / `equivocal` / `borderline` / `rule out` $\rightarrow$ `UNCERTAIN` (excluded from train/val/test splits).
+  - Conflicting patient diagnoses or unconfirmed reviews $\rightarrow$ `REQUIRES_ADJUDICATION`.
+
+### 7.3 Recursive Dataset Validator CLI (`ml_service/scripts/validate_dataset.py`)
+`python3 ml_service/scripts/validate_dataset.py` recursively scans `ml_service/data/raw/`, verifies image format/size/dimensions/SHA-256 digests, checks Stage 34 metadata & provenance completeness, detects duplicate patient IDs, conflicting patient diagnoses, and duplicate/near-duplicate images, and outputs `track_d_adjudication_audit.json` alongside readiness reports via `run_track_d_intake.py --all`.
+
+---
+
+## 8. Stage 35 — Institutional Dataset Acquisition, Research Governance & Cohort Readiness Management
+
+### 8.1 Centralized Dataset Source Registry (`ml_service/data/manifests/dataset_source_registry.json`)
+Registers all four required clinical cohorts (`metastasis`, `paget`, `oi`, `healthy`) while strictly separating **proposed institutional partnerships** (`IDENTIFIED`, `url_verified: false`), **verified external/in-tree candidates** (`VERIFICATION_REQUIRED`), and **disqualified sources** (`REJECTED`):
+- **Secondary Bone Metastasis**: Proposed institutional PACS radiograph cohort; verified TCIA `Spine-Mets-CT-SEG` (`ct` only, 55 pts / 108 series pending TCIA DUA); audited in-tree IICS-UNA bone scintigraphy cohort (`bone_scan` only, 60 mets pts / 120 paired views; staging negatives excluded as healthy controls); BTXRD Class 2 primary sarcomas permanently `REJECTED`.
+- **Paget's Disease of Bone**: Proposed hospital/UK-EU MSK radiology PACS collaboration (`IDENTIFIED`); Radiopaedia / MedPix educational web figures permanently `REJECTED`.
+- **Osteogenesis Imperfecta (OI)**: Verified controlled-access candidate RDCRN BBDC Protocol 7701 (`VERIFICATION_REQUIRED`, no public download in PMC11324408); proposed tertiary pediatric orthopedic genetics registry (`IDENTIFIED`); Figshare murine *oim* micro-CT `10.6084/m9.figshare.c.3795019` permanently `REJECTED`.
+- **Healthy Skeletal Controls**: Stanford AIMI MURA upper-extremity comparator (`VERIFICATION_REQUIRED`, strictly upper extremity only); proposed anatomically & age-matched hospital PACS normal controls (`IDENTIFIED`); FracAtlas emergency non-fractured trauma cohort permanently `REJECTED`.
+
+### 8.2 Institutional Governance & Acquisition Workflow State Machine (`acquisition_governance.py` & `dataset-governance.ts`)
+- **Non-Trivial Governance Verification**: Never marks governance fields verified merely because strings are non-empty; requires valid approval status (`APPROVED`/`EXECUTED`/`VERIFIED`/`ACTIVE`), non-placeholder protocol/DUA/signoff reference IDs, active non-expired `expiry_date`, evidence reference, and valid pseudonymous reviewer signoff (`REV_*`/`ADJ_*`/`RAD_*`/`CLIN_*`) with authorized `GovernanceRole`.
+- **10-Stage Sequential Workflow**: `SOURCE_IDENTIFIED` $\rightarrow$ `SOURCE_VERIFIED` $\rightarrow$ `ETHICS_PENDING` $\rightarrow$ `DUA_PENDING` $\rightarrow$ `ACCESS_APPROVED` $\rightarrow$ `DATA_RECEIVED` $\rightarrow$ `DEIDENTIFICATION_VERIFIED` $\rightarrow$ `LABEL_ADJUDICATION` $\rightarrow$ `QUALITY_VALIDATION` $\rightarrow$ `COHORT_ACCEPTED` (plus controlled exception states `REJECTED`, `EXPIRED`, `REQUIRES_REVIEW`, `BLOCKED`).
+- **Four Cohort-Specific Acquisition Protocols (`cohort_acquisition_protocols.json`)**: Enforces `xray`/`bone_scan`/`ct` separation, metastasis biopsy vs PET-CT/radiology concordance tiering, Paget's clinical/radiological triad + serum ALP/BSAP, OI `COL1A1/COL1A2` genetic vs Sillence clinical separation + pediatric consent/IEC waiver, and Stage 34 healthy-control eligibility.
+
+### 8.3 Cohort Planning vs Actual Counts & Draft Request Templates
+- **Cohort Planning (`cohort_planning_manifest.json`)**: Documents `940` planned patients (`2,270` planned scans) across 6 cohort $\times$ modality streams with `70/15/15` patient-level splits and `statistical_sample_size_justification_ref: "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW"`, while actual on-disk validated counts remain **`0`**.
+- **Seven Draft Templates (`ml_service/data/templates/01_*.md` – `07_*.md`)**: Standardized institutional collaboration, dataset access, ethics submission, DUA, de-identification, adjudication SOP, and transfer/provenance templates, each explicitly marked **`DRAFT — REQUIRES INSTITUTIONAL AND LEGAL REVIEW`**.
+- **Governance APIs & Dashboard**: Exposed via `/api/v1/datasets/{sources,acquisition-status,governance-status,cohort-planning}` and `POST /api/v1/datasets/workflow/transition` and surfaced in the Governance Dashboard.
+

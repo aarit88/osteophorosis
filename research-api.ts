@@ -8,7 +8,15 @@ import {
   buildTrackDEvidenceItem,
   buildFourClassGateResponse,
   buildDynamicCohortList,
+  getTrackDDatasetReadiness,
 } from './clinical-readiness.js';
+import {
+  getDatasetSourcesResponse,
+  getDatasetAcquisitionStatusResponse,
+  getDatasetGovernanceStatusResponse,
+  getCohortPlanningResponse,
+  validateWorkflowTransitionRequest,
+} from './dataset-governance.js';
 
 const __researchFilename = fileURLToPath(import.meta.url);
 const __researchDirname = path.dirname(__researchFilename);
@@ -1004,6 +1012,43 @@ export function registerResearchRoutes(app: Express): void {
           : `BLOCKED (${state.cohortsAcquired} / 4 verified cohorts) — Formal institutional collaboration and clinical cohort ingestion required.`,
       disclaimer: 'Research governance prohibits training on surrogate or unverified datasets.',
     });
+  });
+
+  app.get('/api/v1/datasets/readiness', (_req: Request, res: Response) => {
+    res.json(getTrackDDatasetReadiness(__researchDirname));
+  });
+
+  app.get('/api/v1/datasets/sources', (_req: Request, res: Response) => {
+    res.json(getDatasetSourcesResponse(__researchDirname));
+  });
+
+  app.get('/api/v1/datasets/acquisition-status', (_req: Request, res: Response) => {
+    res.json(getDatasetAcquisitionStatusResponse(__researchDirname));
+  });
+
+  app.get('/api/v1/datasets/governance-status', (_req: Request, res: Response) => {
+    res.json(getDatasetGovernanceStatusResponse(__researchDirname));
+  });
+
+  app.get('/api/v1/datasets/cohort-planning', (_req: Request, res: Response) => {
+    res.json(getCohortPlanningResponse(__researchDirname));
+  });
+
+  app.post('/api/v1/datasets/workflow/transition', (req: Request, res: Response) => {
+    const clinicalToken = process.env.OSTEO_CLINICAL_API_TOKEN?.trim() || '';
+    if (clinicalToken) {
+      const authHeader = req.headers.authorization || '';
+      if (authHeader !== `Bearer ${clinicalToken}`) {
+        return res.status(401).json({
+          error: 'Unauthorized: valid clinical Bearer token required for workflow governance transitions.',
+        });
+      }
+    }
+    const result = validateWorkflowTransitionRequest(__researchDirname, req.body || {});
+    if (!result.ok) {
+      return res.status(result.statusCode).json({ error: result.error });
+    }
+    return res.status(200).json(result.transition);
   });
 
   app.post('/api/v1/radiomics/demo', (req: Request, res: Response) => {

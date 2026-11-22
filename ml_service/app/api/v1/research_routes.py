@@ -30,6 +30,12 @@ from ml_service.app.schemas.research import (
     SyntheticWorkbenchRunRequest,
     SyntheticWorkbenchRunResponse,
     BlockedInferenceResponse,
+    TrackDDatasetReadinessResponse,
+    DatasetSourcesResponse,
+    DatasetAcquisitionStatusResponse,
+    DatasetGovernanceStatusResponse,
+    CohortPlanningResponse,
+    WorkflowTransitionRequest,
 )
 from ml_service.app.services.research_service import ResearchService
 
@@ -105,6 +111,79 @@ def get_architecture_readiness(service: ResearchService = Depends(get_research_s
 )
 def get_dataset_governance_status(service: ResearchService = Depends(get_research_service)) -> DatasetGovernanceResponse:
     return service.get_dataset_governance()
+
+
+@router.get(
+    "/datasets/readiness",
+    response_model=TrackDDatasetReadinessResponse,
+    summary="Stage 33 Track D Dataset Intake & Leakage-Safe Readiness",
+    description="Reports modality-separated counts, metadata/quarantine audit, split distribution, and 7 readiness gate criteria.",
+)
+def get_track_d_dataset_readiness(service: ResearchService = Depends(get_research_service)) -> TrackDDatasetReadinessResponse:
+    return service.get_track_d_dataset_readiness()
+
+
+@router.get(
+    "/datasets/sources",
+    response_model=DatasetSourcesResponse,
+    summary="Stage 35 Institutional Dataset Source Registry",
+    description="Lists proposed and verified clinical cohort sources across all 4 diagnostic classes.",
+)
+def get_dataset_sources(service: ResearchService = Depends(get_research_service)) -> DatasetSourcesResponse:
+    return service.get_dataset_sources()
+
+
+@router.get(
+    "/datasets/acquisition-status",
+    response_model=DatasetAcquisitionStatusResponse,
+    summary="Stage 35 Cohort Acquisition Workflow Status",
+    description="Tracks sequential workflow stages, received scans, validated patient counts, and outstanding blockers per cohort.",
+)
+def get_dataset_acquisition_status(
+    service: ResearchService = Depends(get_research_service),
+) -> DatasetAcquisitionStatusResponse:
+    return service.get_dataset_acquisition_status()
+
+
+@router.get(
+    "/datasets/governance-status",
+    response_model=DatasetGovernanceStatusResponse,
+    summary="Stage 35 Institutional Ethics, DUA & Governance Status",
+    description="Reports pending ethics approvals, pending DUAs, expired clearances, evidence completeness, and draft institutional templates.",
+)
+def get_dataset_governance_status_v2(
+    service: ResearchService = Depends(get_research_service),
+) -> DatasetGovernanceStatusResponse:
+    return service.get_dataset_governance_status()
+
+
+@router.get(
+    "/datasets/cohort-planning",
+    response_model=CohortPlanningResponse,
+    summary="Stage 35 Cohort Planning vs Actual Reconciled Readiness",
+    description="Separates planned patient/image counts from verified actual counts and documents pending biostatistical sample-size justification.",
+)
+def get_cohort_planning(service: ResearchService = Depends(get_research_service)) -> CohortPlanningResponse:
+    return service.get_cohort_planning()
+
+
+@router.post(
+    "/datasets/workflow/transition",
+    summary="Stage 35 Audited Workflow Transition Validation",
+    description="Validates reviewer role, pseudonymous ID, evidence reference, approval expiry, and transition sequence.",
+)
+def post_workflow_transition(
+    request: WorkflowTransitionRequest,
+    service: ResearchService = Depends(get_research_service),
+):
+    try:
+        return service.validate_workflow_transition(request)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 @router.post(

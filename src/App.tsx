@@ -56,11 +56,11 @@ export const App: React.FC = () => {
       <AnalysisProvider>
         <BrowserRouter>
           <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/25 selection:text-cyan-200">
-            {/* 1. Persistent, non-dismissible red warning banner */}
-            <DisclaimerBanner />
-
-            {/* 2. Sticky top navigation bar */}
-            <NavBar />
+            {/* 1 & 2. Persistent non-dismissible warning banner + Sticky navigation bar */}
+            <div className="sticky top-0 z-40">
+              <DisclaimerBanner />
+              <NavBar />
+            </div>
 
             {/* 3. Main routed content */}
             <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

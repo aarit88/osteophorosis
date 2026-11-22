@@ -60,7 +60,7 @@ class BoneScanEnsemble(nn.Module):
 
             # Instantiate ResNet-18 without downloading ImageNet weights again
             model = BoneScanResNet18(pretrained=False)
-            ckpt = torch.load(ckpt_path, map_location=self.device)
+            ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
 
             if "model_state_dict" in ckpt:
                 state_dict = ckpt["model_state_dict"]

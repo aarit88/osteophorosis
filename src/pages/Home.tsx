@@ -168,8 +168,8 @@ export const Home: React.FC = () => {
       )}
 
       {/* Hero Section */}
-      <section className="relative text-center max-w-4xl mx-auto px-4">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-gradient-to-r from-cyan-500/10 via-teal-500/10 to-indigo-500/10 blur-3xl pointer-events-none rounded-full" />
+      <section className="relative text-center max-w-4xl mx-auto px-4 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] h-[300px] bg-gradient-to-r from-cyan-500/10 via-teal-500/10 to-indigo-500/10 blur-3xl pointer-events-none rounded-full" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -270,7 +270,7 @@ export const Home: React.FC = () => {
 
             {/* Quick 1-Click Demo Presets */}
             <div className="mt-3 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-400">
                 <span className="font-semibold text-slate-300">Quick Sample Radiographs (1-Click End-to-End Demo)</span>
                 <span>Generates Grad-CAM, SHAP & Uncertainty Triage</span>
               </div>

@@ -13,24 +13,28 @@ export const EngineStatusWidget: React.FC<EngineStatusWidgetProps> = ({ mode }) 
   const config = {
     live: {
       label: 'Live PyTorch',
+      shortLabel: 'Live',
       dotColor: 'bg-emerald-400',
       badgeClass: 'bg-emerald-950/70 border-emerald-800 text-emerald-300',
       desc: 'Connected to active production ML inference server via VITE_API_BASE_URL_LIVE.',
     },
     mock: {
       label: 'Simulation Mock',
+      shortLabel: 'Mock',
       dotColor: 'bg-cyan-400',
       badgeClass: 'bg-cyan-950/70 border-cyan-800 text-cyan-300',
       desc: 'Connected to unified OsteoGuard API server (deterministic SHA-256 simulation + trained model artifact registry).',
     },
     fallback: {
       label: 'Fallback: Simulation',
+      shortLabel: 'Fallback',
       dotColor: 'bg-amber-400',
       badgeClass: 'bg-amber-950/70 border-amber-800 text-amber-300',
       desc: 'Live backend was unconfigured or unreachable. Auto-switched to simulation mock.',
     },
   }[mode] || {
     label: 'Engine: Auto',
+    shortLabel: 'Auto',
     dotColor: 'bg-slate-400',
     badgeClass: 'bg-slate-900 border-slate-800 text-slate-300',
     desc: 'Automatic engine resolution.',
@@ -41,12 +45,13 @@ export const EngineStatusWidget: React.FC<EngineStatusWidgetProps> = ({ mode }) 
       <button
         onClick={() => setShowInfo(true)}
         type="button"
-        className={`flex items-center space-x-1.5 text-[11px] font-mono px-2.5 py-1 rounded-full border shadow-sm transition hover:scale-105 ${config.badgeClass}`}
+        className={`flex items-center space-x-1.5 text-[11px] font-mono px-2 sm:px-2.5 py-1 rounded-full border shadow-sm transition hover:scale-105 shrink-0 ${config.badgeClass}`}
         title="Prediction Engine Status"
         aria-label={`Inference engine status: ${config.label}`}
       >
-        <span className={`w-2 h-2 rounded-full ${config.dotColor} animate-pulse`} />
-        <span>{config.label}</span>
+        <span className={`w-2 h-2 rounded-full ${config.dotColor} animate-pulse shrink-0`} />
+        <span className="sm:hidden">{config.shortLabel}</span>
+        <span className="hidden sm:inline">{config.label}</span>
       </button>
 
       {showInfo && (

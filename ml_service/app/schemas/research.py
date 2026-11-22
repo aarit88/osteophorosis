@@ -259,3 +259,101 @@ class BlockedInferenceResponse(BaseModel):
         "and preliminary sub-track models (FracAtlas, Bone Scan, BTXRD) must never be remapped into four-class predictions."
     )
 
+
+class TrackDDatasetReadinessResponse(BaseModel):
+    timestamp: str
+    track: str = "track_d"
+    readiness_status: str
+    ready_for_training: bool
+    data_origin: str
+    synthetic_data_excluded: bool = True
+    total_inspected_samples: int
+    valid_samples: int
+    quarantined_samples: int
+    unique_patients: int
+    institution_count: int
+    institutions: List[str]
+    dataset_sources: List[str]
+    permissions_verified: List[str]
+    ethics_references: List[str]
+    class_counts: Dict[str, int]
+    modality_counts: Dict[str, int]
+    class_modality_matrix: Dict[str, Dict[str, int]]
+    missing_metadata_count: int
+    duplicate_samples_count: int
+    ontology_version: str = "OSTEO_ONTOLOGY_V1.0_STAGE34"
+    accepted_by_class: Dict[str, int]
+    adjudication_summary: Dict[str, int]
+    healthy_control_eligibility_failures: int = 0
+    conflicting_diagnoses_count: int = 0
+    label_provenance_completeness_pct: float = 0.0
+    split_distribution: Dict[str, int]
+    gates: Dict[str, bool]
+    protected_holdouts: Dict[str, Any]
+    blockers: List[str]
+    outstanding_requirements: List[str]
+    clinical_sample_size_justification_note: str
+    quarantine_reasons: Dict[str, int]
+
+
+class DatasetSourcesResponse(BaseModel):
+    timestamp: str
+    ontology_version: str
+    total_sources: int
+    identified_sources_count: int
+    verified_external_or_in_tree_candidates_count: int
+    approved_sources_count: int
+    rejected_sources_count: int
+    sources: List[Dict[str, Any]]
+    disclaimer: str
+
+
+class DatasetAcquisitionStatusResponse(BaseModel):
+    timestamp: str
+    overall_acquisition_status: str
+    workflow_stages: List[str]
+    exception_states: List[str]
+    cohorts: List[Dict[str, Any]]
+    total_validated_patients: int
+    total_received_valid_images: int
+    protected_holdouts: Dict[str, Any]
+
+
+class DatasetGovernanceStatusResponse(BaseModel):
+    timestamp: str
+    governance_gate_status: str
+    active_sources_audited: int
+    approved_sources_count: int
+    pending_ethics_approvals_count: int
+    pending_duas_count: int
+    expired_approvals_count: int
+    mean_evidence_completeness_pct: float
+    templates_status: str
+    available_templates: List[str]
+    source_audits: List[Dict[str, Any]]
+    protected_holdouts: Dict[str, Any]
+
+
+class CohortPlanningResponse(BaseModel):
+    timestamp: str
+    ontology_version: str
+    synthetic_data_excluded: bool = True
+    statistical_sample_size_justification_ref: str
+    statistical_adequacy_status: str
+    statistical_disclaimer: Optional[str] = None
+    proposed_patient_level_split_allocation: Optional[Dict[str, Any]] = None
+    totals: Dict[str, int]
+    planned_cohorts: List[Dict[str, Any]]
+    protected_holdouts: Dict[str, Any]
+
+
+class WorkflowTransitionRequest(BaseModel):
+    source_id: str
+    target_state: str
+    reviewer_pseudo_id: str
+    reviewer_role: str
+    reason: str
+    evidence_reference: str
+
+
+

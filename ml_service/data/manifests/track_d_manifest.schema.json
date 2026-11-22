@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://osteoguard.research/schemas/track_d_manifest.schema.json",
+  "title": "OsteoGuard AI Track D Clinical Dataset Manifest Schema (Stage 34)",
+  "description": "Machine-readable intake and diagnostic adjudication manifest schema for Track D across strictly separated imaging modalities (xray, bone_scan, ct). Direct PHI (names, addresses, MRNs, emails, unmasked dates, raw clinical text) is strictly prohibited.",
+  "type": "object",
+  "required": ["manifest_version", "track", "ontology_version", "records"],
+  "properties": {
+    "manifest_version": { "type": "string", "const": "2.0.0" },
+    "track": { "type": "string", "const": "track_d" },
+    "ontology_version": { "type": "string", "const": "OSTEO_ONTOLOGY_V1.0_STAGE34" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "example_notice": {
+      "type": "string",
+      "description": "Present ONLY in non-ingested schema examples; real production manifests omit or leave empty."
+    },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DatasetSampleRecord" }
+    }
+  },
+  "$defs": {
+    "DatasetSampleRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_id",
+        "patient_id",
+        "source_diagnosis",
+        "diagnostic_class",
+        "imaging_modality",
+        "image_path",
+        "image_format",
+        "image_dimensions",
+        "image_bit_depth",
+        "anatomical_region",
+        "institution_id",
+        "dataset_source",
+        "license_permissions",
+        "ethics_approval_ref",
+        "deidentification_status",
+        "qc_status",
+        "split_assignment",
+        "source_report_ref",
+        "diagnostic_evidence_category",
+        "histopathology_confirmation_status",
+        "radiology_report_confirmation_status",
+        "clinical_adjudication_status",
+        "reviewer_pseudo_id",
+        "review_date",
+        "conflicting_diagnosis_indicator",
+        "label_provenance",
+        "label_ontology_version"
+      ],
+      "properties": {
+        "sample_id": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "patient_id": {
+          "type": "string",
+          "minLength": 4,
+          "pattern": "^(PT|SUBJ)_[A-Za-z0-9_-]+$",
+          "description": "Pseudonymized patient identifier only. Direct MRNs, patient names, emails, or SSNs are strictly forbidden."
+        },
+        "source_diagnosis": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Original diagnosis label from source cohort before ontology adjudication."
+        },
+        "diagnostic_class": {
+          "type": "string",
+          "enum": [
+            "metastasis",
+            "paget",
+            "oi",
+            "healthy",
+            "SECONDARY_BONE_METASTASIS",
+            "PAGETS_DISEASE",
+            "OSTEOGENESIS_IMPERFECTA",
+            "HEALTHY_SKELETAL_CONTROL",
+            "OUT_OF_SCOPE",
+            "UNCERTAIN",
+            "REQUIRES_ADJUDICATION",
+            "REJECTED"
+          ]
+        },
+        "imaging_modality": {
+          "type": "string",
+          "enum": ["xray", "bone_scan", "ct"],
+          "description": "Modality streams are strictly separated and never assumed interchangeable."
+        },
+        "image_path": {
+          "type": "string",
+          "minLength": 3
+        },
+        "image_format": {
+          "type": "string",
+          "enum": ["PNG", "JPEG", "TIFF", "BMP", "DICOM", "NIFTI"]
+        },
+        "image_dimensions": {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 32 },
+            "height": { "type": "integer", "minimum": 32 },
+            "depth": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "image_bit_depth": {
+          "type": "integer",
+          "enum": [8, 10, 12, 16, 24, 32]
+        },
+        "anatomical_region": {
+          "type": "string",
+          "minLength": 2
+        },
+        "institution_id": {
+          "type": "string",
+          "minLength": 2,
+          "description": "De-identified institutional site code. BTXRD Center 2 and Center 3 holdouts are blocked from Track D training."
+        },
+        "dataset_source": {
+          "type": "string",
+          "minLength": 2
+        },
+        "license_permissions": {
+          "type": "string",
+          "minLength": 3
+        },
+        "ethics_approval_ref": {
+          "type": "string",
+          "minLength": 3
+        },
+        "deidentification_status": {
+          "type": "string",
+          "enum": ["VERIFIED_PSEUDONYMIZED", "PENDING", "FAILED"]
+        },
+        "qc_status": {
+          "type": "string",
+          "enum": ["PENDING", "PASSED", "QUARANTINED"]
+        },
+        "split_assignment": {
+          "type": "string",
+          "enum": ["unassigned", "train", "val", "test", "external_test", "quarantined"]
+        },
+        "source_report_ref": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Pseudonymized diagnostic/radiology/pathology report reference ID (never raw PHI text)."
+        },
+        "diagnostic_evidence_category": {
+          "type": "string",
+          "enum": [
+            "BIOPSY_HISTOPATHOLOGY",
+            "PET_CT_AND_RADIOLOGY",
+            "RADIOLOGY_AND_CLINICAL_TRIAD",
+            "SERUM_ALP_AND_RADIOGRAPH",
+            "GENETIC_COL1A1_COL1A2",
+            "SPECIALIST_CLINICAL_DIAGNOSIS",
+            "RADIOLOGIST_NORMAL_CONFIRMATION",
+            "MULTI_READER_CONSENSUS"
+          ]
+        },
+        "histopathology_confirmation_status": {
+          "type": "string",
+          "enum": ["CONFIRMED", "NOT_APPLICABLE", "PENDING", "ABSENT"]
+        },
+        "radiology_report_confirmation_status": {
+          "type": "string",
+          "enum": ["CONFIRMED", "PENDING", "ABSENT", "DISCREPANT"]
+        },
+        "clinical_adjudication_status": {
+          "type": "string",
+          "enum": [
+            "ADJUDICATED_CONFIRMED",
+            "PENDING_ADJUDICATION",
+            "REQUIRES_ADJUDICATION",
+            "OUT_OF_SCOPE",
+            "UNCERTAIN",
+            "REJECTED"
+          ]
+        },
+        "reviewer_pseudo_id": {
+          "type": "string",
+          "pattern": "^(REV|ADJ|RAD|CLIN)_[A-Za-z0-9_-]{2,}$",
+          "description": "Pseudonymized authorized clinical reviewer identifier."
+        },
+        "review_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "conflicting_diagnosis_indicator": {
+          "type": "boolean"
+        },
+        "label_provenance": {
+          "type": "string",
+          "minLength": 3
+        },
+        "label_ontology_version": {
+          "type": "string",
+          "const": "OSTEO_ONTOLOGY_V1.0_STAGE34"
+        },
+        "control_selection_criteria": {
+          "type": "string",
+          "description": "Required for HEALTHY_SKELETAL_CONTROL: cohort eligibility criteria confirming asymptomatic normal controls."
+        },
+        "patient_skeletal_history": {
+          "type": "string",
+          "description": "De-identified summary confirming absence of relevant skeletal pathology for healthy controls."
+        },
+        "diagnostic_evidence": {
+          "type": "string",
+          "description": "Structured evidence summary (no direct PHI or raw clinical note text)."
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "perceptual_hash": {
+          "type": "string"
+        },
+        "annotation_path": {
+          "type": "string"
+        },
+        "annotation_status": {
+          "type": "string",
+          "enum": ["VERIFIED", "NOT_REQUIRED", "MISSING", "INVALID"]
+        },
+        "adjudication_record": {
+          "type": "object"
+        },
+        "rejection_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

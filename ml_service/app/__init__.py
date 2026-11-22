@@ -2,6 +2,11 @@
 OsteoGuard AI Application Layer.
 """
 
-from ml_service.app.main import app, create_app
+__all__ = []
 
-__all__ = ["app", "create_app"]
+try:  # Optional FastAPI runtime dependency
+    from ml_service.app.main import app, create_app
+
+    __all__ = ["app", "create_app"]
+except ImportError:  # pragma: no cover - stdlib-only AI Studio container
+    pass

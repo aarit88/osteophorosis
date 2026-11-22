@@ -336,12 +336,22 @@ export function inspectClinicalReadinessOnDisk(rootDir: string): ClinicalDiskRea
   };
 
   for (const cls of ['metastasis', 'paget', 'oi', 'healthy'] as const) {
+    let count = 0;
     const clsDir = path.join(rawDataDir, cls);
     if (fs.existsSync(clsDir)) {
-      rawClassCounts[cls] = fs
+      count += fs
         .readdirSync(clsDir)
         .filter((f) => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase())).length;
     }
+    for (const mod of ['xray', 'bone_scan', 'ct'] as const) {
+      const modClsDir = path.join(rawDataDir, mod, cls);
+      if (fs.existsSync(modClsDir)) {
+        count += fs
+          .readdirSync(modClsDir)
+          .filter((f) => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase())).length;
+      }
+    }
+    rawClassCounts[cls] = count;
   }
 
   const allClassesPopulated = Object.values(rawClassCounts).every((n) => n >= 10);

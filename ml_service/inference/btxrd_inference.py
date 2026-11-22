@@ -17,15 +17,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
-from sklearn.metrics import (
-    average_precision_score,
-    brier_score_loss,
-    confusion_matrix,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-)
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -42,6 +33,7 @@ from ml_service.models.btxrd_classifier import BTXRDResNet34
 # Authoritative frozen model metadata
 FROZEN_MODEL_VERSION = "1.0.0"
 EXPECTED_CHECKPOINT_SHA256 = "21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD"
+EXPECTED_CHECKPOINT_SIZE_BYTES = 244849703
 BEST_EPOCH = 18
 
 # External evaluation specifications (Cohorts strictly sealed during Stage 18)
@@ -87,6 +79,38 @@ def calculate_file_sha256(filepath: Union[str, Path]) -> str:
     return h.hexdigest().upper()
 
 
+def verify_frozen_btxrd_checkpoint(
+    checkpoint_path: Union[str, Path],
+    expected_sha256: str = EXPECTED_CHECKPOINT_SHA256,
+    expected_size_bytes: int = EXPECTED_CHECKPOINT_SIZE_BYTES,
+) -> Dict[str, Any]:
+    """Verifies existence, byte size, and SHA-256 integrity of the frozen BTXRD checkpoint."""
+    path = Path(checkpoint_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Frozen BTXRD checkpoint not found at: {path}")
+
+    actual_size = path.stat().st_size
+    if actual_size != expected_size_bytes:
+        raise ValueError(
+            f"Frozen BTXRD checkpoint byte-size mismatch!\n"
+            f"Expected: {expected_size_bytes} bytes\n"
+            f"Got:      {actual_size} bytes"
+        )
+
+    actual_sha256 = calculate_file_sha256(path)
+    if actual_sha256 != expected_sha256.upper():
+        raise ValueError(
+            f"Checkpoint SHA-256 mismatch!\nExpected: {expected_sha256}\nGot:      {actual_sha256}"
+        )
+
+    return {
+        "checkpoint_path": str(path),
+        "size_bytes": actual_size,
+        "sha256": actual_sha256,
+        "verified": True,
+    }
+
+
 class BTXRDFrozenClassifier:
     """
     Immutable inference engine for the frozen BTXRD ResNet-34 model.
@@ -110,11 +134,14 @@ class BTXRDFrozenClassifier:
         if not self.checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found at: {self.checkpoint_path}")
 
-        # Hash verification
+        # Hash and byte-size verification before unpickling checkpoint weights
+        self.actual_size_bytes = self.checkpoint_path.stat().st_size
         self.actual_sha256 = calculate_file_sha256(self.checkpoint_path)
-        if verify_sha256 and self.actual_sha256 != EXPECTED_CHECKPOINT_SHA256:
-            raise ValueError(
-                f"Checkpoint SHA-256 mismatch!\nExpected: {EXPECTED_CHECKPOINT_SHA256}\nGot:      {self.actual_sha256}"
+        if verify_sha256:
+            verify_frozen_btxrd_checkpoint(
+                self.checkpoint_path,
+                expected_sha256=EXPECTED_CHECKPOINT_SHA256,
+                expected_size_bytes=EXPECTED_CHECKPOINT_SIZE_BYTES,
             )
 
         if device is None:
@@ -122,8 +149,8 @@ class BTXRDFrozenClassifier:
         else:
             self.device = device
 
-        # Load weights and configure model
-        ckpt = torch.load(self.checkpoint_path, map_location=self.device)
+        # Load weights and configure model (weights_only=False required for metadata dicts in PyTorch >= 2.6)
+        ckpt = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
         self.model = BTXRDResNet34(
             num_classes=3,
             pretrained=False,
@@ -185,6 +212,15 @@ def audit_saved_validation_predictions(
     Fast audit that computes exact validation metrics directly from the authoritative
     saved validation_predictions.csv generated at Epoch 18.
     """
+    from sklearn.metrics import (
+        average_precision_score,
+        confusion_matrix,
+        f1_score,
+        precision_score,
+        recall_score,
+        roc_auc_score,
+    )
+
     settings = get_settings()
     base_dir = settings.base_dir
     if predictions_csv_path is None:
@@ -284,6 +320,15 @@ def reproduce_center1_validation_performance(
     Performs full inference reproduction on Center 1 clean validation cohort (N=588)
     and verifies that metrics match Stage 17 exactly.
     """
+    from sklearn.metrics import (
+        average_precision_score,
+        confusion_matrix,
+        f1_score,
+        precision_score,
+        recall_score,
+        roc_auc_score,
+    )
+
     settings = get_settings()
     base_dir = settings.base_dir
     manifest_path = base_dir / "ml_service/data/splits/btxrd_split_manifest.csv"

@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "ontology_version": "OSTEO_ONTOLOGY_V1.0_STAGE34",
+  "modality_separation_rule": "Modalities (xray, bone_scan, ct) are strictly separated at acquisition, ingestion, validation, splitting, and model training. Modalities are never assumed interchangeable.",
+  "protocols": {
+    "metastasis": {
+      "cohort_id": "metastasis",
+      "ontology_target_class": "SECONDARY_BONE_METASTASIS",
+      "title": "Secondary Bone Metastasis Acquisition Protocol",
+      "allowed_modalities": ["xray", "bone_scan", "ct"],
+      "modality_specific_notes": {
+        "xray": "Focal osteolytic, osteoblastic, or mixed cortical/medullary lesions on native >=1024x1024 CR/DR DICOM.",
+        "bone_scan": "Whole-body paired Anterior + Posterior 99mTc-MDP planar scintigraphy bound atomically by patient_id.",
+        "ct": "Helical bone-window CT series (slice thickness <= 1.5 mm) with 3D lesion/vertebra segmentation where applicable."
+      },
+      "confirmation_tiers": {
+        "HISTOPATHOLOGY_CONFIRMED": {
+          "required_evidence_categories": ["BIOPSY_HISTOPATHOLOGY"],
+          "histopathology_confirmation_required": true,
+          "description": "Core needle biopsy or surgical excision confirming extra-skeletal primary carcinoma metastasis."
+        },
+        "RADIOLOGY_AND_CLINICAL_CONCORDANCE": {
+          "required_evidence_categories": ["PET_CT_AND_RADIOLOGY", "MULTI_READER_CONSENSUS"],
+          "histopathology_confirmation_required": false,
+          "description": "Multimodal PET-CT/MRI/radiology concordance + documented primary malignancy and follow-up course; tracked separately from biopsy-confirmed cases."
+        }
+      },
+      "explicit_exclusions": [
+        "Primary malignant bone sarcomas (osteosarcoma, Ewing sarcoma, chondrosarcoma, BTXRD Class 2)",
+        "Hematologic bone marrow malignancies (multiple myeloma, plasmacytoma) unless segregated",
+        "Unconfirmed primary malignancy or indeterminate suspicious lesions",
+        "BTXRD Center 2 (N=549) and Center 3 (N=259) protected external holdouts"
+      ],
+      "required_provenance_fields": [
+        "source_report_ref",
+        "diagnostic_evidence_category",
+        "confirmation_tier",
+        "radiology_report_confirmation_status",
+        "histopathology_confirmation_status",
+        "clinical_adjudication_status",
+        "reviewer_pseudo_id",
+        "review_date"
+      ]
+    },
+    "paget": {
+      "cohort_id": "paget",
+      "ontology_target_class": "PAGETS_DISEASE",
+      "title": "Paget's Disease of Bone Acquisition Protocol",
+      "allowed_modalities": ["xray", "bone_scan", "ct"],
+      "modality_specific_notes": {
+        "xray": "Primary imaging pathway: Pelvis AP, lumbar/thoracic spine AP/Lat, femur, skull, tibia (>=1024x1024 DICOM 12/16-bit).",
+        "bone_scan": "99mTc-MDP intense uniform geometric uptake along involved bone contour (paired Ant/Post).",
+        "ct": "Corroborative bone-window CT demonstrating cortical thickening and trabecular coarsening."
+      },
+      "confirmation_requirements": {
+        "required_evidence_categories": [
+          "RADIOLOGY_AND_CLINICAL_TRIAD",
+          "SERUM_ALP_AND_RADIOGRAPH",
+          "BIOPSY_HISTOPATHOLOGY",
+          "MULTI_READER_CONSENSUS"
+        ],
+        "clinical_radiological_triad": [
+          "Cortical thickening with endosteal margin blurring",
+          "Coarsened/accentuated trabecular struts",
+          "Osseous expansion (osteomegaly)"
+        ],
+        "biochemical_corroboration": "Elevated serum total alkaline phosphatase (ALP) or bone-specific ALP (BSAP) with normal serum calcium/phosphate."
+      },
+      "explicit_exclusions": [
+        "Osteoarthritis and degenerative subchondral sclerosis",
+        "Fibrous dysplasia, osteopetrosis, chronic osteomyelitis, hyperparathyroidism brown tumors",
+        "Blastic skeletal metastases mimicking Paget's (e.g. prostate carcinoma)",
+        "Educational web scraping (Radiopaedia, MedPix, compressed 8-bit annotated teaching figures)"
+      ],
+      "required_provenance_fields": [
+        "source_report_ref",
+        "diagnostic_evidence_category",
+        "radiology_report_confirmation_status",
+        "clinical_adjudication_status",
+        "reviewer_pseudo_id",
+        "review_date"
+      ]
+    },
+    "oi": {
+      "cohort_id": "oi",
+      "ontology_target_class": "OSTEOGENESIS_IMPERFECTA",
+      "title": "Osteogenesis Imperfecta (Human Clinical) Acquisition Protocol",
+      "allowed_modalities": ["xray", "ct"],
+      "modality_specific_notes": {
+        "xray": "Primary imaging pathway: Bilateral long-bone (femur, tibia, humerus, forearm), pelvis, spine, skull radiographs; pediatric growth-plate maturation status documented.",
+        "ct": "Dedicated human clinical CT when clinically indicated; non-human micro-CT permanently prohibited."
+      },
+      "confirmation_tracks_kept_distinct": {
+        "GENETIC_CONFIRMED": {
+          "required_evidence_categories": ["GENETIC_COL1A1_COL1A2"],
+          "description": "Pathogenic/likely pathogenic COL1A1, COL1A2, or recessive OI locus variant verified via targeted panel/WES."
+        },
+        "CLINICAL_RADIOLOGICAL_SILLENCE": {
+          "required_evidence_categories": ["SPECIALIST_CLINICAL_DIAGNOSIS", "MULTI_READER_CONSENSUS", "RADIOLOGY_AND_CLINICAL_TRIAD"],
+          "description": "Pediatric endocrinologist/geneticist/orthopedist Sillence phenotypic confirmation + cortical thinning, osteopenia, bowing, Wormian bones."
+        }
+      },
+      "pediatric_ethics_requirements": {
+        "pediatric_iec_irb_required": true,
+        "consent_or_assent_required_when_minor": true,
+        "growth_plate_stratification_required": true,
+        "note": "Pediatric cohorts (age < 18) require vulnerable-subject ethics clearance, guardian consent / minor assent or formal IEC waiver, and age/growth-plate matched controls."
+      },
+      "explicit_exclusions": [
+        "Non-human animal imaging and murine micro-CT (e.g. Figshare 10.6084/m9.figshare.c.3795019 oim mouse tibiae)",
+        "Post-menopausal, senile, disuse, or idiopathic osteoporosis and osteopenia",
+        "Rickets, osteomalacia, and non-accidental trauma",
+        "Perinatal lethal Type II neonatal imaging unless dedicated age-stratified sub-study approved"
+      ],
+      "required_provenance_fields": [
+        "source_report_ref",
+        "diagnostic_evidence_category",
+        "confirmation_track",
+        "radiology_report_confirmation_status",
+        "clinical_adjudication_status",
+        "reviewer_pseudo_id",
+        "review_date"
+      ]
+    },
+    "healthy": {
+      "cohort_id": "healthy",
+      "ontology_target_class": "HEALTHY_SKELETAL_CONTROL",
+      "title": "Healthy Skeletal Control Acquisition Protocol",
+      "allowed_modalities": ["xray", "bone_scan", "ct"],
+      "modality_specific_notes": {
+        "xray": "Asymptomatic normal plain radiographs matched across upper extremities, pelvis, spine, femur/tibia, and skull (Stanford MURA restricted to upper extremity ONLY).",
+        "bone_scan": "Physiological normal 99mTc-MDP tracer distribution without active malignancy (never breast cancer staging negatives).",
+        "ct": "Asymptomatic normal bone-window skeletal CT series."
+      },
+      "eligibility_requirements": {
+        "required_evidence_categories": ["RADIOLOGIST_NORMAL_CONFIRMATION", "MULTI_READER_CONSENSUS"],
+        "explicit_anatomical_coverage_required": true,
+        "explicit_control_selection_criteria_required": true,
+        "documented_skeletal_history_required": true,
+        "radiologist_normal_confirmation_required": true,
+        "age_sex_matching_note": "Include pediatric growth-plate controls for OI and >=50y adult controls for Paget/Metastasis to avoid anatomical or age shortcut learning."
+      },
+      "explicit_exclusions": [
+        "Contralateral, fellow, or unaffected limbs of fracture, trauma, or oncology patients",
+        "Healthy status inferred merely from absence of fracture or missing diagnosis (e.g. FracAtlas non-fractured)",
+        "Active oncology staging patients with negative metastasis scan (e.g. IICS-UNA staging negative cohort)",
+        "Significant osteopenia/osteoporosis, orthopaedic implants, or severe degenerative osteoarthritis"
+      ],
+      "required_provenance_fields": [
+        "source_report_ref",
+        "diagnostic_evidence_category",
+        "anatomical_region",
+        "control_selection_criteria",
+        "patient_skeletal_history",
+        "radiology_report_confirmation_status",
+        "clinical_adjudication_status",
+        "reviewer_pseudo_id",
+        "review_date"
+      ]
+    }
+  }
+}

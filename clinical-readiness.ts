@@ -346,3 +346,289 @@ export function buildDynamicCohortList(
     };
   });
 }
+
+export interface TrackDDatasetReadinessDashboard {
+  timestamp: string;
+  track: 'track_d';
+  readiness_status: 'NOT_AVAILABLE' | 'BLOCKED' | 'READY_FOR_TRAINING';
+  ready_for_training: boolean;
+  data_origin: 'REAL_CLINICAL_DATA_UNAVAILABLE' | 'REAL_DISK_DATA_PRESENT';
+  synthetic_data_excluded: true;
+  total_inspected_samples: number;
+  valid_samples: number;
+  quarantined_samples: number;
+  unique_patients: number;
+  institution_count: number;
+  institutions: string[];
+  dataset_sources: string[];
+  permissions_verified: string[];
+  ethics_references: string[];
+  class_counts: Record<'metastasis' | 'paget' | 'oi' | 'healthy', number>;
+  modality_counts: Record<'xray' | 'bone_scan' | 'ct', number>;
+  class_modality_matrix: Record<
+    'xray' | 'bone_scan' | 'ct',
+    Record<'metastasis' | 'paget' | 'oi' | 'healthy', number>
+  >;
+  missing_metadata_count: number;
+  duplicate_samples_count: number;
+  ontology_version: string;
+  accepted_by_class: Record<
+    'SECONDARY_BONE_METASTASIS' | 'PAGETS_DISEASE' | 'OSTEOGENESIS_IMPERFECTA' | 'HEALTHY_SKELETAL_CONTROL',
+    number
+  >;
+  adjudication_summary: Record<
+    'ACCEPTED' | 'OUT_OF_SCOPE' | 'UNCERTAIN' | 'REQUIRES_ADJUDICATION' | 'REJECTED',
+    number
+  >;
+  healthy_control_eligibility_failures: number;
+  conflicting_diagnoses_count: number;
+  label_provenance_completeness_pct: number;
+  split_distribution: {
+    train: number;
+    val: number;
+    test: number;
+    external_test: number;
+  };
+  gates: {
+    provenance_documented: boolean;
+    permissions_verified: boolean;
+    deidentification_satisfied: boolean;
+    diagnostic_labels_documented: boolean;
+    patient_level_split_integrity: boolean;
+    image_quality_verified: boolean;
+    class_and_modality_coverage: boolean;
+  };
+  protected_holdouts: {
+    btxrd_center2_samples: number;
+    btxrd_center3_samples: number;
+    isolation_enforced: boolean;
+  };
+  blockers: string[];
+  outstanding_requirements: string[];
+  clinical_sample_size_justification_note: string;
+  quarantine_reasons: Record<string, number>;
+}
+
+const IMAGE_EXT_SET = new Set(['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp', '.dcm', '.dicom', '.nii', '.gz']);
+
+function countDiskFilesRecursive(dirPath: string): number {
+  if (!fs.existsSync(dirPath)) return 0;
+  let total = 0;
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const full = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      total += countDiskFilesRecursive(full);
+    } else if (entry.isFile()) {
+      const lower = entry.name.toLowerCase();
+      if (lower.endsWith('.nii.gz') || IMAGE_EXT_SET.has(path.extname(lower))) {
+        total += 1;
+      }
+    }
+  }
+  return total;
+}
+
+export function getTrackDDatasetReadiness(rootDir: string): TrackDDatasetReadinessDashboard {
+  const rawDir = path.join(rootDir, 'ml_service', 'data', 'raw');
+  const reportsDir = path.join(rootDir, 'ml_service', 'data', 'reports');
+  const quarantineDir = path.join(rootDir, 'ml_service', 'data', 'quarantine');
+  const readinessReportPath = path.join(reportsDir, 'track_d_readiness_report.json');
+  const quarantineReportPath = path.join(quarantineDir, 'quarantine_manifest.json');
+
+  // Always measure real physical files on disk across strictly separated modalities
+  const diskMatrix: TrackDDatasetReadinessDashboard['class_modality_matrix'] = {
+    xray: { metastasis: 0, paget: 0, oi: 0, healthy: 0 },
+    bone_scan: { metastasis: 0, paget: 0, oi: 0, healthy: 0 },
+    ct: { metastasis: 0, paget: 0, oi: 0, healthy: 0 },
+  };
+  const diskModalityCounts = { xray: 0, bone_scan: 0, ct: 0 };
+  const diskClassCounts = { metastasis: 0, paget: 0, oi: 0, healthy: 0 };
+
+  for (const mod of ['xray', 'bone_scan', 'ct'] as const) {
+    for (const cls of ['metastasis', 'paget', 'oi', 'healthy'] as const) {
+      const c = countDiskFilesRecursive(path.join(rawDir, mod, cls));
+      diskMatrix[mod][cls] = c;
+      diskModalityCounts[mod] += c;
+      diskClassCounts[cls] += c;
+    }
+  }
+
+  let legacyRawFiles = 0;
+  for (const cls of ['metastasis', 'paget', 'oi', 'healthy'] as const) {
+    legacyRawFiles += countDiskFilesRecursive(path.join(rawDir, cls));
+  }
+  const totalPhysicalRaw =
+    diskModalityCounts.xray + diskModalityCounts.bone_scan + diskModalityCounts.ct + legacyRawFiles;
+
+  let parsedReport: Record<string, any> | null = null;
+  if (fs.existsSync(readinessReportPath)) {
+    try {
+      parsedReport = JSON.parse(fs.readFileSync(readinessReportPath, 'utf8'));
+    } catch {
+      parsedReport = null;
+    }
+  }
+
+  let quarantineReasons: Record<string, number> = {};
+  if (fs.existsSync(quarantineReportPath)) {
+    try {
+      const qJson = JSON.parse(fs.readFileSync(quarantineReportPath, 'utf8'));
+      if (qJson && typeof qJson.reason_counts === 'object' && qJson.reason_counts !== null) {
+        quarantineReasons = qJson.reason_counts;
+      }
+    } catch {
+      quarantineReasons = {};
+    }
+  }
+
+  const reportValidSamples = Number(parsedReport?.valid_samples || 0);
+  const reportQuarantined = Number(parsedReport?.quarantined_samples || 0);
+  const hasAnyRealData = totalPhysicalRaw > 0 || reportValidSamples > 0 || reportQuarantined > 0;
+
+  if (!hasAnyRealData) {
+    return {
+      timestamp: new Date().toISOString(),
+      track: 'track_d',
+      readiness_status: 'NOT_AVAILABLE',
+      ready_for_training: false,
+      data_origin: 'REAL_CLINICAL_DATA_UNAVAILABLE',
+      synthetic_data_excluded: true,
+      total_inspected_samples: 0,
+      valid_samples: 0,
+      quarantined_samples: 0,
+      unique_patients: 0,
+      institution_count: 0,
+      institutions: [],
+      dataset_sources: [],
+      permissions_verified: [],
+      ethics_references: [],
+      class_counts: { metastasis: 0, paget: 0, oi: 0, healthy: 0 },
+      modality_counts: { xray: 0, bone_scan: 0, ct: 0 },
+      class_modality_matrix: diskMatrix,
+      missing_metadata_count: 0,
+      duplicate_samples_count: 0,
+      ontology_version: 'OSTEO_ONTOLOGY_V1.0_STAGE34',
+      accepted_by_class: {
+        SECONDARY_BONE_METASTASIS: 0,
+        PAGETS_DISEASE: 0,
+        OSTEOGENESIS_IMPERFECTA: 0,
+        HEALTHY_SKELETAL_CONTROL: 0,
+      },
+      adjudication_summary: {
+        ACCEPTED: 0,
+        OUT_OF_SCOPE: 0,
+        UNCERTAIN: 0,
+        REQUIRES_ADJUDICATION: 0,
+        REJECTED: 0,
+      },
+      healthy_control_eligibility_failures: 0,
+      conflicting_diagnoses_count: 0,
+      label_provenance_completeness_pct: 0,
+      split_distribution: { train: 0, val: 0, test: 0, external_test: 0 },
+      gates: {
+        provenance_documented: false,
+        permissions_verified: false,
+        deidentification_satisfied: false,
+        diagnostic_labels_documented: false,
+        patient_level_split_integrity: false,
+        image_quality_verified: false,
+        class_and_modality_coverage: false,
+      },
+      protected_holdouts: {
+        btxrd_center2_samples: 549,
+        btxrd_center3_samples: 259,
+        isolation_enforced: true,
+      },
+      blockers: parsedReport?.blockers?.length
+        ? parsedReport.blockers
+        : [
+            'Zero real Track D clinical dataset records or imaging files found under ml_service/data/raw/ or manifests.',
+            'Missing verified cohorts: metastasis, paget, oi, healthy.',
+            'Institutional Ethics Committee (IEC/IRB) clearance and bilateral Data Use Agreements (DUA) pending.',
+          ],
+      outstanding_requirements: [
+        'Paget\'s Disease of Bone: Retrospective Hospital Radiology PACS IRB/IEC approval + DUA (radiographic triad + elevated serum ALP).',
+        'Osteogenesis Imperfecta (OI): Multi-center pediatric ethics approval + DUA (RDCRN Brittle Bone Disorders Consortium / tertiary pediatric orthopedic centers).',
+        'Secondary Bone Metastasis: Hospital PACS biopsy/PET-CT confirmed cohort + TCIA Spine-Mets-CT-Seg (.tcia DUA) + Zenodo 13900966 validation.',
+        'Healthy Skeletal Controls: Verified asymptomatic normal PACS controls + Stanford AIMI MURA DUA (matched anatomical sites, never trauma contralateral limbs).',
+        'Modality Separation & Biostatistical Power: Separate modality streams (xray, bone_scan, ct) and formal IEC statistical sample-size justification.',
+      ],
+      clinical_sample_size_justification_note:
+        'No arbitrary minimum clinical sample count is fabricated in software; final statistical power and institutional cohort sizes require documented biostatistical and IEC approval.',
+      quarantine_reasons: {},
+    };
+  }
+
+  return {
+    timestamp: new Date().toISOString(),
+    track: 'track_d',
+    readiness_status:
+      parsedReport?.readiness_status === 'READY_FOR_TRAINING'
+        ? 'READY_FOR_TRAINING'
+        : parsedReport?.readiness_status === 'BLOCKED'
+        ? 'BLOCKED'
+        : 'BLOCKED',
+    ready_for_training: Boolean(parsedReport?.ready_for_training),
+    data_origin: 'REAL_DISK_DATA_PRESENT',
+    synthetic_data_excluded: true,
+    total_inspected_samples: Number(parsedReport?.total_inspected_samples ?? totalPhysicalRaw),
+    valid_samples: reportValidSamples,
+    quarantined_samples: reportQuarantined,
+    unique_patients: Number(parsedReport?.unique_patients ?? 0),
+    institution_count: Number(parsedReport?.institution_count ?? 0),
+    institutions: Array.isArray(parsedReport?.institutions) ? parsedReport.institutions : [],
+    dataset_sources: Array.isArray(parsedReport?.dataset_sources) ? parsedReport.dataset_sources : [],
+    permissions_verified: Array.isArray(parsedReport?.permissions_verified) ? parsedReport.permissions_verified : [],
+    ethics_references: Array.isArray(parsedReport?.ethics_references) ? parsedReport.ethics_references : [],
+    class_counts: parsedReport?.class_counts ?? diskClassCounts,
+    modality_counts: parsedReport?.modality_counts ?? diskModalityCounts,
+    class_modality_matrix: parsedReport?.class_modality_matrix ?? diskMatrix,
+    missing_metadata_count: Number(parsedReport?.missing_metadata_count ?? 0),
+    duplicate_samples_count: Number(parsedReport?.duplicate_samples_count ?? 0),
+    ontology_version: String(parsedReport?.ontology_version || 'OSTEO_ONTOLOGY_V1.0_STAGE34'),
+    accepted_by_class: parsedReport?.accepted_by_class ?? {
+      SECONDARY_BONE_METASTASIS: 0,
+      PAGETS_DISEASE: 0,
+      OSTEOGENESIS_IMPERFECTA: 0,
+      HEALTHY_SKELETAL_CONTROL: 0,
+    },
+    adjudication_summary: parsedReport?.adjudication_summary ?? {
+      ACCEPTED: 0,
+      OUT_OF_SCOPE: 0,
+      UNCERTAIN: 0,
+      REQUIRES_ADJUDICATION: 0,
+      REJECTED: 0,
+    },
+    healthy_control_eligibility_failures: Number(parsedReport?.healthy_control_eligibility_failures ?? 0),
+    conflicting_diagnoses_count: Number(parsedReport?.conflicting_diagnoses_count ?? 0),
+    label_provenance_completeness_pct: Number(parsedReport?.label_provenance_completeness_pct ?? 0),
+    split_distribution: parsedReport?.split_distribution ?? { train: 0, val: 0, test: 0, external_test: 0 },
+    gates: parsedReport?.gates ?? {
+      provenance_documented: false,
+      permissions_verified: false,
+      deidentification_satisfied: false,
+      diagnostic_labels_documented: false,
+      patient_level_split_integrity: false,
+      image_quality_verified: false,
+      class_and_modality_coverage: false,
+    },
+    protected_holdouts: {
+      btxrd_center2_samples: 549,
+      btxrd_center3_samples: 259,
+      isolation_enforced: true,
+    },
+    blockers: Array.isArray(parsedReport?.blockers)
+      ? parsedReport.blockers
+      : ['Run python3 ml_service/scripts/run_track_d_intake.py --all to validate and partition newly staged files.'],
+    outstanding_requirements: [
+      'Maintain strict modality separation (xray, bone_scan, ct) and patient-level zero-leakage splits.',
+      'Ensure every clinical sample retains verified IEC/IRB ethics approval, DUA permissions, and pseudonymized patient_id.',
+    ],
+    clinical_sample_size_justification_note:
+      parsedReport?.clinical_sample_size_justification_note ||
+      'No arbitrary minimum clinical sample count is fabricated in software; final statistical power requires documented biostatistical and IEC approval.',
+    quarantine_reasons: quarantineReasons,
+  };
+}
+

@@ -78,23 +78,23 @@ export const NavBar: React.FC = () => {
 
   return (
     <>
-      <nav className="sticky top-[37px] z-40 border-b border-slate-800/80 bg-slate-900/90 dark:bg-slate-950/90 light:bg-white/90 backdrop-blur-md transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <nav className="border-b border-slate-800/80 bg-slate-900/90 dark:bg-slate-950/90 light:bg-white/90 backdrop-blur-md transition-colors duration-200">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-2 h-14 sm:h-16">
             {/* Brand Logo */}
             <NavLink
               to="/"
-              className="flex items-center space-x-2.5 group focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded-lg p-1"
+              className="flex items-center space-x-2 sm:space-x-2.5 group focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded-lg p-1 min-w-0"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-bold group-hover:scale-105 transition-transform duration-200">
-                <Bone className="w-5 h-5 transform rotate-45" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-bold group-hover:scale-105 transition-transform duration-200 shrink-0">
+                <Bone className="w-4 h-4 sm:w-5 sm:h-5 transform rotate-45" />
               </div>
-              <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="text-lg font-black tracking-tight text-white dark:text-white light:text-slate-900">
+              <div className="min-w-0">
+                <div className="flex items-center space-x-1">
+                  <span className="text-base sm:text-lg font-black tracking-tight text-white dark:text-white light:text-slate-900 truncate">
                     Osteo<span className="text-cyan-400">Guard</span>
                   </span>
-                  <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800 tracking-wider">
+                  <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800 tracking-wider shrink-0">
                     AI
                   </span>
                 </div>
@@ -274,14 +274,14 @@ export const NavBar: React.FC = () => {
             </div>
 
             {/* Right utilities */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
               <QueueIndicator activeCount={activeQueueCount} queuedCount={queuedJobsCount} />
 
               {/* Recent Analyses Drawer Toggle */}
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(true)}
-                className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 transition"
+                className="relative p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 border border-slate-800 transition"
                 title="Recent Analyses Cache"
                 aria-label="Open recent analyses history drawer"
               >
@@ -421,6 +421,28 @@ export const NavBar: React.FC = () => {
             >
               <Lock className="w-3 h-3" />
               <span>Safety Gate</span>
+            </NavLink>
+            <NavLink
+              to="/audit"
+              className={({ isActive }) =>
+                `px-2.5 py-1 rounded-lg font-medium whitespace-nowrap flex items-center space-x-1 ${
+                  isActive ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400'
+                }`
+              }
+            >
+              <Scale className="w-3 h-3" />
+              <span>Audit</span>
+            </NavLink>
+            <NavLink
+              to="/about"
+              className={({ isActive }) =>
+                `px-2.5 py-1 rounded-lg font-medium whitespace-nowrap flex items-center space-x-1 ${
+                  isActive ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400'
+                }`
+              }
+            >
+              <Info className="w-3 h-3" />
+              <span>About</span>
             </NavLink>
           </div>
         </div>

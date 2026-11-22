@@ -163,6 +163,97 @@ paths:
               schema:
                 $ref: '#/components/schemas/JobStatusResponse'
 
+  /api/v1/datasets/sources:
+    get:
+      summary: Stage 35 Institutional Dataset Source Registry
+      operationId: getDatasetSources
+      responses:
+        '200':
+          description: Centralized source registry across 4 cohorts with evidence and status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSourcesResponse'
+
+  /api/v1/datasets/acquisition-status:
+    get:
+      summary: Stage 35 Cohort Acquisition Workflow Status
+      operationId: getDatasetAcquisitionStatus
+      responses:
+        '200':
+          description: Per-cohort workflow progress, modality counts, and blockers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetAcquisitionStatusResponse'
+
+  /api/v1/datasets/governance-status:
+    get:
+      summary: Stage 35 Institutional Ethics, DUA & Governance Status
+      operationId: getDatasetGovernanceStatus
+      responses:
+        '200':
+          description: Pending IRB/DUA/expiry audit summary and draft request templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetGovernanceStatusResponse'
+
+  /api/v1/datasets/cohort-planning:
+    get:
+      summary: Stage 35 Planned vs Actual Cohort Readiness
+      operationId: getCohortPlanning
+      responses:
+        '200':
+          description: Planned target counts vs live on-disk validated clinical sample counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CohortPlanningResponse'
+
+  /api/v1/datasets/workflow/transition:
+    post:
+      summary: Stage 35 Audited Acquisition Workflow Transition Validation
+      operationId: transitionDatasetWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowTransitionRequest'
+      responses:
+        '200':
+          description: Transition validated against role, sequential order, evidence, and expiry guards
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Missing or invalid Bearer token when OSTEO_CLINICAL_API_TOKEN is configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Unauthorized governance reviewer role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dataset source_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid transition sequence, expired governance approval, or missing evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     HealthResponse:
@@ -447,4 +538,135 @@ components:
           type: string
           enum: [VALIDATION_ERROR, TIMEOUT_ERROR, NETWORK_ERROR, SERVER_ERROR]
         details:
+          type: string
+
+    DatasetSourcesResponse:
+      type: object
+      required: [timestamp, ontology_version, total_sources, approved_sources_count, sources]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        ontology_version:
+          type: string
+        total_sources:
+          type: integer
+        identified_sources_count:
+          type: integer
+        verified_external_or_in_tree_candidates_count:
+          type: integer
+        approved_sources_count:
+          type: integer
+        rejected_sources_count:
+          type: integer
+        sources:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        disclaimer:
+          type: string
+
+    DatasetAcquisitionStatusResponse:
+      type: object
+      required: [timestamp, overall_acquisition_status, cohorts, total_validated_patients, total_received_valid_images]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        overall_acquisition_status:
+          type: string
+        workflow_stages:
+          type: array
+          items:
+            type: string
+        exception_states:
+          type: array
+          items:
+            type: string
+        cohorts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_validated_patients:
+          type: integer
+        total_received_valid_images:
+          type: integer
+        protected_holdouts:
+          type: object
+          additionalProperties: true
+
+    DatasetGovernanceStatusResponse:
+      type: object
+      required: [timestamp, governance_gate_status, approved_sources_count, pending_ethics_approvals_count, pending_duas_count]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        governance_gate_status:
+          type: string
+        active_sources_audited:
+          type: integer
+        approved_sources_count:
+          type: integer
+        pending_ethics_approvals_count:
+          type: integer
+        pending_duas_count:
+          type: integer
+        expired_approvals_count:
+          type: integer
+        mean_evidence_completeness_pct:
+          type: number
+        templates_status:
+          type: string
+        available_templates:
+          type: array
+          items:
+            type: string
+        source_audits:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    CohortPlanningResponse:
+      type: object
+      required: [timestamp, ontology_version, synthetic_data_excluded, totals, planned_cohorts]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        ontology_version:
+          type: string
+        synthetic_data_excluded:
+          type: boolean
+        statistical_sample_size_justification_ref:
+          type: string
+        statistical_adequacy_status:
+          type: string
+        totals:
+          type: object
+          additionalProperties: true
+        planned_cohorts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    WorkflowTransitionRequest:
+      type: object
+      required: [source_id, target_state, reviewer_pseudo_id, reviewer_role, reason, evidence_reference]
+      properties:
+        source_id:
+          type: string
+        target_state:
+          type: string
+        reviewer_pseudo_id:
+          type: string
+        reviewer_role:
+          type: string
+        reason:
+          type: string
+        evidence_reference:
           type: string

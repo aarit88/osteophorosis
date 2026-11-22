@@ -1,0 +1,782 @@
+# OSTEOGUARD AI — MASTER EXECUTION PROMPT
+## Phase 1: Cloud Checkpoint Recovery, Integrity Verification, and First Real Model Inference
+
+You are acting as the senior ML infrastructure engineer, PyTorch recovery specialist, and software integration engineer for the OsteoGuard AI research project.
+
+Your task is to continue the EXISTING OsteoGuard AI repository and recover the original trained model checkpoints from cloud storage, restore the original Python ML environment, verify checkpoint integrity, and prepare the first genuine single-image inference using a recovered model.
+
+This is an execution task, not a planning-only task. Inspect the actual repository, execute all safe operations that the environment permits, make necessary code corrections, run tests, and produce exact commands for actions that require access to the original Windows training computer or cloud account.
+
+Do not waste execution time repeating completed frontend audits, rebuilding existing pages, rewriting documentation unnecessarily, or inventing additional development stages.
+
+---
+
+# 1. PROJECT CONTEXT — PRESERVE THE EXISTING SYSTEM
+
+The integrated OsteoGuard AI application already exists.
+
+The current frontend and unified Node.js gateway run at:
+
+http://127.0.0.1:3000
+
+The current application has:
+- React, TypeScript, and Vite frontend.
+- Express 5 unified gateway.
+- FastAPI ML service source code.
+- Research dashboard and workbench.
+- Track A, B, C, and D research modules.
+- Radiomics, biomechanics, explainability, uncertainty, evidence, governance, architecture, audit, and about pages.
+- Synthetic demonstration pipeline.
+- Four-class diagnostic safety gate.
+- Security and audit infrastructure.
+
+Previous verification results:
+- npm build: PASS.
+- TypeScript no-emit: PASS.
+- Security/readiness tests: 12/12 PASS.
+- Vitest: 6/6 PASS.
+- Python unittest training tests: 4/4 PASS.
+- Desktop and mobile Playwright verification: PASS.
+- 12 frontend routes loaded without console errors.
+- Mobile width verification at 390px: PASS.
+- Four-class diagnostic endpoint correctly returns HTTP 503 BLOCKED.
+- The Node gateway operates in simulation mode.
+
+Preserve the existing frontend, gateway, API contracts, audit system, research modules, and safety gate.
+
+Do not replace the project architecture or create a new application.
+
+The FastAPI/PyTorch backend has not yet been restored in the AI Studio environment. The AI Studio Python environment previously contained Python 3.11.2 with no FastAPI, PyTorch, torchvision, NumPy, Pillow, SciPy, scikit-learn, or pytest. Port 8000 was occupied by the AI Studio control-plane service.
+
+Do not assume that these conditions have changed. Inspect them before taking action.
+
+---
+
+# 2. PRIMARY OBJECTIVE
+
+Recover the original trained model files from the cloud storage used by the original Windows training computer.
+
+The original project location was:
+
+C:\Users\archi\OneDrive\Desktop\osteophorosis-main
+
+Original GPU virtual environment:
+
+C:\Users\archi\AppData\Local\venvs\osteoguard-gpu
+
+Original environment reportedly used:
+- Python 3.13.3
+- PyTorch 2.14.1+cu126
+- NVIDIA RTX 3050 Laptop GPU
+- 4 GB VRAM
+
+The original repository was located inside OneDrive.
+
+IMPORTANT: The actual checkpoint storage provider has not yet been conclusively identified. The repository's imported copy contains no confirmed S3, GCS, Hugging Face, W&B, or MLflow configuration. The user has confirmed that original checkpoint storage is in the cloud and that the original training computer is accessible.
+
+Investigate the existing repository, project manifests, configuration files, cloud references, training scripts, environment-variable names, and documentation to identify the actual cloud recovery route.
+
+Potential sources to investigate:
+- OneDrive cloud storage and OneDrive recycle bin.
+- OneDrive version history.
+- Google Drive.
+- Google Cloud Storage.
+- AWS S3.
+- Hugging Face model repositories.
+- Weights & Biases artifacts.
+- MLflow artifact storage.
+- Other explicitly configured cloud storage.
+- Existing cloud synchronization folders on the original Windows machine.
+
+Do not assume any provider is configured without evidence.
+
+Do not request, print, expose, or commit access tokens, passwords, API keys, private URLs containing credentials, or cloud secrets.
+
+If a provider requires interactive login or user authorization, give the user the exact steps to authorize it. Do not fabricate successful authentication.
+
+---
+
+# 3. AUTHORITATIVE MODEL INVENTORY
+
+Use the following saved research reports as the authoritative reference for the existing model tracks.
+
+## Track A — FracAtlas Fracture Classifier
+
+Architecture:
+- ResNet-101.
+- Linear(2048, 2).
+- Stage 09, Epoch 9.
+- Input: 224×224 RGB.
+- ImageNet normalization.
+
+Saved evaluation metrics:
+- Validation N=612: ROC-AUC 0.8871, PR-AUC 0.7556.
+- Test N=614: ROC-AUC 0.9117, PR-AUC 0.7537.
+
+Frozen decision thresholds:
+- 0.31: screening threshold.
+- 0.38: Youden J threshold.
+- 0.47: best F1 threshold.
+
+Output classes:
+- 0: candidate_control_radiograph.
+- 1: acute_bone_fracture.
+
+Primary checkpoint:
+ml_artifacts/fracatlas_full_training/best_checkpoint.pt
+
+Additional checkpoints:
+ml_artifacts/fracatlas_full_training/last_checkpoint.pt
+ml_artifacts/fracatlas_pilot/best_checkpoint.pt
+ml_artifacts/fracatlas_pilot/last_checkpoint.pt
+
+Priority: HIGH.
+
+## Track B — Bone Scintigraphy Metastasis Classifier
+
+Architecture:
+- Five-fold ResNet-18 ensemble.
+- One input channel.
+- Dropout(0.4).
+- Linear(512, 1).
+
+Input:
+- 1024×256 16-bit grayscale.
+- Clipped at 25000.
+- Scaled to [0,1].
+- Paired anterior/posterior scans.
+- Ensemble prediction: mean(max(P_ant_k, P_post_k)).
+
+Saved metrics:
+- Validation N=44 patients.
+- Holdout test N=44 patients.
+- ROC-AUC 0.8317.
+- PR-AUC 0.7257.
+
+Decision thresholds:
+- 0.60 and 0.45, as defined in the existing evaluation configuration. Do not reinterpret or change them.
+
+Output:
+- Binary metastasis probability.
+
+Expected fold checkpoints:
+
+ml_artifacts/bone_scan_cv/fold_0/best_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_1/best_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_2/best_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_3/best_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_4/best_checkpoint.pt
+
+Also recover, if available:
+
+ml_artifacts/bone_scan_cv/fold_0/last_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_1/last_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_2/last_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_3/last_checkpoint.pt
+ml_artifacts/bone_scan_cv/fold_4/last_checkpoint.pt
+
+Pilot:
+ml_artifacts/bone_scan_pilot/best_checkpoint.pt
+ml_artifacts/bone_scan_pilot/last_checkpoint.pt
+
+Priority: MEDIUM. Recover after Track A and Track C.
+
+## Track C — Frozen BTXRD ResNet-34
+
+Architecture:
+- ResNet-34.
+- 21,286,211 parameters.
+- Layer3, layer4, and classifier unfrozen during its original training.
+- Input: 512×512 RGB.
+- Aspect-ratio-preserving black letterboxing.
+- ImageNet normalization.
+- Raw, uncalibrated softmax and argmax.
+
+Authoritative frozen checkpoint:
+
+ml_artifacts/btxrd_frozen_model/best_checkpoint.pt
+
+Expected file size:
+
+244849703 bytes
+
+Required SHA-256:
+
+21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD
+
+Saved reports:
+- Center 1 validation N=588: Macro-F1 0.8103, Macro PR-AUC 0.8700, Brier 0.3168.
+- Center 2 external holdout N=549: Macro-F1 0.5069.
+- Center 3 external holdout N=259: Macro-F1 0.3592.
+
+Classes:
+- 0: NORMAL_BONE_RADIOGRAPH.
+- 1: BENIGN_BONE_TUMOR.
+- 2: PRIMARY_MALIGNANT_TUMOR.
+
+Other checkpoint paths:
+
+ml_artifacts/btxrd_full_training/best_checkpoint.pt
+ml_artifacts/btxrd_full_training/last_checkpoint.pt
+ml_artifacts/btxrd_pilot/best_checkpoint.pt
+ml_artifacts/btxrd_pilot/last_checkpoint.pt
+
+Priority: CRITICAL for integrity verification, HIGH for first model inference.
+
+### BTXRD PROTECTION RULE
+
+The frozen BTXRD checkpoint is an immutable research artifact.
+
+NEVER:
+- Retrain it.
+- Fine-tune it.
+- Overwrite it.
+- Change its classifier.
+- Modify its weights.
+- Recalibrate its probabilities.
+- Alter its preprocessing.
+- Select new thresholds using external holdout data.
+- Substitute a different checkpoint and call it the frozen model.
+
+Only accept the frozen artifact if both the exact file size and SHA-256 match the values above.
+
+If the hash does not match, quarantine the file and investigate. Do not use it for inference.
+
+Center 2 and Center 3 remain protected external holdouts.
+
+## Track D — Four-Class OsteoGuardNet
+
+Architecture:
+- ResNet-101 semantic branch: 512 dimensions.
+- Radiomics branch: 102 dimensions.
+- Fusion: 614 dimensions.
+- ModalityStrategyEngine.
+- Grad-CAM.
+- TemperatureScaler.
+- MahalanobisFeatureDetector.
+- SelectivePredictionEngine.
+- Candidate normalized entropy abstention threshold H_norm >= 0.60.
+
+Classes:
+- Secondary bone metastasis.
+- Paget's disease.
+- Osteogenesis imperfecta.
+- Healthy skeletal controls.
+
+Status:
+BLOCKED — never trained.
+
+Clinical cohorts acquired: 0/4.
+
+Expected directory:
+
+ml_artifacts/checkpoints/
+
+Currently contains only .gitkeep.
+
+Do not train Track D during this recovery phase.
+
+Do not generate fake checkpoints, simulated training results, fabricated predictions, or synthetic clinical metrics.
+
+The four-class endpoint must remain HTTP 503 BLOCKED until the genuine clinical data, model, validation, calibration, and governance requirements are met.
+
+---
+
+# 4. EXACT CLOUD RECOVERY PROCEDURE
+
+Start with a complete, read-only inventory of the repository and available environment.
+
+Inspect:
+- Current working directory.
+- Project root.
+- All model manifests.
+- All checkpoint path references.
+- Cloud configuration files.
+- Environment-variable names, but never their secret values.
+- Existing storage SDKs and CLI tools.
+- OneDrive references.
+- Training and artifact-upload scripts.
+- Git ignore configuration.
+- Existing cloud synchronization configuration, if accessible.
+
+Search for:
+- best_checkpoint.pt
+- last_checkpoint.pt
+- fold_0 through fold_4
+- btxrd_frozen_model
+- fracatlas_full_training
+- bone_scan_cv
+- btxrd_full_training
+- artifact upload
+- model upload
+- artifact download
+- OneDrive
+- Google Drive
+- Hugging Face
+- W&B
+- MLflow
+- S3
+- GCS
+
+Produce a provider discovery table:
+
+| Provider | Evidence found | Authentication available | Recovery possible |
+|---|---|---|---|
+
+Do not perform broad downloads until the provider and target artifact paths have been established.
+
+If OneDrive is identified:
+
+1. Check whether OneDrive is accessible through the original Windows synchronized folder.
+2. Check the OneDrive web account and its project folder.
+3. Check the OneDrive recycle bin.
+4. Check version history for deleted or previous checkpoint files.
+5. Search the original project folder and relevant backup folders.
+6. Identify whether files were excluded from synchronization due to file-size, synchronization, or storage problems.
+
+If Google Drive, S3, GCS, Hugging Face, W&B, or MLflow is identified, use its actual configured artifact identifiers and metadata. Do not guess object names or invent URLs.
+
+If credentials are unavailable in AI Studio, stop remote access attempts and provide the exact original-Windows-machine commands for recovery.
+
+If the AI Studio runtime cannot access the original cloud account, do not claim that the cloud was searched successfully.
+
+---
+
+# 5. ORIGINAL WINDOWS MACHINE — EXACT RECOVERY SCRIPT
+
+Prepare a safe PowerShell recovery script for the original Windows computer.
+
+The script must:
+
+1. Verify the original project directory exists.
+2. Search the original repository for all .pt and .pth files.
+3. Search relevant OneDrive folders.
+4. Search Downloads, Desktop, and suitable backup directories.
+5. Record full paths, file sizes, and last-modified timestamps.
+6. Identify the expected checkpoint filenames from the inventory above.
+7. Calculate SHA-256 for every recovered candidate.
+8. Verify the frozen BTXRD file against its authoritative hash and exact byte size.
+9. Copy verified checkpoint candidates to a recovery directory OUTSIDE the original project first.
+10. Avoid overwriting any existing file.
+11. Generate a CSV recovery inventory.
+12. Preserve source files.
+
+Use a recovery directory such as:
+
+C:\OsteoGuard-Recovery\
+
+Use safe copy operations. Never move or delete the original checkpoint files.
+
+Create a separate verified directory for the immutable BTXRD checkpoint.
+
+Do not copy a file into the repository's authoritative frozen checkpoint location unless its size and hash have passed verification.
+
+For Track A and Track B, record hashes and sizes, but do not invent expected hashes where none exist.
+
+Give the user one complete PowerShell script they can execute from the original Windows training machine.
+
+The script should be reusable and should not require the user to manually edit dozens of paths.
+
+If cloud access requires a browser login, explain how to download the recovered files into the recovery directory.
+
+---
+
+# 6. RESTORE THE PYTHON ENVIRONMENT
+
+Do not install dependencies blindly in the AI Studio control-plane container.
+
+First determine whether a separate Python environment can safely be created.
+
+The preferred environment is the original Windows GPU environment:
+
+C:\Users\archi\AppData\Local\venvs\osteoguard-gpu
+
+Check whether this virtual environment still exists.
+
+If it exists:
+- Inspect Python version.
+- Inspect installed PyTorch and torchvision versions.
+- Check CUDA availability.
+- Check GPU visibility.
+- Inspect dependency compatibility.
+- Do not delete or recreate it unnecessarily.
+
+If it does not exist, prepare a reproducible replacement environment OUTSIDE OneDrive:
+
+C:\Users\archi\AppData\Local\venvs\osteoguard-gpu
+
+Use the existing project dependency specifications as the starting point:
+
+ml_service\config\requirements_gpu.txt
+ml_service\config\requirements_gpu_lock.txt
+ml_service\requirements.txt
+
+Inspect these files before installing.
+
+Do not assume that a version number is compatible merely because it appears in an old report.
+
+Resolve any incompatible PyTorch, torchvision, Python, CUDA, or dependency pins.
+
+The original machine reportedly used Python 3.13.3 and CUDA 12.6, but verify actual compatibility before installation.
+
+Do not overwrite a working environment.
+
+After environment restoration, verify:
+
+- Python version.
+- PyTorch version.
+- torchvision version.
+- CUDA availability.
+- GPU model.
+- FastAPI import.
+- Pillow import.
+- NumPy import.
+- SciPy import.
+- scikit-learn import.
+- Matplotlib import.
+- Grad-CAM/inference imports.
+
+If GPU execution fails, assess whether CPU inference is practical before attempting it.
+
+The RTX 3050 has only 4 GB VRAM. Use conservative inference settings and avoid loading multiple large models simultaneously.
+
+---
+
+# 7. RESTORE CHECKPOINTS INTO THEIR AUTHORITATIVE LOCATIONS
+
+Once checkpoint files are recovered and inventoried:
+
+1. Match each file to its exact track and original relative path.
+2. Never rename a checkpoint merely to make it load.
+3. Never substitute a pilot checkpoint for a full-training checkpoint without explicitly identifying the substitution.
+4. Preserve original checkpoint metadata.
+5. Record file size and SHA-256.
+6. Compare the frozen BTXRD file against its authoritative hash and size.
+7. Check that all required Track B folds are present before calling the ensemble complete.
+8. Keep the original recovery copies unchanged.
+9. Make verified copies into the repository's expected paths.
+10. Update no manifests with invented metadata.
+
+Do not mark a checkpoint as recovered unless the actual file exists and its inventory has been recorded.
+
+After copying, run:
+
+python ml_service/scripts/run_preliminary_inference.py --verify-only
+
+Then run the strict verification mode if the script supports it:
+
+python ml_service/scripts/run_preliminary_inference.py --verify-only --strict
+
+Report the exact output and any missing artifacts.
+
+If the strict mode fails because the original training artifacts are not recovered, report the exact missing paths. Do not bypass its checks.
+
+---
+
+# 8. FIRST GENUINE INFERENCE — TRACK C
+
+After Track C's frozen checkpoint passes its exact hash and size verification, prepare the first single-image inference.
+
+Use only a new, de-identified, non-holdout plain bone radiograph.
+
+Suitable anatomy:
+- Femur.
+- Knee.
+- Tibia.
+- Humerus.
+- Forearm.
+
+Accepted image formats:
+- PNG.
+- JPEG.
+
+Do not use synthetic demo illustrations as clinical/model evidence.
+
+Do not use:
+- FracAtlas test partition.
+- BTXRD Center 2 external holdout.
+- BTXRD Center 3 external holdout.
+- Bone scintigraphy holdout data.
+
+The existing inference script checks SHA-256 against available holdout manifests. Preserve that protection.
+
+If no eligible image is available, do not use a protected dataset image as a substitute. Provide a clear request for a new eligible research image.
+
+Expected command:
+
+python ml_service/scripts/run_preliminary_inference.py --track track_c --image "PATH_TO_NEW_NON_HOLDOUT_XRAY.png" --gradcam-out "scratch/track_c_gradcam.png"
+
+The actual command must use a real existing image path.
+
+Expected results:
+- Checkpoint integrity status.
+- Input image dimensions and mode.
+- Exact preprocessing applied.
+- Raw softmax scores.
+- Predicted Track C class.
+- Grad-CAM output path, if successfully generated.
+- Inference device.
+- Runtime.
+- Warnings and limitations.
+
+Do not describe this output as a clinical diagnosis.
+
+Do not imply that the saved Center 1/2/3 evaluation results were reproduced by this single-image inference.
+
+If Track C recovery is blocked but Track A has been recovered, use Track A as the alternative first inference.
+
+Track A command:
+
+python ml_service/scripts/run_preliminary_inference.py --track track_a --image "PATH_TO_NEW_NON_HOLDOUT_XRAY.png" --threshold 0.31 --gradcam-out "scratch/track_a_gradcam.png"
+
+Preserve the existing Stage 09 preprocessing and frozen thresholds.
+
+Do not change model thresholds based on the new single image.
+
+---
+
+# 9. TRACK A AND TRACK B RECOVERY
+
+Once the first successful Track C or Track A inference is complete:
+
+Track A:
+- Verify the original ResNet-101 architecture.
+- Verify the classifier output dimension is 2.
+- Verify 224×224 RGB preprocessing.
+- Verify ImageNet normalization.
+- Verify the three original decision thresholds.
+- Verify the checkpoint's stored epoch and metadata if available.
+- Test inference on an eligible new image.
+
+Track B:
+- Recover all five fold checkpoints.
+- Confirm the original fold configuration.
+- Confirm one-channel input.
+- Confirm anterior/posterior pairing.
+- Confirm 1024×256 input geometry.
+- Confirm 16-bit grayscale handling and clipping at 25000.
+- Confirm ensemble aggregation.
+- Confirm thresholds 0.60 and 0.45.
+- Do not call Track B operational if even one required fold is missing.
+
+Do not use Track B holdout images for preliminary testing.
+
+---
+
+# 10. CONNECT THE REAL PYTHON BACKEND TO THE EXISTING FRONTEND
+
+Only after Python dependencies and at least one checkpoint are successfully restored:
+
+Inspect the existing FastAPI service and Node.js gateway integration.
+
+Determine the actual configured backend URL and port.
+
+Do not assume port 8000 is free. Check it first.
+
+The previous AI Studio environment had port 8000 occupied by a control-plane API. Never kill or overwrite that service.
+
+If port 8000 remains unavailable, select a different available port and update only the relevant environment configuration.
+
+Preserve the current gateway and frontend.
+
+The frontend must clearly distinguish:
+
+- SIMULATION MODE.
+- REAL MODEL INFERENCE.
+- MODEL NOT AVAILABLE.
+- FOUR-CLASS MODEL BLOCKED.
+
+Synthetic results must remain explicitly labeled synthetic.
+
+Real model inference must use the actual recovered checkpoint and actual inference code.
+
+Do not return simulated predictions from a real-inference API route.
+
+If the Python backend cannot run in AI Studio, document how to run it on the original Windows GPU computer and configure the gateway to use the reachable backend URL.
+
+Do not expose an unauthenticated public ML inference endpoint.
+
+Preserve existing upload protections, EXIF stripping, ephemeral asset handling, audit logging, and security boundaries.
+
+---
+
+# 11. SECURITY AND RESEARCH SAFETY RULES
+
+These rules are mandatory.
+
+1. Do not create fake .pt or .pth files.
+2. Do not fabricate trained models.
+3. Do not fabricate inference outputs.
+4. Do not invent evaluation metrics.
+5. Do not treat synthetic demonstrations as real model results.
+6. Do not overwrite the frozen BTXRD checkpoint.
+7. Do not train Track D.
+8. Do not use external holdout data for training, tuning, calibration, or threshold selection.
+9. Do not bypass holdout image-hash checks.
+10. Do not call the system a clinically approved diagnostic device.
+11. Do not treat model abstention as a healthy or negative result.
+12. Do not remove the HTTP 503 four-class safety gate.
+13. Do not weaken existing privacy, audit, or security controls.
+14. Do not expose cloud credentials or patient-identifying information in logs.
+15. Do not commit recovered model binaries, datasets, secrets, or environment files to Git.
+
+The existing 102-dimensional radiomics contract has 81 analytically verified features and 21 heuristic/unverified features. Do not claim all 102 features are IBSI-compliant.
+
+The candidate H_norm threshold of 0.60 is not clinically validated. Do not present it as a validated clinical decision threshold.
+
+---
+
+# 12. EXECUTION ORDER — MINIMIZE USER INTERVENTIONS
+
+Execute the work in the following order.
+
+PHASE 1 — REPOSITORY FORENSICS
+- Inspect repository and current runtime.
+- Identify actual cloud-provider evidence.
+- Inventory missing checkpoints.
+- Verify existing recovery and inference scripts.
+- Do not repeat completed frontend audits.
+
+PHASE 2 — CLOUD RECOVERY DISCOVERY
+- Determine the most likely authoritative storage provider.
+- Check available credentials without displaying their values.
+- Attempt safe read-only listing if authenticated access exists.
+- Identify the exact artifact objects and their sizes.
+- If authentication is impossible, generate the Windows PowerShell recovery procedure.
+
+PHASE 3 — WINDOWS RECOVERY
+- Generate one complete PowerShell script.
+- Include local and OneDrive searches.
+- Include a cloud recovery checklist.
+- Include file integrity inventory.
+- Include safe copy operations.
+- Include the immutable BTXRD verification.
+
+PHASE 4 — CHECKPOINT RESTORATION
+- Restore available files into their exact expected relative paths.
+- Verify every recovered file.
+- Run the existing checkpoint inventory and strict verification scripts.
+- Do not claim success if files are not physically present.
+
+PHASE 5 — PYTHON ENVIRONMENT
+- Inspect original environment.
+- Restore compatible dependencies on the original GPU host if necessary.
+- Verify imports and CUDA.
+- Avoid unnecessary package installations in the AI Studio container.
+
+PHASE 6 — FIRST MODEL INFERENCE
+- Prioritize Track C.
+- Use Track A only as the documented alternative.
+- Require a new eligible non-holdout image.
+- Execute actual inference if files and dependencies are available.
+- Export Grad-CAM only if it genuinely runs.
+
+PHASE 7 — BACKEND INTEGRATION
+- Restore FastAPI and connect it to the existing gateway only if the environment supports it.
+- Keep simulation mode clearly separated.
+- Preserve the four-class HTTP 503 safety gate.
+
+PHASE 8 — FINAL VERIFICATION
+- Run relevant tests.
+- Run npm build and TypeScript checks only if frontend or gateway code was changed.
+- Run Python tests in the restored ML environment.
+- Verify the real model inference endpoint if available.
+- Verify the four-class endpoint remains blocked.
+- Produce a precise completion report.
+
+---
+
+# 13. REQUIRED FINAL REPORT
+
+At the end, provide the following sections.
+
+## A. Cloud Provider Discovery
+- Provider identified.
+- Evidence.
+- Whether authenticated access was available.
+- Whether cloud artifacts were actually listed.
+- Exact recovery location.
+
+## B. Checkpoint Recovery Table
+
+| Track | Checkpoint | Expected Path | Recovered | Size | SHA-256 | Integrity |
+|---|---|---|---|---|---|---|
+
+Include every expected checkpoint, including all five Track B folds.
+
+## C. BTXRD Frozen Integrity
+- Actual file size.
+- Expected file size.
+- Actual SHA-256.
+- Expected SHA-256.
+- Verification result.
+- Whether the file was left unchanged.
+
+## D. Original Windows Recovery
+- PowerShell script location or complete script.
+- Exact commands the user must execute.
+- Exact files that must be uploaded or copied back to the project.
+
+## E. Python Environment
+- Python version.
+- PyTorch version.
+- torchvision version.
+- CUDA status.
+- GPU model.
+- Dependency verification.
+- Any compatibility issues.
+
+## F. First Genuine Inference
+- Track used.
+- Checkpoint used.
+- Input image path.
+- Input image eligibility.
+- Preprocessing.
+- Model output.
+- Grad-CAM status.
+- Runtime.
+- Clear research-only disclaimer.
+
+If no inference could be executed, state the exact blocker.
+
+## G. Backend Integration
+- FastAPI status.
+- Backend port.
+- Gateway connection.
+- Real inference versus simulation status.
+- Four-class gate status.
+
+## H. Tests
+- Tests actually executed.
+- Pass/fail counts.
+- Tests not executed and why.
+
+## I. Outstanding Blockers
+List only real unresolved blockers.
+
+## J. Exact Next User Action
+Give one concise, unambiguous instruction for the next action the user must take.
+
+---
+
+# 14. IMPORTANT EXECUTION BEHAVIOR
+
+Work autonomously wherever the current environment permits.
+
+Do not stop after merely producing a plan.
+
+Do not ask the user to repeat information already provided.
+
+Do not spend time regenerating the frontend or rewriting the project.
+
+Do not attempt Track D training.
+
+Do not invent a cloud storage provider.
+
+Do not pretend that a cloud file was recovered if the runtime cannot access it.
+
+If one operation requires the user's Windows computer, cloud login, or a new eligible image, complete every other independent safe operation first and then provide the exact action required.
+
+Prioritize a successful, verifiable Track C recovery. Track A is the fallback. Track B follows after those.
+
+**The desired outcome is a genuinely recovered original checkpoint, verified integrity, a restored working inference environment, and the first real non-holdout research inference — not another simulation or a new architecture proposal.**

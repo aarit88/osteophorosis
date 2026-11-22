@@ -243,6 +243,68 @@ export interface DatasetGovernanceResponse {
   disclaimer: string;
 }
 
+export interface TrackDDatasetReadinessResponse {
+  timestamp: string;
+  track: 'track_d';
+  readiness_status: 'NOT_AVAILABLE' | 'BLOCKED' | 'READY_FOR_TRAINING';
+  ready_for_training: boolean;
+  data_origin: 'REAL_CLINICAL_DATA_UNAVAILABLE' | 'REAL_DISK_DATA_PRESENT';
+  synthetic_data_excluded: true;
+  total_inspected_samples: number;
+  valid_samples: number;
+  quarantined_samples: number;
+  unique_patients: number;
+  institution_count: number;
+  institutions: string[];
+  dataset_sources: string[];
+  permissions_verified: string[];
+  ethics_references: string[];
+  class_counts: Record<'metastasis' | 'paget' | 'oi' | 'healthy', number>;
+  modality_counts: Record<'xray' | 'bone_scan' | 'ct', number>;
+  class_modality_matrix: Record<
+    'xray' | 'bone_scan' | 'ct',
+    Record<'metastasis' | 'paget' | 'oi' | 'healthy', number>
+  >;
+  missing_metadata_count: number;
+  duplicate_samples_count: number;
+  ontology_version: string;
+  accepted_by_class: Record<
+    'SECONDARY_BONE_METASTASIS' | 'PAGETS_DISEASE' | 'OSTEOGENESIS_IMPERFECTA' | 'HEALTHY_SKELETAL_CONTROL',
+    number
+  >;
+  adjudication_summary: Record<
+    'ACCEPTED' | 'OUT_OF_SCOPE' | 'UNCERTAIN' | 'REQUIRES_ADJUDICATION' | 'REJECTED',
+    number
+  >;
+  healthy_control_eligibility_failures: number;
+  conflicting_diagnoses_count: number;
+  label_provenance_completeness_pct: number;
+  split_distribution: {
+    train: number;
+    val: number;
+    test: number;
+    external_test: number;
+  };
+  gates: {
+    provenance_documented: boolean;
+    permissions_verified: boolean;
+    deidentification_satisfied: boolean;
+    diagnostic_labels_documented: boolean;
+    patient_level_split_integrity: boolean;
+    image_quality_verified: boolean;
+    class_and_modality_coverage: boolean;
+  };
+  protected_holdouts: {
+    btxrd_center2_samples: number;
+    btxrd_center3_samples: number;
+    isolation_enforced: boolean;
+  };
+  blockers: string[];
+  outstanding_requirements: string[];
+  clinical_sample_size_justification_note: string;
+  quarantine_reasons: Record<string, number>;
+}
+
 export interface ClinicalTrainingStatusResponse {
   disk: ClinicalDiskReadiness;
   minImagesPerClass: number;
@@ -427,4 +489,159 @@ export interface SecurityStatusResponse {
   };
   clinicalReadiness: ClinicalDiskReadiness;
 }
+
+// ━━━ Stage 35 Institutional Acquisition, Governance & Cohort Planning Types ━━━
+
+export interface DatasetRegistrySourceItem {
+  source_id: string;
+  target_cohort: 'metastasis' | 'paget' | 'oi' | 'healthy';
+  ontology_target_class: string;
+  source_classification: 'PROPOSED_INSTITUTIONAL' | 'VERIFIED_EXTERNAL_CANDIDATE' | 'AUDITED_IN_TREE_SUBTRACK' | 'DISQUALIFIED';
+  source_name: string;
+  institution: string;
+  repository_url_or_contact_ref: string;
+  url_verified: boolean;
+  available_modalities: Array<'xray' | 'bone_scan' | 'ct'>;
+  anatomical_coverage: string;
+  diagnostic_confirmation_requirements: string;
+  verified_patient_count: number | null;
+  verified_image_count: number | null;
+  license_and_usage_restrictions: string;
+  access_requirements: string;
+  ethics_approval_requirements: string;
+  dua_status: string;
+  deidentification_requirements: string;
+  evidence_reference: string | null;
+  verification_date: string | null;
+  acquisition_status: string;
+  workflow_state: string;
+  governance_verified: boolean;
+  evidence_completeness_pct: number;
+  blockers: string[];
+}
+
+export interface DatasetSourcesResponse {
+  timestamp: string;
+  ontology_version: string;
+  total_sources: number;
+  identified_sources_count: number;
+  verified_external_or_in_tree_candidates_count: number;
+  approved_sources_count: number;
+  rejected_sources_count: number;
+  sources: DatasetRegistrySourceItem[];
+  disclaimer: string;
+}
+
+export interface CohortAcquisitionItem {
+  cohort_class: 'metastasis' | 'paget' | 'oi' | 'healthy';
+  ontology_target_class: string;
+  current_workflow_stage: string;
+  identified_sources_count: number;
+  verified_sources_count: number;
+  approved_sources_count: number;
+  disqualified_sources_count: number;
+  received_images_count: number;
+  validated_patients_count: number;
+  modality_breakdown: Record<'xray' | 'bone_scan' | 'ct', { images: number; patients: number }>;
+  outstanding_blockers: string[];
+}
+
+export interface DatasetAcquisitionStatusResponse {
+  timestamp: string;
+  overall_acquisition_status: string;
+  workflow_stages: string[];
+  exception_states: string[];
+  cohorts: CohortAcquisitionItem[];
+  total_validated_patients: number;
+  total_received_valid_images: number;
+  protected_holdouts: {
+    btxrd_center2_samples: number;
+    btxrd_center3_samples: number;
+    isolation_enforced: boolean;
+  };
+}
+
+export interface SourceGovernanceAuditItem {
+  source_id: string;
+  target_cohort: string;
+  governance_verified: boolean;
+  irb_iec_approved: boolean;
+  dua_approved: boolean;
+  is_expired: boolean;
+  approval_date: string | null;
+  expiry_date: string | null;
+  evidence_reference: string | null;
+  evidence_completeness_pct: number;
+  checks: Record<string, boolean>;
+  missing_or_pending: string[];
+}
+
+export interface DatasetGovernanceStatusResponse {
+  timestamp: string;
+  governance_gate_status: string;
+  active_sources_audited: number;
+  approved_sources_count: number;
+  pending_ethics_approvals_count: number;
+  pending_duas_count: number;
+  expired_approvals_count: number;
+  mean_evidence_completeness_pct: number;
+  templates_status: string;
+  available_templates: string[];
+  source_audits: SourceGovernanceAuditItem[];
+  protected_holdouts: {
+    btxrd_center2_samples: number;
+    btxrd_center3_samples: number;
+    isolation_enforced: boolean;
+  };
+}
+
+export interface CohortPlanRow {
+  plan_id: string;
+  diagnostic_class: 'metastasis' | 'paget' | 'oi' | 'healthy';
+  ontology_target_class: string;
+  imaging_modality: 'xray' | 'bone_scan' | 'ct';
+  planned_patient_count: number;
+  planned_image_count: number;
+  actual_received_patients: number;
+  actual_validated_patients: number;
+  actual_validated_images: number;
+  institution_distribution: string;
+  inclusion_criteria: string;
+  exclusion_criteria: string;
+  primary_endpoint: string;
+  statistical_sample_size_justification_ref: string;
+  proposed_split_allocation: { train_pct: number; val_pct: number; test_pct: number };
+  data_gap_patients: number;
+}
+
+export interface CohortPlanningResponse {
+  timestamp: string;
+  ontology_version: string;
+  synthetic_data_excluded: boolean;
+  statistical_sample_size_justification_ref: string;
+  statistical_adequacy_status: string;
+  statistical_disclaimer: string;
+  proposed_patient_level_split_allocation: {
+    partition_unit: string;
+    train_pct: number;
+    val_pct: number;
+    internal_test_pct: number;
+    external_site_holdout_note: string;
+    strict_rules: string[];
+  } | null;
+  totals: {
+    planned_patient_count: number;
+    planned_image_count: number;
+    actual_received_patients: number;
+    actual_validated_patients: number;
+    actual_validated_images: number;
+  };
+  planned_cohorts: CohortPlanRow[];
+  protected_holdouts: {
+    btxrd_center2_samples: number;
+    btxrd_center3_samples: number;
+    isolation_enforced: boolean;
+  };
+}
+
 

@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0.0",
+  "stage": "STAGE_35_COHORT_PLANNING",
+  "ontology_version": "OSTEO_ONTOLOGY_V1.0_STAGE34",
+  "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+  "statistical_adequacy_status": "NOT_ESTABLISHED_IN_SOFTWARE",
+  "statistical_disclaimer": "Planned target counts reflect institutional collaboration targets only; statistical power, multi-site variance, and minimum cohort adequacy are NOT fabricated in code and require formal biostatistician & IEC/IRB sign-off.",
+  "proposed_patient_level_split_allocation": {
+    "partition_unit": "patient_id",
+    "train_pct": 70,
+    "val_pct": 15,
+    "internal_test_pct": 15,
+    "external_site_holdout_note": "Independent collaborating hospital centers reserved for external_test evaluation; BTXRD Center 2 (N=549) & Center 3 (N=259) permanently excluded from Track D train/val.",
+    "strict_rules": [
+      "Zero patient overlap across train, val, internal_test, or external_test.",
+      "Zero cross-modality pooling (xray, bone_scan, and ct cohorts partitioned and modeled per modality stream)."
+    ]
+  },
+  "planned_cohorts": [
+    {
+      "plan_id": "PLAN_METS_XRAY",
+      "diagnostic_class": "metastasis",
+      "ontology_target_class": "SECONDARY_BONE_METASTASIS",
+      "imaging_modality": "xray",
+      "planned_patient_count": 200,
+      "planned_image_count": 400,
+      "institution_distribution": "Multi-center >=2 oncology & tertiary MSK radiology centers (planned target; 0 sites active)",
+      "inclusion_criteria": "Adults >=18y with biopsy-confirmed OR multimodal PET-CT/MRI-confirmed secondary bone metastasis (lytic, blastic, or mixed) imaged on >=1024x1024 CR/DR DICOM.",
+      "exclusion_criteria": "Primary bone sarcomas (osteosarcoma, Ewing, chondrosarcoma), multiple myeloma, unconfirmed primary tumor, BTXRD Center 2/3 holdouts.",
+      "primary_endpoint": "Patient-level Track D X-ray 4-class differential sensitivity, specificity, macro-F1, and calibrated ECE.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    },
+    {
+      "plan_id": "PLAN_METS_CT",
+      "diagnostic_class": "metastasis",
+      "ontology_target_class": "SECONDARY_BONE_METASTASIS",
+      "imaging_modality": "ct",
+      "planned_patient_count": 100,
+      "planned_image_count": 200,
+      "institution_distribution": "TCIA Spine-Mets-CT-SEG (55 external subjects upon DUA) + >=1 hospital CT archive (planned)",
+      "inclusion_criteria": "Volumetric helical bone-window CT (slice thickness <= 1.5 mm) with confirmed secondary vertebral or appendicular metastasis.",
+      "exclusion_criteria": "Primary spinal tumors, non-bone-window low-res reconstructions, unverified metastases.",
+      "primary_endpoint": "Pathway C CT differential classification and 3D lesion segmentation Dice / fracture geometry fidelity.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    },
+    {
+      "plan_id": "PLAN_METS_BONESCAN",
+      "diagnostic_class": "metastasis",
+      "ontology_target_class": "SECONDARY_BONE_METASTASIS",
+      "imaging_modality": "bone_scan",
+      "planned_patient_count": 120,
+      "planned_image_count": 240,
+      "institution_distribution": "IICS-UNA Paraguay (60 metastasis subjects pending Track D verification) + multi-primary hospital nuclear medicine cohort (planned)",
+      "inclusion_criteria": "Paired Anterior + Posterior 99mTc-MDP planar whole-body scintigraphy across diverse solid primaries (breast, prostate, lung, renal).",
+      "exclusion_criteria": "Unpaired single-view scans, Stage 14 burned test holdout patients, degenerative trauma confounding labeled as metastasis.",
+      "primary_endpoint": "Pathway B scintigraphy patient-level sensitivity/specificity across non-breast and breast primaries.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    },
+    {
+      "plan_id": "PLAN_PAGET_XRAY",
+      "diagnostic_class": "paget",
+      "ontology_target_class": "PAGETS_DISEASE",
+      "imaging_modality": "xray",
+      "planned_patient_count": 150,
+      "planned_image_count": 350,
+      "institution_distribution": "Multi-center MSK hospital collaboration >=2 international/national metabolic bone registries (planned; 0 sites active)",
+      "inclusion_criteria": "Adults >=40y meeting classic radiographic triad confirmed by >=2 MSK radiologists + biochemical serum ALP/BSAP or biopsy.",
+      "exclusion_criteria": "Osteoarthritis, subchondral sclerosis, fibrous dysplasia, osteopetrosis, blastic metastasis mimics, Radiopaedia/MedPix web images.",
+      "primary_endpoint": "Patient-level Paget's vs Metastasis differential specificity and macro-F1.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    },
+    {
+      "plan_id": "PLAN_OI_XRAY",
+      "diagnostic_class": "oi",
+      "ontology_target_class": "OSTEOGENESIS_IMPERFECTA",
+      "imaging_modality": "xray",
+      "planned_patient_count": 120,
+      "planned_image_count": 480,
+      "institution_distribution": "RDCRN BBDC Protocol 7701 (pending DAC) + >=1 tertiary pediatric orthopedic genetics hospital (planned)",
+      "inclusion_criteria": "Confirmed human OI (genetic COL1A1/COL1A2 track OR Sillence Type I/III/IV specialist diagnosis recorded separately), pediatric ethics & consent verified.",
+      "exclusion_criteria": "Animal/murine micro-CT, osteoporosis, osteopenia, rickets, osteomalacia, non-accidental trauma.",
+      "primary_endpoint": "Patient-level OI classification balanced across pediatric growth-plate strata without shortcut learning.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    },
+    {
+      "plan_id": "PLAN_HEALTHY_XRAY",
+      "diagnostic_class": "healthy",
+      "ontology_target_class": "HEALTHY_SKELETAL_CONTROL",
+      "imaging_modality": "xray",
+      "planned_patient_count": 250,
+      "planned_image_count": 600,
+      "institution_distribution": "Stanford AIMI MURA (upper-extremity comparator pending DUA) + hospital PACS matched normal pelvis/spine/lower-limb/pediatric controls (planned)",
+      "inclusion_criteria": "Asymptomatic normal skeletal radiographs with explicit radiologist normal sign-off, documented anatomical_region, control_selection_criteria, and normal skeletal history.",
+      "exclusion_criteria": "Contralateral trauma/cancer limbs, absence-of-fracture assumptions (FracAtlas), oncology staging patients, osteoporosis/implants.",
+      "primary_endpoint": "False-positive rate across anatomically matched skeletal sites (pelvis, spine, extremities) and pediatric/adult age strata.",
+      "statistical_sample_size_justification_ref": "PENDING_BIOSTATISTICAL_AND_IEC_REVIEW",
+      "proposed_split_allocation": { "train_pct": 70, "val_pct": 15, "test_pct": 15 }
+    }
+  ]
+}

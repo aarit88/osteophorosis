@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-11-22T19:28:21.761493+00:00",
+  "ontology_version": "OSTEO_ONTOLOGY_V1.0_STAGE34",
+  "total_inspected": 0,
+  "accepted_by_class": {
+    "SECONDARY_BONE_METASTASIS": 0,
+    "PAGETS_DISEASE": 0,
+    "OSTEOGENESIS_IMPERFECTA": 0,
+    "HEALTHY_SKELETAL_CONTROL": 0
+  },
+  "adjudication_summary": {
+    "ACCEPTED": 0,
+    "OUT_OF_SCOPE": 0,
+    "UNCERTAIN": 0,
+    "REQUIRES_ADJUDICATION": 0,
+    "REJECTED": 0
+  },
+  "healthy_control_eligibility_failures": 0,
+  "conflicting_diagnoses_count": 0,
+  "label_provenance_completeness_pct": 0.0,
+  "records": []
+}

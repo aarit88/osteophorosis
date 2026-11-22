@@ -276,6 +276,12 @@ export async function getDatasetGovernance(): Promise<import('./types').DatasetG
   return (await response.json()) as import('./types').DatasetGovernanceResponse;
 }
 
+export async function getTrackDDatasetReadiness(): Promise<import('./types').TrackDDatasetReadinessResponse> {
+  const url = `${API_BASE_URL}/api/v1/datasets/readiness`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').TrackDDatasetReadinessResponse;
+}
+
 export async function runRadiomicsDemo(payload: { phantom_type: string; grid_size?: number; spacing_mm?: number }): Promise<import('./types').RadiomicsDemoResponse> {
   const url = `${API_BASE_URL}/api/v1/radiomics/demo`;
   const response = await fetchWithResilience(url, {
@@ -367,5 +373,32 @@ export async function getClinicalTrainingStatus(): Promise<import('./types').Cli
   const response = await fetchWithResilience(url, { method: 'GET' });
   return (await response.json()) as import('./types').ClinicalTrainingStatusResponse;
 }
+
+// ━━━ Stage 35 Institutional Acquisition, Governance & Cohort Planning Clients ━━━
+
+export async function getDatasetSources(): Promise<import('./types').DatasetSourcesResponse> {
+  const url = `${API_BASE_URL}/api/v1/datasets/sources`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').DatasetSourcesResponse;
+}
+
+export async function getDatasetAcquisitionStatus(): Promise<import('./types').DatasetAcquisitionStatusResponse> {
+  const url = `${API_BASE_URL}/api/v1/datasets/acquisition-status`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').DatasetAcquisitionStatusResponse;
+}
+
+export async function getDatasetGovernanceStatus(): Promise<import('./types').DatasetGovernanceStatusResponse> {
+  const url = `${API_BASE_URL}/api/v1/datasets/governance-status`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').DatasetGovernanceStatusResponse;
+}
+
+export async function getCohortPlanning(): Promise<import('./types').CohortPlanningResponse> {
+  const url = `${API_BASE_URL}/api/v1/datasets/cohort-planning`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').CohortPlanningResponse;
+}
+
 
 

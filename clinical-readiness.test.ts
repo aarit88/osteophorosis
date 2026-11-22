@@ -197,3 +197,43 @@ test('multi-fold .pth checkpoints resolve exact summary checkpoint_filename', ()
   });
 });
 
+test('getTrackDDatasetReadiness returns 0 counts and NOT_AVAILABLE on empty workspace', async () => {
+  const { getTrackDDatasetReadiness } = await import('./clinical-readiness.js');
+  withTempWorkspace((rootDir) => {
+    const readiness = getTrackDDatasetReadiness(rootDir);
+    assert.equal(readiness.readiness_status, 'NOT_AVAILABLE');
+    assert.equal(readiness.ready_for_training, false);
+    assert.equal(readiness.synthetic_data_excluded, true);
+    assert.equal(readiness.total_inspected_samples, 0);
+    assert.equal(readiness.unique_patients, 0);
+    assert.equal(readiness.class_counts.metastasis, 0);
+    assert.equal(readiness.modality_counts.xray, 0);
+    assert.equal(readiness.split_distribution.train, 0);
+    assert.equal(readiness.ontology_version, 'OSTEO_ONTOLOGY_V1.0_STAGE34');
+    assert.equal(readiness.adjudication_summary.ACCEPTED, 0);
+    assert.equal(readiness.adjudication_summary.OUT_OF_SCOPE, 0);
+    assert.equal(readiness.healthy_control_eligibility_failures, 0);
+    assert.equal(readiness.conflicting_diagnoses_count, 0);
+    assert.equal(readiness.label_provenance_completeness_pct, 0);
+    assert.equal(readiness.protected_holdouts.btxrd_center2_samples, 549);
+    assert.equal(readiness.protected_holdouts.btxrd_center3_samples, 259);
+  });
+});
+
+test('getTrackDDatasetReadiness detects modality-separated raw files and stays BLOCKED without intake clearance', async () => {
+  const { getTrackDDatasetReadiness } = await import('./clinical-readiness.js');
+  withTempWorkspace((rootDir) => {
+    const modDir = path.join(rootDir, 'ml_service', 'data', 'raw', 'xray', 'metastasis');
+    fs.mkdirSync(modDir, { recursive: true });
+    fs.writeFileSync(path.join(modDir, 'PT_001_01.png'), 'png');
+    const readiness = getTrackDDatasetReadiness(rootDir);
+    assert.equal(readiness.readiness_status, 'BLOCKED');
+    assert.equal(readiness.ready_for_training, false);
+    assert.equal(readiness.data_origin, 'REAL_DISK_DATA_PRESENT');
+    assert.equal(readiness.class_modality_matrix.xray.metastasis, 1);
+    assert.equal(readiness.modality_counts.xray, 1);
+    assert.equal(readiness.modality_counts.ct, 0);
+  });
+});
+
+
