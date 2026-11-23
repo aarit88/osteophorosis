@@ -1,225 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Sliders,
-  CheckCircle2,
-  AlertTriangle,
-  RotateCw,
-  Info,
-  Layers,
-  Sparkles,
-  BarChart,
-} from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { AlertTriangle, RotateCw, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { runRadiomicsDemo } from '../api/client';
-import { RadiomicsDemoResponse } from '../api/types';
+import type { RadiomicsDemoResponse } from '../api/types';
+
+const panelClass = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-5';
+const categoryInfo = [
+  { id: 'first_order', title: 'First-order intensity', count: 18, description: 'Intensity distribution statistics inside the phantom mask; histogram-derived.' },
+  { id: 'glcm', title: 'GLCM texture', count: 26, description: 'Gray-level co-occurrence texture relationships.' },
+  { id: 'glrlm', title: 'GLRLM texture', count: 16, description: 'Gray-level run-length texture descriptors.' },
+  { id: 'glszm', title: 'GLSZM texture', count: 16, description: 'Gray-level size-zone texture descriptors.' },
+  { id: 'gldm', title: 'GLDM / NGTDM-related texture', count: 26, description: 'Neighborhood dependence and tone-difference family; the implementation documents unresolved specification/heuristic items.' },
+];
+
+function familyFor(name: string) {
+  if (name.startsWith('first_order_')) return categoryInfo[0];
+  if (name.startsWith('glcm_')) return categoryInfo[1];
+  if (name.startsWith('glrlm_')) return categoryInfo[2];
+  if (name.startsWith('glszm_')) return categoryInfo[3];
+  return categoryInfo[4];
+}
 
 export const RadiomicsPage: React.FC = () => {
-  const [phantomType, setPhantomType] = useState<string>('checkerboard');
-  const [gridSize, setGridSize] = useState<number>(64);
-  const [spacingMm, setSpacingMm] = useState<number>(1.0);
+  const [phantomType, setPhantomType] = useState('checkerboard');
+  const [gridSize, setGridSize] = useState(64);
+  const [spacingMm, setSpacingMm] = useState(1);
   const [data, setData] = useState<RadiomicsDemoResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [receivedAt, setReceivedAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestLock = useRef(false);
 
-  const fetchFeatures = async (type = phantomType, size = gridSize, spacing = spacingMm) => {
+  const compute = async () => {
+    if (requestLock.current || loading) return;
+    if (!['checkerboard', 'linear_gradient', 'annulus', 'uniform'].includes(phantomType)
+      || ![32, 64, 128].includes(gridSize) || ![0.5, 1, 2].includes(spacingMm)) {
+      setError('Select a supported phantom, grid size, and spacing before running extraction.');
+      setData(null);
+      return;
+    }
+    requestLock.current = true;
     setLoading(true);
     setError(null);
+    setData(null);
     try {
-      const res = await runRadiomicsDemo({
-        phantom_type: type,
-        grid_size: size,
-        spacing_mm: spacing,
-      });
-      setData(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to extract radiomic features.');
+      const result = await runRadiomicsDemo({ phantom_type: phantomType, grid_size: gridSize, spacing_mm: spacingMm });
+      setData(result);
+      setReceivedAt(new Date().toISOString());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Radiomics service could not complete extraction.');
     } finally {
+      requestLock.current = false;
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchFeatures();
-  }, []);
+  const features = data ? [
+    ...Object.entries(data.verified_features_sample).map(([name, value]) => ({ name, value, validation: 'Reported in verified feature sample' })),
+    ...Object.entries(data.unverified_features_sample).map(([name, value]) => ({ name, value, validation: 'Unverified / heuristic sample; not for validated fusion' })),
+  ] : [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-6 px-4">
-      {/* Header */}
-      <div className="border-b border-slate-800 pb-5 space-y-2">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800 text-cyan-300 text-xs font-semibold">
-          <Sliders className="w-3.5 h-3.5" />
-          <span>Stage 27 Engine: Radiomics & Digital Phantoms</span>
-        </div>
-        <h1 className="text-3xl font-black text-white tracking-tight">
-          Radiomics Feature Explorer
-        </h1>
-        <p className="text-slate-400 text-sm max-w-3xl">
-          Engineered extraction of quantitative radiomic textures and morphological descriptors adhering to Image Biomarker Standardisation Initiative (IBSI) benchmarks on deterministic digital phantoms.
-        </p>
-      </div>
+    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      <header className="space-y-3 border-b border-slate-800 pb-5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-800 bg-cyan-950/60 px-3 py-1 text-xs font-semibold text-cyan-200"><SlidersHorizontal size={14} /> Radiomics · synthetic engine</div>
+        <h1 className="text-3xl font-black tracking-tight text-white">Radiomics feature explorer</h1>
+        <p className="max-w-3xl text-sm leading-6 text-slate-300">The current API extracts features from generated 2D mathematical phantoms only. It does not accept clinical images or governed dataset references. The project records 81 features as mathematically verified and 21 as engineering heuristics or unresolved specification items; the 102-feature contract is not fully verified as IBSI-compliant.</p>
+      </header>
 
-      {/* Configuration & Controls */}
-      <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-          Synthetic Digital Phantom Configuration
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Digital Phantom Type
-            </label>
-            <select
-              value={phantomType}
-              onChange={(e) => setPhantomType(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="checkerboard">Checkerboard Phantom (High contrast GLCM/GLRLM)</option>
-              <option value="linear_gradient">Linear Gradient Phantom (Directional GLCM)</option>
-              <option value="annulus">Geometric Annulus Phantom (Curvature & Shape)</option>
-              <option value="uniform">Uniform Phantom (Zero variance baseline)</option>
+      <section className={panelClass} aria-labelledby="radiomics-categories-title">
+        <h2 id="radiomics-categories-title" className="text-lg font-bold text-white">Implemented feature families</h2>
+        <p className="mt-1 text-xs leading-5 text-slate-400">Engine family inventory. Result values below are only the representative feature sample returned by the demo API.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {categoryInfo.map((category) => <article key={category.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <h3 className="text-sm font-bold text-slate-100">{category.title}</h3><p className="mt-1 text-xs text-cyan-200">{category.count} engine dimensions</p><p className="mt-2 text-xs leading-5 text-slate-400">{category.description}</p>
+          </article>)}
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <p className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-300"><strong>Shape features:</strong> unavailable in the current radiomics demo response.</p>
+          <p className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-300"><strong>Spatial/geometric measurements:</strong> handled by the separate synthetic 2D geometry module; they are not part of this radiomics endpoint.</p>
+        </div>
+      </section>
+
+      <section className={panelClass} aria-labelledby="phantom-config-title">
+        <h2 id="phantom-config-title" className="text-lg font-bold text-white">Configure a synthetic phantom run</h2>
+        <p className="mt-1 text-xs leading-5 text-slate-400">Inputs accepted by <code>POST /api/v1/radiomics/demo</code>: phantom type, grid size (8–128 px), and pixel spacing (0.1–5 mm). The controls use supported API values. No image or file path is submitted.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <label className="text-xs font-semibold text-slate-300">Phantom
+            <select aria-label="Phantom type" value={phantomType} onChange={(event) => setPhantomType(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100">
+              <option value="checkerboard">Checkerboard</option><option value="linear_gradient">Linear gradient</option><option value="annulus">Geometric annulus</option><option value="uniform">Uniform</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Grid Resolution (Pixels)
-            </label>
-            <select
-              value={gridSize}
-              onChange={(e) => setGridSize(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value={32}>32 x 32</option>
-              <option value={64}>64 x 64 (Standard)</option>
-              <option value={128}>128 x 128 (Fine)</option>
+          </label>
+          <label className="text-xs font-semibold text-slate-300">Grid resolution
+            <select aria-label="Grid resolution" value={gridSize} onChange={(event) => setGridSize(Number(event.target.value))} className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100">
+              <option value={32}>32 × 32 px</option><option value={64}>64 × 64 px</option><option value={128}>128 × 128 px</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Pixel Spacing (mm)
-            </label>
-            <select
-              value={spacingMm}
-              onChange={(e) => setSpacingMm(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value={0.5}>0.5 mm / pixel</option>
-              <option value={1.0}>1.0 mm / pixel</option>
-              <option value={2.0}>2.0 mm / pixel</option>
+          </label>
+          <label className="text-xs font-semibold text-slate-300">Pixel spacing
+            <select aria-label="Pixel spacing" value={spacingMm} onChange={(event) => setSpacingMm(Number(event.target.value))} className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100">
+              <option value={0.5}>0.5 mm</option><option value={1}>1.0 mm</option><option value={2}>2.0 mm</option>
             </select>
-          </div>
+          </label>
         </div>
+        <button type="button" onClick={() => void compute()} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50">{loading ? <RotateCw className="animate-spin" size={16} /> : <Sparkles size={16} />}{loading ? 'Extracting…' : 'Run phantom extraction'}</button>
+      </section>
 
-        <div className="flex justify-end pt-2">
-          <button
-            type="button"
-            onClick={() => fetchFeatures(phantomType, gridSize, spacingMm)}
-            disabled={loading}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs disabled:opacity-50 transition cursor-pointer"
-          >
-            {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            <span>Re-compute Radiomics</span>
-          </button>
+      {loading && <p role="status" className="rounded-xl border border-slate-800 p-4 text-sm text-cyan-200">Waiting for the backend. This endpoint does not report intermediate progress.</p>}
+      {error && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-200"><p>Radiomics request failed: {error}</p><button className="mt-3 underline" type="button" onClick={() => void compute()} disabled={loading}>Retry</button></div>}
+      {!data && !loading && !error && <div className="rounded-xl border border-dashed border-slate-700 p-6 text-sm text-slate-400">No run yet. Choose a phantom configuration and run the existing demo API to see actual output.</div>}
+
+      {data && <section className="space-y-4" aria-label="Radiomics results">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className={panelClass}><p className="text-xs text-slate-400">Verified count returned</p><p className="mt-1 text-2xl font-bold text-emerald-300">{data.verified_features_count}</p></div>
+          <div className={panelClass}><p className="text-xs text-slate-400">Unverified / heuristic count</p><p className="mt-1 text-2xl font-bold text-amber-300">{data.unverified_features_count}</p></div>
+          <div className={panelClass}><p className="text-xs text-slate-400">Specification status</p><p className="mt-1 text-sm font-bold text-cyan-200">{data.specification_status}</p></div>
         </div>
-      </div>
-
-      {error && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm">
-          {error}
+        <div className={panelClass}>
+          <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="text-lg font-bold text-white">Returned feature sample</h2><p className="text-xs text-slate-400">Configuration: {data.phantom_type}, {data.grid_size} × {data.grid_size}, {data.spacing_mm} mm/pixel</p></div><span className="text-xs text-slate-400">Browser received: {receivedAt ? new Date(receivedAt).toLocaleString() : 'Unavailable'}</span></div>
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-800"><table className="w-full min-w-[700px] text-left text-xs"><thead className="bg-slate-950 text-slate-400"><tr><th className="p-3">Feature</th><th className="p-3">Family / explanation</th><th className="p-3">Value</th><th className="p-3">Interpretation and status</th></tr></thead><tbody>{features.map(({ name, value, validation }) => {
+            const family = familyFor(name);
+            return <tr key={name} className="border-t border-slate-800"><td className="p-3 font-mono text-slate-100">{name}</td><td className="p-3 text-slate-300">{family.title}: {family.description}</td><td className="p-3 font-mono text-cyan-200">{value.toPrecision(6)}</td><td className="p-3 text-slate-300">Numeric output from this synthetic phantom only; no clinical interpretation. {validation}</td></tr>;
+          })}</tbody></table></div>
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-900/70 bg-amber-950/20 p-3 text-xs leading-5 text-amber-100"><AlertTriangle size={15} className="mt-0.5 shrink-0" />{data.disclaimer}</div>
+          <p className="mt-3 text-xs text-slate-500">Input reference: generated synthetic phantom (no dataset/study ID). API response does not include server timestamp or software build/version; those values are not inferred here.</p>
         </div>
-      )}
-
-      {/* Feature Breakdown Summary */}
-      {data && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>Verified Features</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
-              <span className="text-2xl font-black text-emerald-400 font-mono">
-                {data.verified_features_count}
-              </span>
-              <span className="text-[11px] text-slate-400 block mt-1">
-                Adhering to verified IBSI mathematical definitions
-              </span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>Unverified / Non-Standard</span>
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-              </div>
-              <span className="text-2xl font-black text-amber-400 font-mono">
-                {data.unverified_features_count}
-              </span>
-              <span className="text-[11px] text-slate-400 block mt-1">
-                Excluded from fusion due to undefined 2D/3D standards
-              </span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>102-D Proposal Spec Status</span>
-                <Info className="w-4 h-4 text-cyan-400" />
-              </div>
-              <span className="text-sm font-extrabold text-cyan-300 block truncate">
-                {data.specification_status}
-              </span>
-              <span className="text-[11px] text-slate-400 block mt-1">
-                Total Proposal Vector: {data.total_features_count} Dimensions
-              </span>
-            </div>
-          </div>
-
-          {/* Sample Features List */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold text-white">Verified Feature Sample (IBSI-Compliant)</h3>
-                <span className="text-[11px] font-mono text-emerald-400">81 Verified Total</span>
-              </div>
-              <div className="max-h-72 overflow-y-auto space-y-1 font-mono text-xs pr-2">
-                {Object.entries(data.verified_features_sample).map(([name, val]) => (
-                  <div
-                    key={name}
-                    className="flex justify-between items-center py-1.5 px-2.5 rounded bg-slate-950/70 border border-slate-850 text-slate-300"
-                  >
-                    <span className="text-slate-400 truncate max-w-[240px]">{name}</span>
-                    <span className="text-cyan-300 font-bold">{val.toFixed(5)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold text-white">Unverified / Excluded Feature Sample</h3>
-                <span className="text-[11px] font-mono text-amber-400">21 Excluded</span>
-              </div>
-              <div className="max-h-72 overflow-y-auto space-y-1 font-mono text-xs pr-2">
-                {Object.entries(data.unverified_features_sample).map(([name, val]) => (
-                  <div
-                    key={name}
-                    className="flex justify-between items-center py-1.5 px-2.5 rounded bg-slate-950/70 border border-slate-850 text-slate-300"
-                  >
-                    <span className="text-slate-400 truncate max-w-[240px]">{name}</span>
-                    <span className="text-amber-300 font-bold">{val.toFixed(5)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Verification Notice */}
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-1">
-            <strong>Scientific Notice:</strong> {data.disclaimer}
-          </div>
-        </motion.div>
-      )}
-    </div>
+      </section>}
+    </main>
   );
 };
 
 export default RadiomicsPage;
-

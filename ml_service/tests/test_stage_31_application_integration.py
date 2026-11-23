@@ -140,6 +140,34 @@ def test_biomechanics_geometry_endpoint(client):
     assert data["I_yy_mm4"] > 0
     assert data["polar_J_mm4"] > 0
     assert data["area_retention_ratio"] == 1.0
+    assert data["pixel_spacing_mm"] == [0.5, 0.5]
+
+
+def test_biomechanics_geometry_honors_spacing_and_reports_anisotropy(client):
+    small_spacing = client.post(
+        "/api/v1/biomechanics/geometry",
+        json={"phantom_type": "intact_circular_ring", "voxel_size_mm": 0.5},
+    ).json()
+    large_spacing = client.post(
+        "/api/v1/biomechanics/geometry",
+        json={"phantom_type": "intact_circular_ring", "voxel_size_mm": 1.0},
+    ).json()
+    anisotropic = client.post(
+        "/api/v1/biomechanics/geometry",
+        json={"phantom_type": "anisotropic_spacing_annulus", "voxel_size_mm": 1.0},
+    ).json()
+
+    assert large_spacing["area_mm2"] == small_spacing["area_mm2"] * 4
+    assert large_spacing["pixel_spacing_mm"] == [1.0, 1.0]
+    assert anisotropic["pixel_spacing_mm"] == [0.4, 0.8]
+
+
+def test_research_demo_apis_reject_unknown_phantom_names(client):
+    radiomics = client.post("/api/v1/radiomics/demo", json={"phantom_type": "not-a-phantom"})
+    geometry = client.post("/api/v1/biomechanics/geometry", json={"phantom_type": "not-a-phantom"})
+
+    assert radiomics.status_code == 422
+    assert geometry.status_code == 422
 
 
 def test_biomechanics_mirels_endpoint(client):

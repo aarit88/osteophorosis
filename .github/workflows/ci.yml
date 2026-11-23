@@ -43,6 +43,8 @@ jobs:
           ml_service/tests/test_security_api_contracts.py
           ml_service/tests/test_deployment_health.py
           ml_service/tests/test_stage38_cohort_onboarding.py
+          ml_service/tests/test_stage39_dataset_preparation.py
+          ml_service/tests/test_stage40_source_qualification.py
           ml_service/tests/test_checkpoint_inventory.py
           ml_service/tests/test_zero_dataset_guardrails.py
           ml_service/tests/test_deployment_smoke_script.py

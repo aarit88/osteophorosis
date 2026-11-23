@@ -504,7 +504,7 @@ class ResearchService:
             image, mask, _ = SyntheticDigitalPhantomSuite.create_linear_gradient_phantom(shape=shape)
         elif ptype == "annulus":
             image, mask, _ = SyntheticDigitalPhantomSuite.create_geometric_annulus_phantom(shape=shape)
-        else:
+        elif ptype == "uniform":
             image, mask, _ = SyntheticDigitalPhantomSuite.create_uniform_phantom(shape=shape, intensity=100.0)
 
         spacing = (req.spacing_mm, req.spacing_mm)
@@ -531,20 +531,28 @@ class ResearchService:
     def run_biomechanics_geometry(self, req: BiomechanicsGeometryRequest) -> BiomechanicsGeometryResponse:
         # Retrieve synthetic bone phantom from 8 available
         phantoms = SyntheticBonePhantomSuite.get_all_phantoms()
-        phantom = phantoms.get(req.phantom_type, phantoms["intact_circular_ring"])
+        phantom = phantoms[req.phantom_type]
+        # The anisotropic fixture carries its own validated non-square spacing.
+        # Other phantoms use the requested isotropic spacing for all reported geometry.
+        pixel_spacing = (
+            (phantom.spacing_y_mm, phantom.spacing_x_mm)
+            if req.phantom_type == "anisotropic_spacing_annulus"
+            else (req.voxel_size_mm, req.voxel_size_mm)
+        )
         intact_base = self.geometry_engine.compute_geometry(
             phantoms["intact_circular_ring"].mask,
-            pixel_spacing_mm=phantoms["intact_circular_ring"].spacing_y_mm,
+            pixel_spacing_mm=pixel_spacing,
         )
         res = self.geometry_engine.compute_geometry(
             phantom.mask,
-            pixel_spacing_mm=phantom.spacing_y_mm,
+            pixel_spacing_mm=pixel_spacing,
             intact_baseline=intact_base,
         )
 
         return BiomechanicsGeometryResponse(
             phantom_type=req.phantom_type,
             voxel_size_mm=req.voxel_size_mm,
+            pixel_spacing_mm=list(pixel_spacing),
             area_mm2=round(res.cortical_area_mm2, 2),
             centroid_x_mm=round(res.centroid_x_mm, 2),
             centroid_y_mm=round(res.centroid_y_mm, 2),

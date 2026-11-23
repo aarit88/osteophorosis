@@ -1,305 +1,114 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Layers,
-  AlertTriangle,
-  CheckCircle2,
-  Lock,
-  Terminal,
-  Copy,
-  Check,
-  ShieldCheck,
-} from 'lucide-react';
-import { getClinicalTrainingStatus, getResearchTracks } from '../api/client';
-import {
-  ClinicalTrainingStatusResponse,
-  ResearchTracksResponse,
-  ResearchTrackDetail,
-} from '../api/types';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, ArrowRight, Database, FileCheck2, Layers, LockKeyhole, RotateCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { getResearchTracks } from '../api/client';
+import type { ResearchTrackDetail, ResearchTracksResponse } from '../api/types';
+
+const panelClass = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-5';
+const buttonClass = 'inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:border-cyan-600 hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400';
+
+function description(track: ResearchTrackDetail) {
+  switch (track.track_id) {
+    case 'track_a': return 'Historical binary fracture research using the FracAtlas radiography cohort.';
+    case 'track_b': return 'Historical binary skeletal metastasis assessment from a Tc-99m bone scintigraphy cohort.';
+    case 'track_c': return 'Frozen three-class primary bone tumour research with documented cross-center generalization limits.';
+    case 'track_d': return 'Target four-class differential research pathway; the model and clinical inference remain unavailable.';
+  }
+}
+
+function sourceStatus(track: ResearchTrackDetail): string {
+  if (track.track_id === 'track_d') return 'Clinical cohorts unavailable or pending governance; see Governance for acquisition status.';
+  return `Registry source context: ${track.governance_clearance}. This page does not independently verify current dataset or checkpoint files.`;
+}
+
+function modelAvailability(track: ResearchTrackDetail): string {
+  if (track.track_id === 'track_d') return 'No trained four-class model is available; inference remains gated.';
+  return 'Registry records a historical frozen research track. This page does not load checkpoints or verify current artifact availability.';
+}
+
+function evaluationStatus(track: ResearchTrackDetail): string {
+  if (track.track_id === 'track_d') return 'No clinical model evaluation is available for the four-class target.';
+  if (track.track_id === 'track_c') return 'Historical multi-center evaluation recorded; severe generalization degradation is documented. External holdouts remain protected.';
+  return 'Historical evaluation evidence is recorded. Burned holdout partitions are preserved and are not re-evaluated here.';
+}
+
+function moduleLink(track: ResearchTrackDetail): { href: string; label: string } {
+  if (track.track_id === 'track_d') return { href: '/governance', label: 'Review governance status' };
+  return { href: '/workbench', label: 'Open research methods workbench' };
+}
 
 export const ResearchTracksPage: React.FC = () => {
   const [data, setData] = useState<ResearchTracksResponse | null>(null);
-  const [trainingStatus, setTrainingStatus] = useState<ClinicalTrainingStatusResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      getResearchTracks(),
-      getClinicalTrainingStatus().catch(() => null),
-    ])
-      .then(([res, trainRes]) => {
-        setData(res);
-        setTrainingStatus(trainRes);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load research tracks');
-        setLoading(false);
-      });
+  const loadTracks = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await getResearchTracks());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Research tracks could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCopy = (label: string, text: string) => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
-    setCopiedCmd(label);
-    setTimeout(() => setCopiedCmd(null), 1800);
-  };
-
-  const getStatusBadge = (status: string) => {
-    if (status.includes('TRAINED_VERIFIED')) {
-      return (
-        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-700">
-          <ShieldCheck className="w-3 h-3" />
-          <span>TRAINED & CLINICALLY ELIGIBLE</span>
-        </span>
-      );
-    }
-    if (status.includes('READY_FOR_TRAINING')) {
-      return (
-        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-700">
-          <Terminal className="w-3 h-3" />
-          <span>COHORTS READY — AWAITING TRAINING</span>
-        </span>
-      );
-    }
-    if (status.includes('BLOCKED')) {
-      return (
-        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-950/80 text-rose-300 border border-rose-800">
-          <Lock className="w-3 h-3" />
-          <span>BLOCKED BY CLINICAL DATA</span>
-        </span>
-      );
-    }
-    if (status.includes('LIMITED')) {
-      return (
-        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-950/80 text-amber-300 border border-amber-800">
-          <AlertTriangle className="w-3 h-3" />
-          <span>GENERALIZATION LIMITED</span>
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800">
-        <CheckCircle2 className="w-3 h-3" />
-        <span>HISTORICAL FROZEN RESEARCH</span>
-      </span>
-    );
-  };
+  useEffect(() => { void loadTracks(); }, [loadTracks]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-6 px-4">
-      {/* Header */}
-      <div className="space-y-3 border-b border-slate-800 pb-5">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800 text-cyan-300 text-xs font-semibold">
-          <Layers className="w-3.5 h-3.5" />
-          <span>Research Governance & Track Separation</span>
-        </div>
-        <h1 className="text-3xl font-black text-white tracking-tight">
-          Discrete Research Tracks
-        </h1>
-        <p className="text-slate-400 text-sm max-w-3xl">
-          OsteoGuard AI maintains four strictly segregated research tracks. Sub-track models (FracAtlas, Bone Scintigraphy, BTXRD) must <strong className="text-rose-400">never</strong> be conflated with or mapped into the final four-class differential diagnosis.
-        </p>
-      </div>
+    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      <header className="space-y-3 border-b border-slate-800 pb-5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-800 bg-cyan-950/60 px-3 py-1 text-xs font-semibold text-cyan-200"><Layers size={14} /> Research governance and track separation</div>
+        <h1 className="text-3xl font-black tracking-tight text-white">Research tracks</h1>
+        <p className="max-w-3xl text-sm leading-6 text-slate-300">Tracks are separate research efforts with different datasets, tasks and limitations. Their labels and results must not be combined into the proposed Track D diagnosis system.</p>
+      </header>
 
-      {loading && (
-        <div className="p-8 text-center text-slate-400 animate-pulse">
-          Loading research track registry...
-        </div>
-      )}
+      {loading && <p role="status" className="rounded-xl border border-slate-800 p-6 text-sm text-slate-300">Loading the backend track registry…</p>}
+      {error && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-200"><p>Track registry unavailable: {error}</p><button className={`${buttonClass} mt-3`} type="button" onClick={() => void loadTracks()}><RotateCw size={15} /> Retry</button></div>}
+      {!loading && !error && data?.tracks.length === 0 && <p className="rounded-xl border border-slate-800 p-6 text-sm text-slate-300">The backend returned no registered research tracks.</p>}
 
-      {error && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm">
-          {error}
-        </div>
-      )}
-
-      {data && (
-        <div className="grid grid-cols-1 gap-6">
-          {data.tracks.map((track: ResearchTrackDetail, idx: number) => {
-            const isTrackD = track.track_id === 'track_d';
-            const isTrackC = track.track_id === 'track_c';
-            const isTrackDVerified = isTrackD && track.status.includes('TRAINED_VERIFIED');
-            const isTrackDReadyToTrain = isTrackD && track.status.includes('READY_FOR_TRAINING');
-
-            return (
-              <motion.div
-                key={track.track_id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className={`p-6 rounded-2xl border transition-all ${
-                  isTrackD
-                    ? isTrackDVerified
-                      ? 'bg-emerald-950/20 border-emerald-700/60 shadow-lg shadow-emerald-950/20'
-                      : isTrackDReadyToTrain
-                      ? 'bg-cyan-950/20 border-cyan-700/60 shadow-lg shadow-cyan-950/20'
-                      : 'bg-rose-950/20 border-rose-900/60 shadow-lg shadow-rose-950/30'
-                    : isTrackC
-                    ? 'bg-amber-950/15 border-amber-900/50'
-                    : 'bg-slate-900/60 border-slate-800'
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
-                        {track.track_id.toUpperCase().replace('_', ' ')}
-                      </span>
-                      <span>•</span>
-                      <span className="text-xs text-slate-400">{track.modality}</span>
-                    </div>
-                    <h2 className="text-xl font-extrabold text-white">{track.title}</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">{track.task_type}</p>
-                  </div>
-                  <div>{getStatusBadge(track.status)}</div>
-                </div>
-
-                {/* Target Classes */}
-                <div className="mb-4">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Target Output Classes:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {track.target_classes.map((cls, cIdx) => (
-                      <span
-                        key={cIdx}
-                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700/60"
-                      >
-                        {cls}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Historical Metrics Grid */}
-                {track.historical_metrics && (
-                  <div className="mb-4 p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                    <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider block mb-2">
-                      {isTrackDVerified
-                        ? 'Verified Clinical Checkpoint & Calibration Evidence:'
-                        : 'Historical Validation & Evaluation Evidence:'}
-                    </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      {Object.entries(track.historical_metrics).map(([k, v]) => (
-                        <div key={k} className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-                          <span className="text-slate-400 block text-[11px] capitalize">
-                            {k.replace(/_/g, ' ')}
-                          </span>
-                          <span className="font-bold text-white text-sm">
-                            {typeof v === 'number'
-                              ? v < 1
-                                ? `${(v * 100).toFixed(1)}%`
-                                : v.toLocaleString()
-                              : typeof v === 'object'
-                              ? JSON.stringify(v)
-                              : String(v)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Track D Live Cohort Progress & Training Protocol */}
-                {isTrackD && trainingStatus && (
-                  <div className="mb-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
-                        <Terminal className="w-3.5 h-3.5" />
-                        <span>4-Class Clinical Training & Deployment Protocol</span>
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-300">
-                        Cohorts Ready: {trainingStatus.cohortsAcquired} / 4 (Min {trainingStatus.minImagesPerClass} patients/class)
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      {(['metastasis', 'paget', 'oi', 'healthy'] as const).map((cls) => {
-                        const count = trainingStatus.disk.rawClassCounts[cls] || 0;
-                        const ok = count >= trainingStatus.minImagesPerClass;
-                        return (
-                          <div
-                            key={cls}
-                            className={`p-2.5 rounded-lg border ${
-                              ok
-                                ? 'bg-emerald-950/30 border-emerald-800/70 text-emerald-200'
-                                : 'bg-slate-900/80 border-slate-800 text-slate-300'
-                            }`}
-                          >
-                            <div className="text-[10px] font-mono text-slate-400 truncate" title={`ml_service/data/raw/${cls}/`}>
-                              ml_service/data/raw/{cls}/
-                            </div>
-                            <div className="font-bold mt-0.5">
-                              {count} / {trainingStatus.minImagesPerClass} scans
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="space-y-2 text-[11px] text-slate-300">
-                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono">
-                        <span className="truncate">
-                          1. Train & Calibrate: {trainingStatus.trainingCommand}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy('train', trainingStatus.trainingCommand)}
-                          aria-label="Copy training command"
-                          className="shrink-0 inline-flex items-center space-x-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 cursor-pointer"
-                        >
-                          {copiedCmd === 'train' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedCmd === 'train' ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono">
-                        <span className="truncate">
-                          2. Serve Clinical PyTorch Engine: {trainingStatus.serveCommand}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy('serve', trainingStatus.serveCommand)}
-                          aria-label="Copy clinical server command"
-                          className="shrink-0 inline-flex items-center space-x-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 cursor-pointer"
-                        >
-                          {copiedCmd === 'serve' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedCmd === 'serve' ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Limitations & Disclosures */}
-                <div className="space-y-2 mb-4">
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block">
-                    Verified Limitations & Scientific Disclosures:
-                  </span>
-                  <ul className="space-y-1 text-xs text-slate-300 list-disc list-inside">
-                    {track.limitations.map((lim, lIdx) => (
-                      <li key={lIdx} className="leading-relaxed">
-                        {lim}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Disclaimer banner */}
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400 italic">
-                  <strong>Governance Clearance:</strong> {track.governance_clearance}
-                  <br />
-                  <strong>Notice:</strong> {track.disclaimer}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      {data && <section className="space-y-4" aria-label="Registered research tracks">
+        {data.tracks.map((track) => {
+          const link = moduleLink(track);
+          const isD = track.track_id === 'track_d';
+          const isC = track.track_id === 'track_c';
+          return <article key={track.track_id} className={`${panelClass} ${isD ? 'border-rose-900/70' : isC ? 'border-amber-900/70' : ''}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-cyan-300">{track.track_id.toUpperCase().replace('_', ' ')} · {track.status.replace(/_/g, ' ')}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{track.title}</h2>
+                {isD && <p className="mt-1 font-mono text-xs font-semibold text-rose-200">FOUR_CLASS_MODEL_NOT_READY</p>}
+              </div>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${isD ? 'border-rose-800 bg-rose-950/50 text-rose-200' : isC ? 'border-amber-800 bg-amber-950/40 text-amber-100' : 'border-slate-700 bg-slate-950 text-slate-200'}`}>
+                {isD || isC ? <LockKeyhole size={13} /> : <FileCheck2 size={13} />}{isD ? 'Inference blocked' : isC ? 'Frozen · limitations apply' : 'Historical research'}
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-5 text-slate-300"><strong className="text-slate-100">Objective:</strong> {track.task_type}. {description(track)}</p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"><dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-400"><Layers size={13} /> Modality</dt><dd className="mt-1 text-sm text-slate-100">{track.modality}</dd></div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"><dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-400"><Database size={13} /> Dataset/source status</dt><dd className="mt-1 text-sm leading-5 text-slate-100">{sourceStatus(track)}</dd></div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"><dt className="text-xs font-semibold text-slate-400">Model availability</dt><dd className="mt-1 text-sm leading-5 text-slate-100">{modelAvailability(track)}</dd></div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"><dt className="text-xs font-semibold text-slate-400">Evaluation status</dt><dd className="mt-1 text-sm leading-5 text-slate-100">{evaluationStatus(track)}</dd></div>
+            </dl>
+            {track.limitations.length > 0 && <div className="mt-4 rounded-lg border border-amber-900/70 bg-amber-950/20 p-3">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-200"><AlertTriangle size={14} /> Restrictions and limitations</h3>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-5 text-slate-200">{track.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
+            </div>}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {track.target_classes.map((target) => <span key={target} className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-300">{target}</span>)}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link className={buttonClass} to={link.href}>{link.label} <ArrowRight size={14} /></Link>
+              <Link className={buttonClass} to="/evidence">Evidence registry <ArrowRight size={14} /></Link>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">Governance: {track.governance_clearance}. {track.disclaimer}</p>
+          </article>;
+        })}
+      </section>}
+      {data && <p className="text-xs leading-5 text-slate-500">{data.disclaimer} This summary does not verify local checkpoint loadability or authorize evaluation. Protected Track A/B holdouts and Track C external holdouts must remain isolated.</p>}
+    </main>
   );
 };
+
 export default ResearchTracksPage;

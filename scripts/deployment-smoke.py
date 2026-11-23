@@ -187,6 +187,10 @@ def main() -> int:
             assert status == 200, body.decode("utf-8", "replace")
             status, _ = request(f"{gateway_url}/api/v1/dataset-onboarding/sources")
             assert status == 401, f"Unauthenticated onboarding registry request returned HTTP {status}"
+            status, _ = request(f"{gateway_url}/api/v1/dataset-preparation/runs")
+            assert status == 401, f"Unauthenticated dataset preparation request returned HTTP {status}"
+            status, _ = request(f"{gateway_url}/api/v1/dataset-preparation/runs", headers={"Authorization": f"Bearer {gateway_token}"})
+            assert status == 401, f"Gateway API token must not authenticate as a reviewer; got HTTP {status}"
             status, body = request(f"{gateway_url}/api/v1/security/status")
             security_status = json.loads(body)
             assert status == 200

@@ -1,169 +1,56 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import {
-  UploadCloud,
-  Cpu,
-  Layers,
-  Sparkles,
-  ShieldAlert,
-  GitBranch,
-  Bone,
-  CheckCircle2,
-  Terminal,
-  Activity,
-  Code2,
-} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Bone, BookOpenCheck, Database, Layers3, ShieldAlert } from 'lucide-react';
 
-const PIPELINE_STEPS = [
-  {
-    step: '01',
-    title: 'Image Ingestion & Preprocessing',
-    icon: UploadCloud,
-    description:
-      'Standardization of input DICOM / planar radiographs (CLAHE histogram equalization, bone window normalization, spatial resizing to 512×512, and intensity scaling).',
-  },
-  {
-    step: '02',
-    title: 'Dual-Stream CNN + Vision Transformer',
-    icon: Cpu,
-    description:
-      'Parallel deep learning feature extraction: a convolutional backbone (ResNet-50) extracts local cortical edge and microtexture representations, while a Vision Transformer (ViT-B/16) captures long-range anatomical self-attention.',
-  },
-  {
-    step: '03',
-    title: 'Quantitative Radiomics Extraction',
-    icon: Activity,
-    description:
-      'Extraction of 6 standardized clinical radiomics markers: GLCM Contrast, Cortical Shell Thickness, Texture Entropy, First-order Mean Intensity, GLRLM Long-Run Emphasis, and Trabecular Bone Volume Fraction (BV/TV).',
-  },
-  {
-    step: '04',
-    title: 'Multi-Modal Feature Fusion',
-    icon: Layers,
-    description:
-      'Cross-attention fusion layer aligning spatial ViT patch embeddings, CNN hierarchical feature maps, and normalized radiomics vectors into a consolidated diagnostic latent space.',
-  },
-  {
-    step: '05',
-    title: '4-Class Pathology Classification',
-    icon: Bone,
-    description:
-      'Dense classification head with temperature-scaled Softmax output predicting probability distributions across Bone Metastasis, Paget’s Disease, Osteogenesis Imperfecta (OI), and Healthy Bone, coupled with Monte Carlo Dropout uncertainty estimation.',
-  },
-  {
-    step: '06',
-    title: 'Explainable AI: Grad-CAM & SHAP',
-    icon: Sparkles,
-    description:
-      'Gradient-weighted Class Activation Mapping (Grad-CAM) projects pixel-level attention heatmaps back onto the original radiograph. Kernel SHAP assigns signed directional attributions to each extracted radiomics feature.',
-  },
-  {
-    step: '07',
-    title: 'Biomechanical Fracture Risk Module',
-    icon: ShieldAlert,
-    description:
-      'Integrates cortical thinning parameters, osteolytic lesion footprint, and baseline bone density to compute a calibrated 0–100% fracture vulnerability score.',
-  },
-];
+const TARGETS = [
+  ['SECONDARY_BONE_METASTASIS', 'Secondary bone metastasis'],
+  ['PAGETS_DISEASE', "Paget's disease of bone"],
+  ['OSTEOGENESIS_IMPERFECTA', 'Osteogenesis imperfecta'],
+  ['HEALTHY_SKELETAL_CONTROL', 'Healthy skeletal control'],
+] as const;
 
-export const About: React.FC = () => {
-  return (
-    <div className="max-w-4xl mx-auto space-y-12 py-6 sm:py-10 px-4">
-      {/* Intro Header */}
-      <section className="text-center space-y-4">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800 text-cyan-300 text-xs font-semibold">
-          <Layers className="w-3.5 h-3.5" />
-          <span>Technical Architecture & ML Specifications</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          About OsteoGuard AI Pipeline
-        </h1>
-        <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          OsteoGuard AI combines deep spatial representation learning with explainable clinical radiomics to empower orthopedic oncologists and radiologists with transparent decision support.
-        </p>
-      </section>
+const TECH_STACK = [
+  ['Frontend', 'React, TypeScript, Vite, and the existing responsive application shell.'],
+  ['Gateway', 'Express provides the public application entry point and forwards supported API requests.'],
+  ['Research service', 'FastAPI exposes research, governance, dataset, readiness, and protected inference APIs.'],
+  ['Research components', 'Python imaging, radiomics, biomechanics, explainability, uncertainty, and dataset preparation modules.'],
+] as const;
 
-      {/* Team Handoff & Architecture Seam Callout Box */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="rounded-3xl bg-slate-900 border-2 border-cyan-500/50 p-6 sm:p-8 shadow-2xl relative overflow-hidden"
-      >
-        <div className="flex items-start space-x-4">
-          <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40">
-            <GitBranch className="w-5 h-5" />
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-              <span>Frontend + Simulation Layer Architecture Seam</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono">
-                Team Handoff Contract
-              </span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-              <strong>This build represents the production-quality frontend and simulation layer.</strong> Real model weights, GPU training pipelines, and backend inference are implemented by our teammates in subsequent phases.
-            </p>
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 space-y-1">
-              <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                Integration Contract Location:
-              </div>
-              <div className="text-white">File: <span className="text-cyan-400">/src/api/client.ts</span> & <span className="text-cyan-400">/src/api/types.ts</span></div>
-              <div className="text-slate-400">Swap Mock → Real: Set <code className="text-amber-400">VITE_API_BASE_URL=https://api.yourbackend.com</code></div>
-            </div>
-          </div>
-        </div>
-      </motion.section>
+export const About: React.FC = () => (
+  <article className="mx-auto max-w-5xl space-y-12 py-5 sm:py-9" aria-labelledby="about-title">
+    <header className="max-w-3xl">
+      <div className="inline-flex items-center gap-2 rounded-full border border-cyan-900 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-200"><Bone className="h-4 w-4" aria-hidden="true" /> Project overview</div>
+      <h1 id="about-title" className="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">About OsteoGuard AI</h1>
+      <p className="mt-4 text-base leading-7 text-slate-300 sm:text-lg">OsteoGuard AI is a research software prototype exploring how skeletal imaging, quantitative methods, and explicit uncertainty and governance controls can be brought together for bone-disease research.</p>
+    </header>
 
-      {/* 7-Step Animated Architecture Timeline / Stepper */}
-      <section className="space-y-6">
-        <div className="border-b border-slate-800 pb-3">
-          <h2 className="text-xl font-bold text-white">End-to-End Deep Learning Pipeline</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Step-by-step workflow from raw input radiograph to visual explainability
-          </p>
-        </div>
+    <section className="grid gap-5 md:grid-cols-2" aria-label="Motivation and problem">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/65 p-5 sm:p-6"><BookOpenCheck className="h-5 w-5 text-cyan-400" aria-hidden="true" /><h2 className="mt-4 text-lg font-bold text-white">Why this project exists</h2><p className="mt-2 text-sm leading-6 text-slate-400">Bone disorders can require different imaging evidence and distinct clinical context. Research tools need to make data provenance, modality assumptions, patient-level separation, and uncertainty visible rather than hiding them behind a single prediction.</p></div>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/65 p-5 sm:p-6"><Layers3 className="h-5 w-5 text-cyan-400" aria-hidden="true" /><h2 className="mt-4 text-lg font-bold text-white">Research problem and scope</h2><p className="mt-2 text-sm leading-6 text-slate-400">The proposal targets a future four-category differential research task across X-ray, bone scintigraphy, and CT. Those modalities have different acquisition properties and are treated as separate pathways; a unified clinical model has not been established.</p></div>
+    </section>
 
-        <div className="space-y-4">
-          {PIPELINE_STEPS.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <motion.div
-                key={item.step}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.5, delay: idx * 0.08 }}
-                className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition flex items-start space-x-4 shadow-lg"
-              >
-                <div className="w-10 h-10 rounded-xl bg-slate-800 text-cyan-400 flex items-center justify-center shrink-0 border border-slate-700 font-bold text-xs">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-mono text-cyan-400 font-bold">{item.step}</span>
-                    <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                  </div>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
+    <section aria-labelledby="targets-title">
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Track D target ontology</p><h2 id="targets-title" className="mt-2 text-2xl font-bold text-white">The intended research categories</h2></div><span className="rounded-full border border-amber-800 bg-amber-950/40 px-3 py-1.5 text-xs font-bold text-amber-200">Model not clinically ready</span></div>
+      <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+        {TARGETS.map(([identifier, label], index) => <li key={identifier} className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800 font-mono text-xs text-cyan-300">0{index + 1}</span><div><h3 className="text-sm font-bold text-white">{label}</h3><code className="mt-1 block break-all text-[10px] leading-5 text-slate-500">{identifier}</code></div></li>)}
+      </ul>
+    </section>
 
-      {/* Mandatory Disclaimer Box */}
-      <section className="p-6 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-2">
-        <div className="flex items-center space-x-2 text-rose-400 font-bold">
-          <ShieldAlert className="w-4 h-4" />
-          <span>Research Prototype Disclaimer</span>
-        </div>
-        <p className="leading-relaxed">
-          OsteoGuard AI is an investigational research prototype for algorithm demonstration and computational validation. It is not approved by regulatory bodies (FDA, CE-IVD) and must never be utilized as the sole foundation for patient care or surgical management.
-        </p>
-      </section>
-    </div>
-  );
-};
+    <section className="grid gap-8 lg:grid-cols-[.8fr_1.2fr]" aria-label="Modalities and technology">
+      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Imaging scope</p><h2 className="mt-2 text-2xl font-bold text-white">Three distinct modalities</h2><ul className="mt-4 space-y-3">{[['X-ray', 'Planar projection images'], ['Bone scintigraphy', 'Nuclear medicine skeletal imaging'], ['CT', 'Cross-sectional computed tomography']].map(([name, detail]) => <li key={name} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3"><p className="text-sm font-semibold text-slate-100">{name}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></li>)}</ul></div>
+      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Software at a glance</p><h2 className="mt-2 text-2xl font-bold text-white">Current technical architecture</h2><ul className="mt-4 divide-y divide-slate-800 rounded-2xl border border-slate-800 bg-slate-900/60 px-4">{TECH_STACK.map(([layer, detail]) => <li key={layer} className="py-4 sm:flex sm:gap-5"><h3 className="min-w-32 text-sm font-bold text-white">{layer}</h3><p className="mt-1 text-sm leading-6 text-slate-400 sm:mt-0">{detail}</p></li>)}</ul></div>
+    </section>
+
+    <section aria-labelledby="status-title" className="rounded-2xl border border-teal-900/60 bg-teal-950/15 p-5 sm:p-7">
+      <div className="flex items-start gap-4"><Database className="mt-1 h-5 w-5 shrink-0 text-teal-300" aria-hidden="true" /><div><h2 id="status-title" className="text-xl font-bold text-white">What is implemented</h2><p className="mt-2 text-sm leading-6 text-slate-300">The repository includes a React research interface, an Express gateway, a FastAPI service, source qualification and onboarding, provenance and package verification, dataset quality-control and preparation workflows, and research modules for radiomics, biomechanics, explainability, and uncertainty. The governance and readiness routes expose current system status.</p><p className="mt-3 text-sm leading-6 text-slate-300">The intended model training, complete four-class clinical evaluation, calibration, and clinical validation are not represented as completed capabilities.</p></div></div>
+    </section>
+
+    <section aria-labelledby="limitations-title" className="rounded-2xl border border-amber-900/70 bg-amber-950/20 p-5 sm:p-7">
+      <div className="flex items-start gap-4"><ShieldAlert className="mt-1 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" /><div><h2 id="limitations-title" className="text-xl font-bold text-white">Research-only limitations</h2><p className="mt-2 text-sm leading-6 text-slate-300">Track D does not have the genuine, authorized, sufficiently representative clinical datasets and validated model required for four-class diagnosis. Its diagnosis capability remains unavailable and the API is expected to return HTTP 503 <code className="rounded bg-slate-950 px-1.5 py-0.5 text-amber-200">FOUR_CLASS_MODEL_NOT_READY</code>. This prototype is not a medical device and must not be used for patient care.</p><p className="mt-3 text-sm leading-6 text-slate-400">The preliminary Tracks A, B, and C are separate research work. Their data, labels, checkpoints, and evaluation results are not evidence that the Track D task is ready.</p></div></div>
+    </section>
+
+    <nav aria-label="About page links" className="flex flex-wrap gap-3 border-t border-slate-800 pt-6"><Link to="/architecture" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300">View architecture <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link><Link to="/tracks" className="inline-flex min-h-11 items-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">Explore research tracks</Link><Link to="/governance" className="inline-flex min-h-11 items-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">Dataset governance</Link></nav>
+  </article>
+);
+
+export default About;

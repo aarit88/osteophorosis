@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ml_service.app.api.v1.ml_routes import router as ml_router
-from ml_service.app.api.v1.research_routes import router as research_router, onboarding_router
+from ml_service.app.api.v1.research_routes import router as research_router, onboarding_router, preparation_router, qualification_router
 from ml_service.app.schemas.ml_status import ErrorDetailResponse
 from ml_service.config.settings import get_settings
 from ml_service.utils.exceptions import OsteoGuardException
@@ -59,6 +59,10 @@ def create_app() -> FastAPI:
             raise RuntimeError("Production requires an adjudication ledger persistence path.")
         if len(os.environ.get("OSTEO_ONBOARDING_LEDGER_HMAC_KEY", "").strip()) < 32:
             raise RuntimeError("Production requires an external dataset onboarding ledger HMAC key.")
+        if len(os.environ.get("OSTEO_SOURCE_QUALIFICATION_HMAC_KEY", "").strip()) < 32:
+            raise RuntimeError("Production requires an external dataset source qualification HMAC key.")
+        if not os.environ.get("OSTEO_SOURCE_QUALIFICATION_FILE", "").strip():
+            raise RuntimeError("Production requires a dataset source qualification persistence path.")
         reviewer_registry = os.environ.get("OSTEO_REVIEWER_AUTHORIZATION_FILE", "").strip()
         if not reviewer_registry or not Path(reviewer_registry).is_file():
             raise RuntimeError("Production requires an institution-provisioned reviewer authorization registry.")
@@ -230,6 +234,8 @@ def create_app() -> FastAPI:
     application.include_router(ml_router)
     application.include_router(research_router)
     application.include_router(onboarding_router)
+    application.include_router(preparation_router)
+    application.include_router(qualification_router)
 
     return application
 

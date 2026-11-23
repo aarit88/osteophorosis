@@ -12,7 +12,7 @@ Defines Pydantic V2 schemas for:
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -112,7 +112,7 @@ class DatasetGovernanceResponse(BaseModel):
 
 
 class RadiomicsDemoRequest(BaseModel):
-    phantom_type: str = Field(default="checkerboard", description="uniform | checkerboard | linear_gradient | constant")
+    phantom_type: Literal["checkerboard", "linear_gradient", "annulus", "uniform"] = Field(default="checkerboard")
     grid_size: int = Field(default=32, ge=8, le=128)
     spacing_mm: float = Field(default=1.0, ge=0.1, le=5.0)
 
@@ -131,13 +131,23 @@ class RadiomicsDemoResponse(BaseModel):
 
 
 class BiomechanicsGeometryRequest(BaseModel):
-    phantom_type: str = Field(default="intact_femur_diaphysis", description="Phantom geometry type")
+    phantom_type: Literal[
+        "intact_circular_ring",
+        "uniform_cortical_thinning",
+        "symmetric_cortical_defect",
+        "eccentric_cortical_defect",
+        "lytic_cavity",
+        "multiple_small_defects",
+        "non_circular_elliptical_annulus",
+        "anisotropic_spacing_annulus",
+    ] = Field(default="intact_circular_ring", description="One of the registered synthetic cross-section phantoms")
     voxel_size_mm: float = Field(default=1.0, ge=0.1, le=5.0)
 
 
 class BiomechanicsGeometryResponse(BaseModel):
     phantom_type: str
     voxel_size_mm: float
+    pixel_spacing_mm: List[float]
     area_mm2: float
     centroid_x_mm: float
     centroid_y_mm: float
