@@ -327,6 +327,9 @@ def adjudicate_diagnostic_label(
     Never converts uncertain or out-of-scope diagnoses into any of the four classes.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
+    supplied_ontology_version = str(record.get("label_ontology_version") or "").strip()
+    if supplied_ontology_version and supplied_ontology_version != ONTOLOGY_VERSION:
+        raise ValueError("Record label ontology version is unsupported.")
     raw_source_diag = str(record.get("source_diagnosis") or record.get("diagnostic_class") or "").strip()
     raw_target_cls = str(record.get("diagnostic_class") or "").strip()
     evidence = str(record.get("diagnostic_evidence") or "").strip()

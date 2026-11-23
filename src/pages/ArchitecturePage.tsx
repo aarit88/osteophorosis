@@ -193,10 +193,10 @@ export const ArchitecturePage: React.FC = () => {
                     <Lock className="w-3.5 h-3.5 text-rose-400" />
                   </div>
                   <div className="text-sm font-bold text-white">
-                    {securityStatus.clinicalReadiness.checkpointsFound.length} Checkpoints Verified
+                    {securityStatus.clinicalReadiness.checkpointCount} Checkpoints Found
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    Raw cohorts: M:{securityStatus.clinicalReadiness.rawClassCounts.metastasis} · P:{securityStatus.clinicalReadiness.rawClassCounts.paget} · OI:{securityStatus.clinicalReadiness.rawClassCounts.oi} · H:{securityStatus.clinicalReadiness.rawClassCounts.healthy}
+                    Clinical dataset: {securityStatus.clinicalReadiness.clinicalDatasetAvailable ? 'Present' : 'Unavailable'}
                   </div>
                 </div>
               </div>

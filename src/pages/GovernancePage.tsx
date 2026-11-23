@@ -34,6 +34,7 @@ import {
   DatasetGovernanceStatusResponse,
   CohortPlanningResponse,
 } from '../api/types';
+import DatasetOnboardingPanel from '../components/DatasetOnboardingPanel';
 
 const CLASS_LABELS: Array<{ key: 'metastasis' | 'paget' | 'oi' | 'healthy'; label: string }> = [
   { key: 'metastasis', label: 'Secondary Bone Metastasis' },
@@ -109,6 +110,8 @@ export const GovernancePage: React.FC = () => {
           Synthetic demonstration outputs are strictly excluded from real dataset counts.
         </p>
       </div>
+
+      <DatasetOnboardingPanel />
 
       {loading && (
         <div className="p-8 text-center text-slate-400 animate-pulse">
@@ -383,9 +386,14 @@ export const GovernancePage: React.FC = () => {
                   Contralateral != Healthy, Primary Malignancy != Metastasis). Actual patient counts only; synthetic examples excluded.
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded bg-slate-950 border border-cyan-900 text-cyan-300 font-mono text-xs font-bold">
-                Ontology: {readiness.ontology_version}
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2.5 py-1 rounded bg-slate-950 border border-cyan-900 text-cyan-300 font-mono text-xs font-bold">
+                  Ontology: {readiness.ontology_version}
+                </span>
+                <span className="px-2.5 py-1 rounded bg-slate-950 border border-slate-700 text-slate-300 font-mono text-xs font-bold">
+                  Manifest Schema: {readiness.manifest_schema_validation}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 text-xs">

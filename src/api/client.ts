@@ -400,5 +400,65 @@ export async function getCohortPlanning(): Promise<import('./types').CohortPlann
   return (await response.json()) as import('./types').CohortPlanningResponse;
 }
 
+export interface OnboardingSource {
+  source_id: string;
+  name: string;
+  source_type: string;
+  source_reference: string;
+  description: string;
+  modalities: string[];
+  target_categories: string[];
+  version: string;
+  acquisition_status: string;
+  verification_status: string;
+  integrity_status: string;
+  staging_status: string;
+  governance_approved: boolean;
+  package: { valid: boolean; errors: string[]; inventory_sha256: string; clinical_validity: string; training_authorized: boolean } | null;
+}
+
+async function onboardingJson<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : `Dataset onboarding request failed (${response.status}).`);
+  return body as T;
+}
+
+export async function getOnboardingSources(bearerToken: string): Promise<{ sources: OnboardingSource[] }> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-onboarding/sources`, {
+    method: 'GET', headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  return onboardingJson<{ sources: OnboardingSource[] }>(response);
+}
+
+export async function registerOnboardingSource(bearerToken: string, payload: Record<string, unknown>): Promise<OnboardingSource> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-onboarding/sources`, {
+    method: 'POST', headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return onboardingJson<OnboardingSource>(response);
+}
+
+export async function transitionOnboardingSource(bearerToken: string, sourceId: string, payload: Record<string, unknown>): Promise<OnboardingSource> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-onboarding/sources/${encodeURIComponent(sourceId)}/events`, {
+    method: 'POST', headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return onboardingJson<OnboardingSource>(response);
+}
+
+export async function verifyOnboardingSource(bearerToken: string, sourceId: string): Promise<NonNullable<OnboardingSource['package']>> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-onboarding/sources/${encodeURIComponent(sourceId)}/verify`, {
+    method: 'POST', headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  return onboardingJson<NonNullable<OnboardingSource['package']>>(response);
+}
+
+export async function stageOnboardingSource(bearerToken: string, sourceId: string): Promise<{ status: string; training_authorized: boolean }> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-onboarding/sources/${encodeURIComponent(sourceId)}/stage`, {
+    method: 'POST', headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  return onboardingJson<{ status: string; training_authorized: boolean }>(response);
+}
+
 
 

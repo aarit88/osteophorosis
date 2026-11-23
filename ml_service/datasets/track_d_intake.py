@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 import gzip
 import hashlib
 import json
+from math import prod
 from pathlib import Path
 import random
 import re
@@ -29,6 +30,8 @@ import shutil
 import struct
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 import zlib
+
+from jsonschema import Draft202012Validator, FormatChecker
 
 try:
     from PIL import Image as _PILImage  # type: ignore
@@ -40,6 +43,11 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     _pydicom = None
 
+try:
+    import nibabel as _nibabel  # type: ignore
+except Exception:  # pragma: no cover - parser is required for NIfTI intake
+    _nibabel = None
+
 
 from ml_service.datasets.clinical_ontology import (
     AdjudicationStatus,
@@ -50,6 +58,11 @@ from ml_service.datasets.clinical_ontology import (
     adjudicate_diagnostic_label,
     check_label_provenance_completeness,
     normalize_diagnosis_term,
+)
+from ml_service.datasets.holdout_policy import (
+    ProtectedHoldoutRegistry,
+    load_protected_holdouts,
+    normalize_holdout_sites,
 )
 
 TARGET_CLASSES: Tuple[str, ...] = ("metastasis", "paget", "oi", "healthy")
@@ -129,20 +142,12 @@ PHI_VALUE_PATTERNS: Tuple[Tuple[str, re.Pattern[str]], ...] = (
 
 PSEUDO_PATIENT_ID_RE = re.compile(r"^(?:PT|SUBJ)_[A-Za-z0-9_-]{2,}$")
 
-PROTECTED_HOLDOUT_SITE_TOKENS: Tuple[str, ...] = (
-    "center_2",
-    "center2",
-    "btxrd_center2",
-    "btxrd_center_2",
-    "center_3",
-    "center3",
-    "btxrd_center3",
-    "btxrd_center_3",
-    "fracatlas_test_holdout",
-)
-
 MIN_IMAGE_DIMENSION = 32
 DEFAULT_NEAR_DUPLICATE_HAMMING = 3
+MAX_NIFTI_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
+TRACK_D_MANIFEST_SCHEMA = (
+    Path(__file__).resolve().parents[1] / "data" / "manifests" / "track_d_manifest.schema.json"
+)
 
 INVALID_PLACEHOLDER_TOKENS: Set[str] = {
     "",
@@ -398,79 +403,119 @@ def _parse_tiff_header(raw_bytes: bytes) -> Tuple[int, int, int]:
 
 
 def _parse_dicom_header(path: Path, raw_bytes: bytes) -> Tuple[int, int, int, Optional[str]]:
-    if _pydicom is not None:
-        ds = _pydicom.dcmread(str(path), stop_before_pixels=True)
-        rows = int(getattr(ds, "Rows", 0) or 0)
-        cols = int(getattr(ds, "Columns", 0) or 0)
-        bits = int(getattr(ds, "BitsAllocated", 16) or 16)
-        mod = getattr(ds, "Modality", None)
-        if rows <= 0 or cols <= 0:
-            raise ValueError("DICOM missing Rows/Columns")
-        return cols, rows, bits, str(mod) if mod else None
-
-    if len(raw_bytes) < 132 or raw_bytes[128:132] != b"DICM":
-        raise ValueError("Invalid DICOM DICM preamble")
-
-    # Scan simple Explicit VR Little Endian tags for (0008,0060), (0028,0010), (0028,0011), (0028,0100)
-    pos = 132
-    rows = cols = bits = 0
-    dicom_mod: Optional[str] = None
-    long_vrs = {b"OB", b"OD", b"OF", b"OL", b"OW", b"SQ", b"UC", b"UN", b"UR", b"UT"}
-    while pos + 8 <= len(raw_bytes):
-        group, elem = struct.unpack("<HH", raw_bytes[pos : pos + 4])
-        vr = raw_bytes[pos + 4 : pos + 6]
-        if vr.isalpha() and vr.isupper():
-            if vr in long_vrs:
-                if pos + 12 > len(raw_bytes):
-                    break
-                length = struct.unpack("<I", raw_bytes[pos + 8 : pos + 12])[0]
-                val_start = pos + 12
-            else:
-                length = struct.unpack("<H", raw_bytes[pos + 6 : pos + 8])[0]
-                val_start = pos + 8
-        else:
-            length = struct.unpack("<I", raw_bytes[pos + 4 : pos + 8])[0]
-            val_start = pos + 8
-
-        if length == 0xFFFFFFFF or val_start + length > len(raw_bytes):
-            break
-        val_bytes = raw_bytes[val_start : val_start + length]
-        if (group, elem) == (0x0008, 0x0060):
-            dicom_mod = val_bytes.decode("ascii", errors="ignore").strip("\x00 ").upper()
-        elif (group, elem) == (0x0028, 0x0010) and len(val_bytes) >= 2:
-            rows = struct.unpack("<H", val_bytes[:2])[0]
-        elif (group, elem) == (0x0028, 0x0011) and len(val_bytes) >= 2:
-            cols = struct.unpack("<H", val_bytes[:2])[0]
-        elif (group, elem) == (0x0028, 0x0100) and len(val_bytes) >= 2:
-            bits = struct.unpack("<H", val_bytes[:2])[0]
-        elif (group, elem) == (0x7FE0, 0x0010):
-            break
-        pos = val_start + length
-
+    if _pydicom is None:
+        raise ValueError("DICOM_METADATA_SCREENING_UNAVAILABLE")
+    ds = _pydicom.dcmread(str(path), stop_before_pixels=True)
+    _screen_dicom_metadata(ds)
+    rows = int(getattr(ds, "Rows", 0) or 0)
+    cols = int(getattr(ds, "Columns", 0) or 0)
+    bits = int(getattr(ds, "BitsAllocated", 16) or 16)
+    mod = getattr(ds, "Modality", None)
     if rows <= 0 or cols <= 0:
-        raise ValueError("DICOM missing Rows (0028,0010) or Columns (0028,0011)")
-    bit_depth = bits if bits in (8, 10, 12, 16, 24, 32) else 16
-    return cols, rows, bit_depth, dicom_mod
+        raise ValueError("DICOM missing Rows/Columns")
+    return cols, rows, bits, str(mod) if mod else None
+
+def _screen_dicom_metadata(dataset: Any) -> None:
+    """Reject direct identifiers, unpseudonymized PatientID, and private tags.
+
+    Only reason codes may leave this function; DICOM values must never appear in
+    raised errors, logs, or intake reports.
+    """
+    direct_identifier_keywords = {
+        "PatientName", "PatientBirthDate", "PatientAddress", "PatientTelephoneNumbers",
+        "OtherPatientNames", "OtherPatientIDs", "MedicalRecordLocator", "AccessionNumber",
+        "PatientComments", "InstitutionName", "ReferringPhysicianName",
+        "PerformingPhysicianName", "OperatorsName",
+    }
+    for element in dataset.iterall():
+        keyword = str(getattr(element, "keyword", "") or "")
+        value = getattr(element, "value", None)
+        if getattr(getattr(element, "tag", None), "is_private", False) and value not in (None, "", b""):
+            raise ValueError("DICOM_PRIVATE_TAG_PRESENT")
+        if keyword in direct_identifier_keywords and value not in (None, "", b""):
+            raise ValueError("DICOM_DIRECT_IDENTIFIER_PRESENT")
+        if keyword == "PatientID" and value not in (None, "", b""):
+            if not PSEUDO_PATIENT_ID_RE.match(str(value).strip()):
+                raise ValueError("DICOM_PATIENT_ID_NOT_PSEUDONYMIZED")
+        if keyword == "BurnedInAnnotation" and str(value).strip().upper() == "YES":
+            raise ValueError("DICOM_BURNED_IN_ANNOTATION_PRESENT")
+        if isinstance(value, (str, bytes)):
+            text_value = value.decode("utf-8", errors="ignore") if isinstance(value, bytes) else value
+            if any(pattern.search(text_value) for _, pattern in PHI_VALUE_PATTERNS):
+                raise ValueError("DICOM_PHI_PATTERN_DETECTED")
 
 
 def _parse_nifti_header(path: Path, raw_bytes: bytes) -> Tuple[int, int, int, int]:
+    if _nibabel is not None:
+        try:
+            image = _nibabel.load(str(path), mmap=False)
+            shape = tuple(int(dim) for dim in image.shape)
+            if not 2 <= len(shape) <= 3 or any(dim <= 0 for dim in shape):
+                raise ValueError("NIFTI_INVALID_DIMENSIONALITY")
+            if len(shape) == 2:
+                shape = (*shape, 1)
+            dtype = image.get_data_dtype()
+            bit_depth = int(dtype.itemsize * 8)
+            if bit_depth not in (8, 16, 24, 32, 64):
+                raise ValueError("NIFTI_UNSUPPORTED_BIT_DEPTH")
+            header = image.header
+            if bytes(header["magic"]).rstrip(b"\x00") != b"n+1":
+                raise ValueError("NIFTI_SINGLE_FILE_MAGIC_INVALID")
+            offset = int(getattr(image.dataobj, "offset", 0))
+            if offset < 348:
+                raise ValueError("NIFTI_INVALID_VOXEL_OFFSET")
+            expected_size = offset + prod(shape) * int(header.get_data_dtype().itemsize)
+            if expected_size > MAX_NIFTI_UNCOMPRESSED_BYTES:
+                raise ValueError("NIFTI_VOLUME_EXCEEDS_SAFE_SIZE_LIMIT")
+            if path.name.lower().endswith(".nii.gz"):
+                bytes_read = 0
+                try:
+                    with gzip.open(path, "rb") as stream:
+                        while bytes_read < expected_size:
+                            chunk = stream.read(min(1024 * 1024, expected_size - bytes_read))
+                            if not chunk:
+                                break
+                            bytes_read += len(chunk)
+                except (OSError, EOFError) as exc:
+                    raise ValueError("NIFTI_GZIP_INVALID") from exc
+                if bytes_read < expected_size:
+                    raise ValueError("NIFTI_VOXEL_DATA_TRUNCATED")
+            elif path.stat().st_size < expected_size:
+                raise ValueError("NIFTI_VOXEL_DATA_TRUNCATED")
+            # Accessing proxy shape validates header geometry without loading voxels into memory.
+            proxy_shape = tuple(int(dim) for dim in image.dataobj.shape)
+            if proxy_shape != tuple(image.shape):
+                raise ValueError("NIFTI_HEADER_DATA_SHAPE_MISMATCH")
+            return shape[0], shape[1], shape[2], bit_depth
+        except Exception as exc:
+            reason = str(exc)
+            if reason.startswith("NIFTI_"):
+                raise ValueError(reason) from exc
+            raise ValueError("NIFTI_HEADER_INVALID") from exc
+
+    # Strict NIfTI-1 fallback for minimal environments; NIfTI-2 requires nibabel.
     data = raw_bytes
     if path.name.lower().endswith(".nii.gz"):
-        data = gzip.decompress(raw_bytes)
-    if len(data) < 348:
-        raise ValueError("Truncated NIfTI-1 header")
+        try:
+            data = gzip.decompress(raw_bytes)
+        except (OSError, EOFError) as exc:
+            raise ValueError("NIFTI_GZIP_INVALID") from exc
+    if len(data) < 352:
+        raise ValueError("NIFTI_HEADER_TRUNCATED")
     sizeof_hdr = struct.unpack("<i", data[:4])[0]
     endian = "<" if sizeof_hdr == 348 else (">" if struct.unpack(">i", data[:4])[0] == 348 else "")
-    if not endian:
-        raise ValueError("Invalid NIfTI-1 sizeof_hdr")
+    if not endian or data[344:348] not in (b"n+1\x00", b"ni1\x00"):
+        raise ValueError("NIFTI_HEADER_INVALID")
     dims = struct.unpack(endian + "8h", data[40:56])
     bitpix = struct.unpack(endian + "h", data[72:74])[0]
+    ndim = int(dims[0])
+    if ndim not in (2, 3) or any(int(dim) <= 0 for dim in dims[1 : ndim + 1]):
+        raise ValueError("NIFTI_DIMENSIONS_INVALID")
     width, height = int(dims[1]), int(dims[2])
-    depth = max(1, int(dims[3])) if dims[0] >= 3 else 1
-    if width <= 0 or height <= 0:
-        raise ValueError("Invalid NIfTI dimensions")
-    bit_depth = bitpix if bitpix in (8, 16, 24, 32) else 16
-    return width, height, depth, bit_depth
+    depth = int(dims[3]) if ndim == 3 else 1
+    if bitpix not in (8, 16, 24, 32, 64):
+        raise ValueError("NIFTI_UNSUPPORTED_BIT_DEPTH")
+    return width, height, depth, bitpix
 
 
 def inspect_image_file(file_path: Path) -> Dict[str, Any]:
@@ -563,9 +608,10 @@ def inspect_image_file(file_path: Path) -> Dict[str, Any]:
                 grid = [pixels[r * 9 : (r + 1) * 9] for r in range(8)]
                 dhash = _compute_dhash_from_grayscale(grid)
     except Exception as exc:
+        safe_error = "DICOM_HEADER_OR_PHI_VALIDATION_FAILED" if fmt == "DICOM" else str(exc)
         return {
             "valid": False,
-            "error": f"CORRUPT_IMAGE_HEADER:{exc}",
+            "error": f"CORRUPT_IMAGE_HEADER:{safe_error}",
             "image_format": fmt,
             "width": 0,
             "height": 0,
@@ -632,47 +678,8 @@ def load_protected_holdout_registry(root_dir: Path) -> Dict[str, Set[str]]:
     - BTXRD Center 2 (N=549) & Center 3 (N=259)
     - FracAtlas burned holdout test split
     """
-    hashes: Set[str] = set()
-    sample_ids: Set[str] = set()
-
-    btxrd_manifest = root_dir / "ml_service" / "data" / "splits" / "btxrd_split_manifest.csv"
-    if btxrd_manifest.exists():
-        with open(btxrd_manifest, "r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                split_val = (row.get("split") or row.get("center") or "").lower()
-                if any(tok in split_val for tok in ("center_2", "center2", "center_3", "center3", "external")):
-                    sha = (row.get("sha256_hash") or row.get("sha256") or "").strip().upper()
-                    sid = (row.get("image_id") or row.get("sample_id") or "").strip()
-                    if sha:
-                        hashes.add(sha)
-                    if sid:
-                        sample_ids.add(sid)
-
-    for rel in (
-        "ml_artifacts/btxrd_center2_external_evaluation/center2_predictions.csv",
-        "ml_artifacts/btxrd_center3_external_evaluation/center3_predictions.csv",
-    ):
-        p = root_dir / rel
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                for row in csv.DictReader(f):
-                    sid = (row.get("image_id") or "").strip()
-                    sha = (row.get("sha256") or row.get("sha256_hash") or "").strip().upper()
-                    if sid:
-                        sample_ids.add(sid)
-                    if sha:
-                        hashes.add(sha)
-
-    frac_split = root_dir / "ml_service" / "data" / "splits" / "fracatlas_classification_split.csv"
-    if frac_split.exists():
-        with open(frac_split, "r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                if (row.get("split") or "").strip().lower() == "test":
-                    sha = (row.get("sha256_hash") or row.get("sha256") or "").strip().upper()
-                    if sha:
-                        hashes.add(sha)
-
-    return {"hashes": hashes, "sample_ids": sample_ids}
+    registry = load_protected_holdouts(root_dir)
+    return {"hashes": registry.hashes, "sample_ids": registry.sample_ids}
 
 
 def _check_modality_compatibility(
@@ -715,15 +722,28 @@ def discover_track_d_records(root_dir: Path, manifest_path: Optional[Path] = Non
         elif csv_candidate.exists():
             target_manifest = csv_candidate
 
+    if target_manifest is not None and not target_manifest.exists():
+        raise ValueError("The explicitly selected Track D manifest does not exist; raw-directory fallback is disabled.")
+
     if target_manifest is not None and target_manifest.exists():
         if target_manifest.suffix.lower() == ".json":
-            payload = json.loads(target_manifest.read_text(encoding="utf-8"))
+            try:
+                payload = json.loads(target_manifest.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise ValueError("Track D JSON manifest could not be read as valid UTF-8 JSON.") from exc
+            if not isinstance(payload, dict):
+                raise ValueError("Track D manifest must be a JSON object.")
             if payload.get("example_notice"):
                 return [], "EXAMPLE_MANIFEST_IGNORED"
+            _validate_track_d_manifest_schema(payload)
             return list(payload.get("records") or []), "LIVE_JSON_MANIFEST"
         if target_manifest.suffix.lower() == ".csv":
             rows: List[Dict[str, Any]] = []
-            with open(target_manifest, "r", encoding="utf-8") as f:
+            try:
+                f = open(target_manifest, "r", encoding="utf-8-sig", newline="")
+            except OSError as exc:
+                raise ValueError("Track D CSV manifest could not be opened.") from exc
+            with f:
                 for row in csv.DictReader(f):
                     if str(row.get("sample_id") or "").startswith("EX_"):
                         continue
@@ -738,7 +758,15 @@ def discover_track_d_records(root_dir: Path, manifest_path: Optional[Path] = Non
                         "image_bit_depth": int(row["image_bit_depth"]) if str(row.get("image_bit_depth") or "").isdigit() else 0,
                         "conflicting_diagnosis_indicator": conflict_raw in ("true", "1", "yes"),
                     })
+            csv_payload = {
+                "manifest_version": "2.0.0",
+                "track": "track_d",
+                "ontology_version": ONTOLOGY_VERSION,
+                "records": rows,
+            }
+            _validate_track_d_manifest_schema(csv_payload)
             return rows, "LIVE_CSV_MANIFEST"
+        raise ValueError("Track D manifest must use .json or .csv format.")
 
     # Physical directory discovery under ml_service/data/raw/{modality}/{class}/
     raw_dir = root_dir / "ml_service" / "data" / "raw"
@@ -829,12 +857,47 @@ def discover_track_d_records(root_dir: Path, manifest_path: Optional[Path] = Non
     return discovered, "DISK_RAW_SCAN"
 
 
+def _validate_track_d_manifest_schema(payload: Dict[str, Any]) -> None:
+    """Validate a live manifest against the checked-in Draft 2020-12 contract.
+
+    Error details intentionally include only JSON paths and schema keywords. They
+    never include invalid values, which may contain PHI or other sensitive data.
+    """
+    try:
+        schema = json.loads(TRACK_D_MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Track D manifest schema is unavailable or invalid; intake is blocked.") from exc
+
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(
+        validator.iter_errors(payload),
+        key=lambda error: (tuple(str(item) for item in error.absolute_path), error.validator or ""),
+    )
+    if errors:
+        safe_errors = []
+        for error in errors[:50]:
+            json_path = "$" + "".join(
+                f"[{item}]" if isinstance(item, int) else f".{item}"
+                for item in error.absolute_path
+            )
+            safe_errors.append(f"{json_path} ({error.validator or 'schema'})")
+        remaining = len(errors) - len(safe_errors)
+        suffix = f"; and {remaining} additional schema violations" if remaining else ""
+        raise ValueError(
+            f"Track D manifest failed Draft 2020-12 validation at {len(errors)} location(s): "
+            + ", ".join(safe_errors)
+            + suffix
+        )
+
+
 def validate_track_d_dataset(
     root_dir: Path,
     records: Optional[List[Dict[str, Any]]] = None,
     manifest_path: Optional[Path] = None,
     near_duplicate_threshold: int = DEFAULT_NEAR_DUPLICATE_HAMMING,
     copy_quarantined_files: bool = False,
+    protected_holdout_registry: Optional[ProtectedHoldoutRegistry] = None,
 ) -> Dict[str, Any]:
     """
     Runs full Stage 33/34 data quality, PHI, centralized clinical ontology adjudication,
@@ -842,10 +905,15 @@ def validate_track_d_dataset(
     """
     if records is None:
         records, discovery_mode = discover_track_d_records(root_dir, manifest_path=manifest_path)
+        manifest_schema_validation = (
+            "VALID_DRAFT_2020_12" if discovery_mode in ("LIVE_JSON_MANIFEST", "LIVE_CSV_MANIFEST")
+            else "NOT_APPLICABLE"
+        )
     else:
         discovery_mode = "EXPLICIT_RECORDS"
+        manifest_schema_validation = "NOT_APPLICABLE_EXPLICIT_RECORDS"
 
-    holdout_reg = load_protected_holdout_registry(root_dir)
+    holdout_reg = protected_holdout_registry or load_protected_holdouts(root_dir)
     evaluated: List[Dict[str, Any]] = []
     quarantined: List[Dict[str, Any]] = []
     passed: List[Dict[str, Any]] = []
@@ -973,14 +1041,7 @@ def validate_track_d_dataset(
             reasons.append("MISSING_ETHICS_APPROVAL_REF")
 
         # 6. Protected Holdout Site / Sample ID Guard (BTXRD Center 2 & 3, FracAtlas Test)
-        inst_lower = str(rec.get("institution_id") or "").strip().lower()
-        src_lower = str(rec.get("dataset_source") or "").strip().lower()
-        sid = str(rec.get("sample_id") or "").strip()
-        path_str = str(rec.get("image_path") or "").lower()
-        if any(tok in inst_lower or tok in src_lower or tok in path_str for tok in PROTECTED_HOLDOUT_SITE_TOKENS):
-            reasons.append("PROTECTED_EXTERNAL_HOLDOUT_VIOLATION")
-        if sid and sid in holdout_reg["sample_ids"]:
-            reasons.append("PROTECTED_EXTERNAL_HOLDOUT_SAMPLE_ID")
+        reasons.extend(holdout_reg.record_violations(rec))
 
         # 7. Physical Image Quality Inspection
         rel_or_abs = Path(str(rec.get("image_path") or ""))
@@ -1004,7 +1065,7 @@ def validate_track_d_dataset(
             if img_info["dhash"]:
                 rec["perceptual_hash"] = img_info["dhash"]
 
-            if img_info["sha256"] in holdout_reg["hashes"]:
+            if img_info["sha256"] in holdout_reg.hashes:
                 reasons.append("PROTECTED_EXTERNAL_HOLDOUT_HASH_MATCH")
 
             if canonical_mod:
@@ -1104,9 +1165,14 @@ def validate_track_d_dataset(
 
     total_eval = len(evaluated)
     provenance_pct = round(100.0 * provenance_complete_count / total_eval, 2) if total_eval > 0 else 0.0
+    rejection_reason_counts: Dict[str, int] = defaultdict(int)
+    for record in quarantined:
+        for reason in record.get("rejection_reasons", []):
+            rejection_reason_counts[reason] += 1
 
     return {
         "discovery_mode": discovery_mode,
+        "manifest_schema_validation": manifest_schema_validation,
         "ontology_version": ONTOLOGY_VERSION,
         "total_inspected": total_eval,
         "passed_count": len(passed),
@@ -1118,6 +1184,13 @@ def validate_track_d_dataset(
         "conflicting_diagnoses_count": conflicting_diagnoses_count,
         "healthy_control_eligibility_failures": healthy_control_eligibility_failures,
         "label_provenance_completeness_pct": provenance_pct,
+        "rejection_reason_counts": dict(sorted(rejection_reason_counts.items())),
+        "protected_holdout_registry": {
+            "sample_id_count": len(holdout_reg.sample_ids),
+            "sha256_count": len(holdout_reg.hashes),
+            "source_count": len(holdout_reg.sources),
+            "sources": sorted(holdout_reg.sources),
+        },
         "adjudication_counts": adjudication_counts,
         "accepted_by_class": accepted_by_class,
         "records": evaluated,
@@ -1142,34 +1215,37 @@ def generate_leakage_safe_splits(
     if round(train_ratio + val_ratio + test_ratio, 6) != 1.0:
         raise ValueError("Split ratios must sum to 1.0")
 
-    holdout_insts = {s.strip() for s in (holdout_institutions or ()) if s.strip()}
+    holdout_insts = normalize_holdout_sites(holdout_institutions or ())
     rng = random.Random(seed)
 
     # First group globally by patient_id to guarantee a patient with multi-modality studies
     # never lands in train for one modality and test for another.
     # Simultaneously track modality pools strictly separately in reports.
     patient_records: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    patient_inst: Dict[str, str] = {}
-    patient_primary_strata: Dict[str, Tuple[str, str]] = {}
+    patient_institutions: Dict[str, Set[str]] = defaultdict(set)
+    patient_strata: Dict[str, Set[Tuple[str, str]]] = defaultdict(set)
 
     for rec in passed_records:
         pid = str(rec["patient_id"])
         patient_records[pid].append(rec)
-        patient_inst[pid] = str(rec.get("institution_id") or "")
-        # Deterministic stratum: (modality, diagnostic_class)
-        patient_primary_strata.setdefault(
-            pid,
-            (str(rec["imaging_modality"]), str(rec["diagnostic_class"])),
-        )
+        institution = str(rec.get("institution_id") or "").strip()
+        if institution:
+            patient_institutions[pid].add(institution)
+        # Use an order-independent patient stratum when a patient has multiple modalities.
+        patient_strata[pid].add((str(rec["imaging_modality"]), str(rec["diagnostic_class"])))
 
     patient_split: Dict[str, str] = {}
     strata_patients: Dict[Tuple[str, str], List[str]] = defaultdict(list)
 
     for pid in sorted(patient_records.keys()):
-        if patient_inst[pid] in holdout_insts:
+        patient_sites = patient_institutions[pid]
+        if any(
+            site in holdout_insts or "".join(ch.lower() for ch in site if ch.isalnum()) in holdout_insts
+            for site in patient_sites
+        ):
             patient_split[pid] = "external_test"
         else:
-            strata_patients[patient_primary_strata[pid]].append(pid)
+            strata_patients[min(patient_strata[pid])].append(pid)
 
     for stratum_key in sorted(strata_patients.keys()):
         pids = sorted(strata_patients[stratum_key])
@@ -1471,12 +1547,15 @@ def write_track_d_artifacts(
     quality_payload = {
         "generated_at": readiness_report["generated_at"],
         "discovery_mode": validation_result["discovery_mode"],
+        "manifest_schema_validation": validation_result.get("manifest_schema_validation", "NOT_TESTED"),
+        "protected_holdout_registry": validation_result.get("protected_holdout_registry", {}),
         "total_inspected": validation_result["total_inspected"],
         "passed_count": validation_result["passed_count"],
         "quarantined_count": validation_result["quarantined_count"],
         "missing_metadata_fields_count": validation_result["missing_metadata_fields_count"],
         "exact_duplicate_count": validation_result["exact_duplicate_count"],
         "near_duplicate_count": validation_result["near_duplicate_count"],
+        "rejection_reason_counts": validation_result.get("rejection_reason_counts", {}),
         "conflicting_patient_count": validation_result["conflicting_patient_count"],
         "rejection_reason_counts": dict(sorted(reason_histogram.items())),
     }

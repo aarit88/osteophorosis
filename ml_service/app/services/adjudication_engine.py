@@ -16,6 +16,10 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
+import hashlib
+import hmac
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
@@ -31,6 +35,10 @@ from ml_service.datasets.clinical_ontology import (
     check_label_provenance_completeness,
     normalize_diagnosis_term,
     validate_healthy_control_eligibility,
+)
+from ml_service.app.services.reviewer_authorization import (
+    ReviewerAuthorizationError,
+    ReviewerAuthorizationService,
 )
 
 
@@ -83,6 +91,8 @@ class AdjudicationEngine:
         self._statuses: Dict[str, Dict[str, Any]] = {}
         self._provenance: Dict[str, ProvenanceRecord] = {}
         self._history: Dict[str, List[ProvenanceTransitionEntry]] = defaultdict(list)
+        self._ledger_key = os.environ.get("OSTEO_AUDIT_LEDGER_HMAC_KEY", "").encode("utf-8")
+        self._reviewer_authorization = ReviewerAuthorizationService()
 
         if self.ledger_path is not None and self.ledger_path.exists():
             self.load_ledger(self.ledger_path)
@@ -197,6 +207,7 @@ class AdjudicationEngine:
         decision: AdjudicationStatus | str,
         reviewer_pseudo_id: str,
         rationale: str,
+        reviewer_token: Optional[str] = None,
         resolved_target_class: Optional[OntologyTargetClass | str] = None,
         source_report_ref: Optional[str] = None,
         diagnostic_evidence_category: Optional[str] = None,
@@ -213,7 +224,12 @@ class AdjudicationEngine:
         if sample_id not in self._records:
             raise KeyError(f"Unknown sample_id '{sample_id}' in AdjudicationEngine.")
 
+        principal = self._reviewer_authorization.authorize_bearer(
+            reviewer_token, {"CLINICAL_ADJUDICATOR", "RADIOLOGIST"}
+        )
         reviewer_clean = reviewer_pseudo_id.strip()
+        if reviewer_clean != principal["reviewer_pseudo_id"]:
+            raise ReviewerAuthorizationError("Reviewer identity does not match authenticated credentials.")
         if not PSEUDO_REVIEWER_ID_RE.match(reviewer_clean):
             raise ValueError(
                 "reviewer_pseudo_id must be pseudonymized (REV_*, ADJ_*, RAD_*, or CLIN_*)."
@@ -398,7 +414,10 @@ class AdjudicationEngine:
         if target is None:
             raise ValueError("No ledger_path configured for AdjudicationEngine.")
         target.parent.mkdir(parents=True, exist_ok=True)
+        if len(self._ledger_key) < 32:
+            raise RuntimeError("A configured ledger integrity key of at least 32 bytes is required.")
         payload = {
+            "ledger_version": "2.0",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "ontology_version": ONTOLOGY_VERSION,
             "summary": self.get_provenance_summary(),
@@ -407,7 +426,17 @@ class AdjudicationEngine:
                 for sid in sorted(self._records.keys())
             },
         }
-        target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        payload["integrity"] = {"algorithm": "HMAC-SHA256", "signature": hmac.new(self._ledger_key, canonical, hashlib.sha256).hexdigest()}
+        fd, temp_name = tempfile.mkstemp(prefix=".ledger-", suffix=".tmp", dir=str(target.parent))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                json.dump(payload, stream, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temp_name, target)
+        finally:
+            if os.path.exists(temp_name): os.unlink(temp_name)
         return target
 
     def load_ledger(self, path: Optional[Path] = None) -> int:
@@ -415,7 +444,34 @@ class AdjudicationEngine:
         if target is None or not target.exists():
             return 0
         payload = json.loads(target.read_text(encoding="utf-8"))
+        if len(self._ledger_key) < 32:
+            raise RuntimeError("A configured ledger integrity key of at least 32 bytes is required.")
+        if payload.get("ledger_version") != "2.0" or payload.get("ontology_version") != ONTOLOGY_VERSION:
+            raise ValueError("Adjudication ledger version or ontology version is unsupported.")
+        integrity = payload.pop("integrity", {})
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        expected = hmac.new(self._ledger_key, canonical, hashlib.sha256).hexdigest()
+        if integrity.get("algorithm") != "HMAC-SHA256" or not hmac.compare_digest(str(integrity.get("signature", "")), expected):
+            raise ValueError("Adjudication ledger integrity verification failed.")
         samples = payload.get("samples") or {}
+        if not isinstance(samples, dict):
+            raise ValueError("Adjudication ledger sample structure is invalid.")
+        # Validate the entire signed document before mutating engine state.
+        for entry in samples.values():
+            if not isinstance(entry, dict):
+                raise ValueError("Adjudication ledger sample structure is invalid.")
+            cur_status = entry.get("current_status")
+            cur_prov = entry.get("current_provenance")
+            history = entry.get("transition_history")
+            if not isinstance(cur_status, dict) or not isinstance(cur_prov, dict) or not isinstance(history, list):
+                raise ValueError("Adjudication ledger sample structure is invalid.")
+            if cur_status.get("ontology_version") != ONTOLOGY_VERSION or cur_prov.get("label_ontology_version") != ONTOLOGY_VERSION:
+                raise ValueError("Adjudication ledger contains an unsupported ontology version.")
+            for transition in history:
+                if not isinstance(transition, dict) or transition.get("ontology_version") != ONTOLOGY_VERSION:
+                    raise ValueError("Adjudication ledger history contains an unsupported ontology version.")
+                if not all(key in transition for key in ("timestamp", "sample_id", "new_status", "actor_pseudo_id", "action", "rationale")):
+                    raise ValueError("Adjudication ledger transition structure is invalid.")
         loaded = 0
         for sid, entry in samples.items():
             cur_status = entry.get("current_status") or {}

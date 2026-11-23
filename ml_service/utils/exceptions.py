@@ -70,7 +70,7 @@ class ModelNotReadyException(OsteoGuardException):
         merged_details["current_state"] = current_state
         super().__init__(
             message=message,
-            error_code="MODEL_NOT_READY",
+            error_code="FOUR_CLASS_MODEL_NOT_READY",
             status_code=503,
             details=merged_details,
         )

@@ -1,0 +1,98 @@
+name: osteoguard-research
+
+services:
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml-service
+    env_file:
+      - .env
+    environment:
+      OSTEO_ENV: ${OSTEO_ENV:-development}
+      OSTEO_HOST: 0.0.0.0
+      OSTEO_PORT: "8000"
+      OSTEO_BASE_DIR: /app
+      OSTEO_DATA_DIR: /app/ml_service/data
+      OSTEO_RAW_DATA_DIR: /app/ml_service/data/raw
+      OSTEO_INTERIM_DATA_DIR: /app/ml_service/data/interim
+      OSTEO_PROCESSED_DATA_DIR: /app/ml_service/data/processed
+      OSTEO_SPLITS_DATA_DIR: /app/ml_service/data/splits
+      OSTEO_ARTIFACTS_DIR: /var/lib/osteoguard/artifacts
+      OSTEO_CHECKPOINTS_DIR: /var/lib/osteoguard/artifacts/checkpoints
+      OSTEO_METRICS_DIR: /var/lib/osteoguard/artifacts/metrics
+      OSTEO_LOGS_DIR: /var/lib/osteoguard/artifacts/logs
+      OSTEO_STAGE_REPORTS_DIR: /var/lib/osteoguard/artifacts/stage_reports
+      OSTEO_ADJUDICATION_LEDGER_FILE: /var/lib/osteoguard/ledger/adjudication.jsonl
+      OSTEO_REVIEWER_AUTHORIZATION_FILE: ${OSTEO_REVIEWER_AUTHORIZATION_FILE:-}
+      OSTEO_ONBOARDING_REGISTRY_FILE: /var/lib/osteoguard/onboarding/registry.json
+      OSTEO_ONBOARDING_ROOT: /var/lib/osteoguard/onboarding/packages
+      OSTEO_STAGING_ROOT: /var/lib/osteoguard/onboarding/staged
+    expose:
+      - "8000"
+    volumes:
+      - ./ml_service/data:/app/ml_service/data:ro
+      - model-artifacts:/var/lib/osteoguard/artifacts
+      - adjudication-ledger:/var/lib/osteoguard/ledger
+      - onboarding-state:/var/lib/osteoguard/onboarding
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      HOST: 0.0.0.0
+      PORT: "3000"
+      BACKEND_URL: http://ml-service:8000
+      OSTEO_NODE_DATA_DIR: /var/lib/osteoguard/node
+      OSTEO_MODEL_ARTIFACTS_DIR: /var/lib/osteoguard/artifacts
+      OSTEO_RAW_DATA_DIR: /app/ml_service/data/raw
+      OSTEO_STRICT_CLINICAL_MODE: "true"
+      OSTEO_DISABLE_DEMO_SEED: "true"
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
+    volumes:
+      - node-state:/var/lib/osteoguard/node
+      - model-artifacts:/var/lib/osteoguard/artifacts:ro
+      - ./ml_service/data/raw:/app/ml_service/data/raw:ro
+    depends_on:
+      ml-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 4s
+      start_period: 15s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+volumes:
+  node-state:
+  model-artifacts:
+  adjudication-ledger:
+  onboarding-state:

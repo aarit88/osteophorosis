@@ -27,6 +27,7 @@ import json
 import math
 import os
 from pathlib import Path
+import sys
 from typing import Dict, Any
 
 import numpy as np
@@ -307,8 +308,10 @@ def test_14_tabular_shap_adapter_status_and_schema_validation():
     )
 
     # Dependency status
-    assert adapter.shap_available is False
-    assert adapter.explainer_status == "PARTIAL_DEPENDENCY_NOT_INSTALLED"
+    assert adapter.shap_available == (adapter.shap_version is not None)
+    assert adapter.explainer_status == (
+        "READY" if adapter.shap_available else "PARTIAL_DEPENDENCY_NOT_INSTALLED"
+    )
 
     # Missing feature dictionary validation
     with pytest.raises(ValueError, match="Missing required features"):
@@ -353,10 +356,10 @@ def test_17_zero_unauthorized_patient_data_and_holdouts_intact():
 
 def test_18_host_python_and_frontend_untouched():
     """Verify host Python and React frontend remain completely unmodified."""
-    host_python = Path("C:/Python313/python.exe")
+    host_python = Path(sys.executable)
     assert host_python.exists()
 
-    frontend_dir = WORKSPACE_ROOT / "osteophorosis-main" / "src"
+    frontend_dir = WORKSPACE_ROOT / "src"
     assert frontend_dir.exists()
     assert (frontend_dir / "App.tsx").exists()
     assert (frontend_dir / "main.tsx").exists()

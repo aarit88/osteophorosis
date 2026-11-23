@@ -20,6 +20,7 @@ dependencies = [
     "opencv-python-headless>=4.7.0",
     "pydicom>=3.0.0",
     "nibabel>=5.0.0",
+    "jsonschema>=4.20.0",
     "imagehash>=4.3.0",
     "openpyxl>=3.1.5",
     "pydantic>=2.0.0",

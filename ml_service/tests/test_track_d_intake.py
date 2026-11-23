@@ -16,6 +16,7 @@ import unittest
 import zlib
 
 from ml_service.datasets.track_d_intake import (
+    discover_track_d_records,
     evaluate_track_d_readiness,
     generate_leakage_safe_splits,
     inspect_image_file,
@@ -23,6 +24,8 @@ from ml_service.datasets.track_d_intake import (
     validate_track_d_dataset,
     verify_cross_split_leakage,
 )
+from ml_service.datasets.clinical_ontology import ONTOLOGY_VERSION
+from ml_service.datasets.holdout_policy import ProtectedHoldoutRegistry
 
 
 def _make_png_bytes(width: int = 64, height: int = 64, pattern_seed: int = 1, noise_px: int = 0) -> bytes:
@@ -50,7 +53,9 @@ def _make_png_bytes(width: int = 64, height: int = 64, pattern_seed: int = 1, no
     return b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", idat) + _chunk(b"IEND", b"")
 
 
-def _make_minimal_dicom_ct(rows: int = 64, cols: int = 64, modality: str = "CT") -> bytes:
+def _make_minimal_dicom_ct(
+    rows: int = 64, cols: int = 64, modality: str = "CT", patient_name: str = ""
+) -> bytes:
     """Creates minimal Explicit VR Little Endian DICOM file for modality mismatch tests."""
     preamble = b"\x00" * 128 + b"DICM"
 
@@ -63,13 +68,26 @@ def _make_minimal_dicom_ct(rows: int = 64, cols: int = 64, modality: str = "CT")
     def _elem_u16(group: int, elem: int, val: int) -> bytes:
         return struct.pack("<HH", group, elem) + b"US" + struct.pack("<HH", 2, val)
 
+    patient_name_elem = _elem_str(0x0010, 0x0010, b"PN", patient_name) if patient_name else b""
     return (
         preamble
         + _elem_str(0x0008, 0x0060, b"CS", modality)
         + _elem_u16(0x0028, 0x0010, rows)
         + _elem_u16(0x0028, 0x0011, cols)
         + _elem_u16(0x0028, 0x0100, 16)
+        + patient_name_elem
     )
+
+
+def _make_minimal_nifti1() -> bytes:
+    data = bytearray(352 + (64 * 64 * 4))
+    struct.pack_into("<i", data, 0, 348)
+    struct.pack_into("<8h", data, 40, 3, 64, 64, 1, 1, 1, 1, 1)
+    struct.pack_into("<h", data, 70, 16)  # float32
+    struct.pack_into("<h", data, 72, 32)
+    struct.pack_into("<f", data, 108, 352.0)
+    data[344:348] = b"n+1\x00"
+    return bytes(data)
 
 
 def _valid_record(
@@ -141,6 +159,110 @@ def _valid_record(
 
 
 class TestTrackDIntakePipeline(unittest.TestCase):
+    def test_10_live_manifest_is_validated_against_draft_2020_12_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            record = _valid_record(root, "SMP_SCHEMA", "PT_SCHEMA_01", "paget", "xray")
+            manifest_path = root / "ml_service" / "data" / "manifests" / "track_d_manifest.json"
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest = {
+                "manifest_version": "2.0.0",
+                "track": "track_d",
+                "ontology_version": "OSTEO_ONTOLOGY_V1.0_STAGE34",
+                "records": [record],
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            records, mode = discover_track_d_records(root)
+            self.assertEqual(mode, "LIVE_JSON_MANIFEST")
+            self.assertEqual(records[0]["sample_id"], "SMP_SCHEMA")
+            pipeline = run_track_d_intake_pipeline(root, write_outputs=False)
+            self.assertEqual(
+                pipeline["validation"]["manifest_schema_validation"],
+                "VALID_DRAFT_2020_12",
+            )
+
+            manifest["manifest_version"] = "1.0.0"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, r"Draft 2020-12 validation.*manifest_version"):
+                discover_track_d_records(root)
+
+    def test_11_schema_errors_do_not_echo_invalid_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            record = _valid_record(root, "SMP_PRIVATE", "MRN_7654321", "paget", "xray")
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(json.dumps({
+                "manifest_version": "2.0.0",
+                "track": "track_d",
+                "ontology_version": "OSTEO_ONTOLOGY_V1.0_STAGE34",
+                "records": [record],
+            }), encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                discover_track_d_records(root, manifest_path)
+            self.assertNotIn("MRN_7654321", str(ctx.exception))
+            self.assertIn("patient_id", str(ctx.exception))
+
+    def test_16_explicit_missing_manifest_does_not_fall_back_to_raw_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = root / "ml_service" / "data" / "raw" / "xray" / "paget"
+            raw.mkdir(parents=True)
+            (raw / "PT_001_scan.png").write_bytes(_make_png_bytes())
+            with self.assertRaisesRegex(ValueError, "manifest does not exist"):
+                discover_track_d_records(root, root / "missing-manifest.json")
+
+    def test_12_patient_spanning_holdout_and_non_holdout_sites_isolated_together(self) -> None:
+        records = [
+            {"patient_id": "PT_SHARED_SITE", "institution_id": "INST_A", "imaging_modality": "ct", "diagnostic_class": "paget"},
+            {"patient_id": "PT_SHARED_SITE", "institution_id": "INST_HOLDOUT", "imaging_modality": "xray", "diagnostic_class": "paget"},
+        ]
+        split = generate_leakage_safe_splits(records, holdout_institutions=["INST_HOLDOUT"])
+        self.assertEqual([r["split_assignment"] for r in split["records"]], ["external_test", "external_test"])
+        reversed_split = generate_leakage_safe_splits(list(reversed(records)), holdout_institutions=["INST_HOLDOUT"])
+        self.assertEqual(
+            {r["imaging_modality"]: r["split_assignment"] for r in split["records"]},
+            {r["imaging_modality"]: r["split_assignment"] for r in reversed_split["records"]},
+        )
+
+    def test_13_central_holdout_policy_normalizes_site_tokens_without_echoing_ids(self) -> None:
+        registry = ProtectedHoldoutRegistry(sample_ids={"holdout-image-1"}, hashes={"A" * 64})
+        self.assertIn(
+            "PROTECTED_EXTERNAL_HOLDOUT_VIOLATION",
+            registry.record_violations({"dataset_source": "BTXRD-Center-2 cohort"}),
+        )
+        self.assertIn(
+            "PROTECTED_EXTERNAL_HOLDOUT_SAMPLE_ID",
+            registry.record_violations({"sample_id": "HOLDOUT-IMAGE-1"}),
+        )
+        self.assertIn(
+            "PROTECTED_EXTERNAL_HOLDOUT_HASH_MATCH",
+            registry.record_violations({"sha256": "a" * 64}),
+        )
+
+    def test_14_dicom_direct_identifiers_are_rejected_without_echoing_phi(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scan.dcm"
+            path.write_bytes(_make_minimal_dicom_ct(patient_name="Jane Doe"))
+            result = inspect_image_file(path)
+            self.assertFalse(result["valid"])
+            self.assertIn("DICOM_HEADER_OR_PHI_VALIDATION_FAILED", result["error"])
+            self.assertNotIn("Jane Doe", result["error"])
+
+    def test_15_nifti_header_is_checked_with_medical_image_parser(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "volume.nii"
+            path.write_bytes(_make_minimal_nifti1())
+            result = inspect_image_file(path)
+            self.assertTrue(result["valid"], result["error"])
+            self.assertEqual((result["width"], result["height"], result["depth"]), (64, 64, 1))
+
+            invalid = bytearray(_make_minimal_nifti1())
+            struct.pack_into("<h", invalid, 42, 0)
+            path.write_bytes(invalid)
+            result = inspect_image_file(path)
+            self.assertFalse(result["valid"])
+
     def test_01_manifest_required_fields_and_phi_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -292,12 +414,17 @@ class TestTrackDIntakePipeline(unittest.TestCase):
             root = Path(tmp)
             rec = _valid_record(root, "SMP_MISS", "PT_4001", "healthy", "xray", seed=55)
             rec["license_permissions"] = "MISSING"
-            rec["ethics_approval_ref"] = ""
-            rec["institution_id"] = ""
+            rec["ethics_approval_ref"] = "PENDING"
+            rec["institution_id"] = "UNKNOWN"
 
             manifest_path = root / "ml_service" / "data" / "manifests" / "track_d_manifest.json"
             manifest_path.parent.mkdir(parents=True, exist_ok=True)
-            manifest_path.write_text(json.dumps({"manifest_version": "1.0.0", "track": "track_d", "records": [rec]}), encoding="utf-8")
+            manifest_path.write_text(json.dumps({
+                "manifest_version": "2.0.0",
+                "track": "track_d",
+                "ontology_version": ONTOLOGY_VERSION,
+                "records": [rec],
+            }), encoding="utf-8")
 
             out = run_track_d_intake_pipeline(root, copy_quarantined_files=True, write_outputs=True)
             self.assertEqual(out["readiness"]["quarantined_samples"], 1)

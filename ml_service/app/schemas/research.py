@@ -281,6 +281,7 @@ class TrackDDatasetReadinessResponse(BaseModel):
     class_modality_matrix: Dict[str, Dict[str, int]]
     missing_metadata_count: int
     duplicate_samples_count: int
+    manifest_schema_validation: str = "NOT_TESTED"
     ontology_version: str = "OSTEO_ONTOLOGY_V1.0_STAGE34"
     accepted_by_class: Dict[str, int]
     adjudication_summary: Dict[str, int]
@@ -354,6 +355,20 @@ class WorkflowTransitionRequest(BaseModel):
     reviewer_role: str
     reason: str
     evidence_reference: str
+
+
+class ReviewerAdjudicationDecisionRequest(BaseModel):
+    sample_id: str = Field(min_length=1, max_length=160)
+    decision: str = Field(pattern="^(ACCEPTED|REJECTED|OUT_OF_SCOPE|UNCERTAIN|REQUIRES_ADJUDICATION)$")
+    reviewer_pseudo_id: str = Field(min_length=3, max_length=80)
+    rationale: str = Field(min_length=1, max_length=2000)
+    resolved_target_class: Optional[str] = None
+    source_report_ref: Optional[str] = None
+    diagnostic_evidence_category: Optional[str] = None
+    diagnostic_evidence: Optional[str] = None
+    radiology_report_confirmation_status: Optional[str] = None
+    histopathology_confirmation_status: Optional[str] = None
+    review_date: Optional[str] = None
 
 
 

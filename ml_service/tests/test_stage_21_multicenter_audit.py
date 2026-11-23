@@ -248,6 +248,6 @@ def test_13_cpu_python_and_frontend_preservation(base_dir):
     res = subprocess.run(cmd, capture_output=True, text=True, check=True)
     assert "+cpu" in res.stdout
 
-    frontend_file = base_dir / "osteophorosis-main/src/App.tsx"
+    frontend_file = base_dir / "src/App.tsx"
     assert frontend_file.exists()
 

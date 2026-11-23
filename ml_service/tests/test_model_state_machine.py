@@ -13,6 +13,7 @@ Exhaustively verifies all 9 finite model states:
 """
 
 from pathlib import Path
+import hashlib
 import numpy as np
 from PIL import Image
 import pytest
@@ -102,7 +103,7 @@ def test_state_training(isolated_service: MLReadinessService):
     assert state == ModelState.TRAINING
 
 
-def test_state_validation_required(isolated_service: MLReadinessService, sample_settings: MLSettings):
+def test_state_validation_required(isolated_service: MLReadinessService, sample_settings: MLSettings, monkeypatch):
     """Verifies VALIDATION_REQUIRED when checkpoint is found but training logs are missing."""
     chk_dir = sample_settings.get_resolved_checkpoints_dir()
     chk_dir.mkdir(parents=True, exist_ok=True)
@@ -110,6 +111,8 @@ def test_state_validation_required(isolated_service: MLReadinessService, sample_
     # Create dummy checkpoint file
     chk_file = chk_dir / "best_model.pt"
     torch.save({"epoch": 1, "state_dict": {}}, chk_file)
+    sample_settings.active_checkpoint_path = chk_file
+    monkeypatch.setenv("OSTEO_TRACK_D_CHECKPOINT_SHA256", hashlib.sha256(chk_file.read_bytes()).hexdigest())
 
     # Ensure logs directory is empty
     logs_dir = sample_settings.resolve_path(sample_settings.logs_dir)
@@ -122,12 +125,14 @@ def test_state_validation_required(isolated_service: MLReadinessService, sample_
     assert any("Rule 6 Check" in b for b in blockers)
 
 
-def test_state_ready_for_inference(isolated_service: MLReadinessService, sample_settings: MLSettings):
+def test_state_ready_for_inference(isolated_service: MLReadinessService, sample_settings: MLSettings, monkeypatch):
     """Verifies READY_FOR_INFERENCE when valid checkpoint AND training logs exist."""
     chk_dir = sample_settings.get_resolved_checkpoints_dir()
     chk_dir.mkdir(parents=True, exist_ok=True)
     chk_file = chk_dir / "best_model.pt"
     torch.save({"epoch": 50, "state_dict": {}}, chk_file)
+    sample_settings.active_checkpoint_path = chk_file
+    monkeypatch.setenv("OSTEO_TRACK_D_CHECKPOINT_SHA256", hashlib.sha256(chk_file.read_bytes()).hexdigest())
 
     logs_dir = sample_settings.resolve_path(sample_settings.logs_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)

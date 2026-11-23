@@ -64,7 +64,9 @@ export interface AnalyzeResponse {
 
 export interface HealthResponse {
   status: 'ok' | 'error';
-  mode: 'simulation' | 'production';
+  mode: 'simulation' | 'research' | 'production' | 'unavailable';
+  clinical_readiness?: 'blocked' | 'ready';
+  error_code?: string;
 }
 
 export interface AnalyzePayload {
@@ -267,6 +269,7 @@ export interface TrackDDatasetReadinessResponse {
   >;
   missing_metadata_count: number;
   duplicate_samples_count: number;
+  manifest_schema_validation: string;
   ontology_version: string;
   accepted_by_class: Record<
     'SECONDARY_BONE_METASTASIS' | 'PAGETS_DISEASE' | 'OSTEOGENESIS_IMPERFECTA' | 'HEALTHY_SKELETAL_CONTROL',
@@ -459,6 +462,13 @@ export interface ClinicalDiskReadiness {
   isFourClassReady: boolean;
 }
 
+export interface PublicClinicalReadinessSummary {
+  checkpointCount: number;
+  trainingLogsAvailable: boolean;
+  clinicalDatasetAvailable: boolean;
+  isFourClassReady: boolean;
+}
+
 export interface SecurityStatusResponse {
   timestamp: string;
   encryptionAtRest: {
@@ -487,7 +497,7 @@ export interface SecurityStatusResponse {
     mlBackendCanInfer: boolean;
     strictClinicalMode: boolean;
   };
-  clinicalReadiness: ClinicalDiskReadiness;
+  clinicalReadiness: PublicClinicalReadinessSummary;
 }
 
 // ━━━ Stage 35 Institutional Acquisition, Governance & Cohort Planning Types ━━━

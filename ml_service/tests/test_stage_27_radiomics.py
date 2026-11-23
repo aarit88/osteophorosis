@@ -216,7 +216,7 @@ def test_13_historical_stage_reports_preserved():
 
 def test_14_host_python_and_frontend_untouched():
     """Verify host CPU Python and React frontend remain untouched."""
-    frontend_dir = WORKSPACE_ROOT / "osteophorosis-main/src"
+    frontend_dir = WORKSPACE_ROOT / "src"
     assert frontend_dir.exists(), "React frontend directory missing"
     host_python = Path(r"C:\Python313\python.exe")
     assert host_python.exists(), "Host Python executable missing"

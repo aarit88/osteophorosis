@@ -237,6 +237,9 @@ class ResearchService:
 
     def get_evidence_registry(self) -> EvidenceRegistryResponse:
         now_str = datetime.now(timezone.utc).isoformat()
+        from ml_service.utils.checkpoint_inventory import build_checkpoint_inventory
+        inventory = build_checkpoint_inventory()
+        frozen_verified = any(item.get("track") == "C" and item.get("status") == "VERIFIED" for item in inventory["tracks"])
         models = [
             ModelEvidenceItem(
                 model_id="osteo-trackA-fracatlas-v1",
@@ -338,8 +341,8 @@ class ResearchService:
             timestamp=now_str,
             total_models=len(models),
             models=models,
-            frozen_checkpoint_verified=True,
-            disclaimer="Evidence compiled exclusively from verified historical stage reports (Stages 10, 14, 17, 18, 19, 20).",
+            frozen_checkpoint_verified=frozen_verified,
+            disclaimer="Metrics are historical stage-report evidence. Current checkpoint presence and SHA-256 are reported separately; missing weights are never reconstructed.",
         )
 
     def get_architecture_readiness(self) -> ArchitectureReadinessResponse:
@@ -736,6 +739,7 @@ class ResearchService:
             class_modality_matrix=report["class_modality_matrix"],
             missing_metadata_count=report["missing_metadata_count"],
             duplicate_samples_count=report["duplicate_samples_count"],
+            manifest_schema_validation=result.get("validation", {}).get("manifest_schema_validation", "NOT_TESTED"),
             ontology_version=report["ontology_version"],
             accepted_by_class=report["accepted_by_class"],
             adjudication_summary=report["adjudication_summary"],
@@ -783,8 +787,18 @@ class ResearchService:
     def get_cohort_planning(self) -> CohortPlanningResponse:
         return CohortPlanningResponse(**self._get_acquisition_service().get_cohort_planning_payload())
 
-    def validate_workflow_transition(self, req: WorkflowTransitionRequest) -> Dict[str, Any]:
+    def get_checkpoint_inventory(self) -> Dict[str, Any]:
+        from ml_service.utils.checkpoint_inventory import build_checkpoint_inventory
+        return build_checkpoint_inventory()
+
+    def validate_workflow_transition(self, req: WorkflowTransitionRequest, authenticated_reviewer: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         from ml_service.app.services.acquisition_governance import transition_workflow_state
+
+        if authenticated_reviewer is None:
+            raise PermissionError("Authenticated reviewer authorization is required.")
+        if (req.reviewer_pseudo_id != authenticated_reviewer.get("reviewer_pseudo_id")
+                or req.reviewer_role not in authenticated_reviewer.get("roles", frozenset())):
+            raise PermissionError("Submitted reviewer identity or role does not match authenticated credentials.")
 
         svc = self._get_acquisition_service()
         reg = svc.load_registry()
@@ -794,7 +808,7 @@ class ResearchService:
         updated = transition_workflow_state(
             source=source,
             target_state=req.target_state,
-            reviewer_pseudo_id=req.reviewer_pseudo_id,
+            reviewer_pseudo_id=authenticated_reviewer["reviewer_pseudo_id"],
             reviewer_role=req.reviewer_role,
             reason=req.reason,
             evidence_reference=req.evidence_reference,

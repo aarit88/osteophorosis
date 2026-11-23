@@ -42,6 +42,11 @@ from ml_service.tests.test_track_d_intake import _make_png_bytes, _valid_record
 
 
 class TestStage34OntologyAndAdjudication(unittest.TestCase):
+    def test_00_wrong_ontology_version_is_rejected_strictly(self) -> None:
+        record = {"sample_id": "SMP_001", "label_ontology_version": "OSTEO_ONTOLOGY_V0"}
+        with self.assertRaisesRegex(ValueError, "ontology version"):
+            adjudicate_diagnostic_label(record)
+
     def test_01_osteoporosis_cannot_map_to_oi(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

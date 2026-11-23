@@ -297,15 +297,32 @@ export interface ClinicalDiskReadiness {
   isFourClassReady: boolean;
 }
 
+export interface PublicClinicalReadinessSummary {
+  checkpointCount: number;
+  trainingLogsAvailable: boolean;
+  clinicalDatasetAvailable: boolean;
+  isFourClassReady: boolean;
+}
+
+export function summarizeClinicalReadiness(readiness: ClinicalDiskReadiness): PublicClinicalReadinessSummary {
+  return {
+    checkpointCount: readiness.checkpointsFound.length,
+    trainingLogsAvailable: readiness.trainingLogsCount > 0,
+    clinicalDatasetAvailable: Object.values(readiness.rawClassCounts).some((count) => count > 0),
+    isFourClassReady: readiness.isFourClassReady,
+  };
+}
+
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.dcm', '.dicom', '.tif', '.tiff']);
 
 /**
  * Inspects actual on-disk PyTorch checkpoints, logs, and 4-class clinical datasets.
  */
 export function inspectClinicalReadinessOnDisk(rootDir: string): ClinicalDiskReadiness {
-  const checkpointsDir = path.join(rootDir, 'ml_artifacts', 'checkpoints');
-  const logsDir = path.join(rootDir, 'ml_artifacts', 'logs');
-  const rawDataDir = path.join(rootDir, 'ml_service', 'data', 'raw');
+  const artifactsRoot = path.resolve(process.env.OSTEO_MODEL_ARTIFACTS_DIR || path.join(rootDir, 'ml_artifacts'));
+  const checkpointsDir = path.join(artifactsRoot, 'checkpoints');
+  const logsDir = path.join(artifactsRoot, 'logs');
+  const rawDataDir = path.resolve(process.env.OSTEO_RAW_DATA_DIR || path.join(rootDir, 'ml_service', 'data', 'raw'));
 
   const checkpointsFound: CheckpointArtifactInfo[] = [];
   if (fs.existsSync(checkpointsDir)) {

@@ -340,7 +340,7 @@ def test_15_stage_16_pilot_and_frontend_preservation(base_dir):
     assert "+cpu" in res.stdout
 
     # React frontend integrity
-    frontend_dir = base_dir / "osteophorosis-main/src"
+    frontend_dir = base_dir / "src"
     assert frontend_dir.exists()
     assert (frontend_dir / "App.tsx").exists()
 

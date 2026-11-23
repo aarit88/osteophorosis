@@ -266,8 +266,8 @@ def test_15_cpu_environment_untouched():
 
 def test_16_react_frontend_untouched(base_dir):
     """Verifies React frontend files in osteophorosis-main/src remain untouched."""
-    frontend_dir = base_dir / "osteophorosis-main/src"
+    frontend_dir = base_dir / "src"
     assert frontend_dir.exists(), f"Frontend directory missing: {frontend_dir}"
-    package_json = base_dir / "osteophorosis-main/package.json"
+    package_json = base_dir / "package.json"
     assert package_json.exists(), f"package.json missing: {package_json}"
 

@@ -18,7 +18,7 @@
     {
       "fold_index": 0,
       "fold_name": "fold_0",
-      "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_0\\best_checkpoint.pt",
+      "path": "ml_artifacts/bone_scan_cv/fold_0/best_checkpoint.pt",
       "epoch": 15,
       "val_pr_auc": 0.7674,
       "val_roc_auc": 0.9091
@@ -26,7 +26,7 @@
     {
       "fold_index": 1,
       "fold_name": "fold_1",
-      "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_1\\best_checkpoint.pt",
+      "path": "ml_artifacts/bone_scan_cv/fold_1/best_checkpoint.pt",
       "epoch": 14,
       "val_pr_auc": 0.6894,
       "val_roc_auc": 0.7882
@@ -34,7 +34,7 @@
     {
       "fold_index": 2,
       "fold_name": "fold_2",
-      "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_2\\best_checkpoint.pt",
+      "path": "ml_artifacts/bone_scan_cv/fold_2/best_checkpoint.pt",
       "epoch": 17,
       "val_pr_auc": 0.7662,
       "val_roc_auc": 0.9336
@@ -42,7 +42,7 @@
     {
       "fold_index": 3,
       "fold_name": "fold_3",
-      "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_3\\best_checkpoint.pt",
+      "path": "ml_artifacts/bone_scan_cv/fold_3/best_checkpoint.pt",
       "epoch": 2,
       "val_pr_auc": 0.6125,
       "val_roc_auc": 0.7969
@@ -50,7 +50,7 @@
     {
       "fold_index": 4,
       "fold_name": "fold_4",
-      "path": "C:\\Users\\archi\\OneDrive\\Desktop\\osteophorosis-main\\ml_artifacts\\bone_scan_cv\\fold_4\\best_checkpoint.pt",
+      "path": "ml_artifacts/bone_scan_cv/fold_4/best_checkpoint.pt",
       "epoch": 2,
       "val_pr_auc": 0.4058,
       "val_roc_auc": 0.6523

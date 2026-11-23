@@ -17,6 +17,7 @@ from ml_service.app.schemas.ml_status import (
     MLStatusResponse,
     ModelStatusResponse,
 )
+from ml_service.app.schemas.research import BlockedInferenceResponse
 from ml_service.app.services.readiness_service import MLReadinessService
 from ml_service.config.settings import MLSettings, get_settings
 from ml_service.inference.four_class_inference import FourClassClinicalInferenceEngine
@@ -48,6 +49,8 @@ def _verify_gateway_hmac(
 ) -> None:
     secret = (os.getenv("OSTEO_GATEWAY_HMAC_SECRET") or "").strip()
     if not secret:
+        if (os.getenv("OSTEO_ENV") or os.getenv("ENV") or "development").lower() == "production":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Gateway authentication is not configured.")
         return
     if not timestamp_header or not signature_header:
         raise HTTPException(
@@ -173,6 +176,7 @@ async def analyze_image_gated(
     "/v1/diagnostic/four-class",
     summary="Four-Class Clinical Eligibility Gate",
     description="Checks live readiness and returns HTTP 200 READY when verified checkpoint exists, else HTTP 503 BLOCKED.",
+    responses={503: {"model": BlockedInferenceResponse}},
 )
 def four_class_clinical_gate(service: MLReadinessService = Depends(get_readiness_service)):
     service.ensure_inference_ready()
@@ -180,7 +184,7 @@ def four_class_clinical_gate(service: MLReadinessService = Depends(get_readiness
     return {
         "status": "READY",
         "error_code": "NONE",
-        "message": f"Verified 4-class PyTorch checkpoint is active ({checkpoint.name if checkpoint else 'verified'}) for clinical inference.",
+        "message": f"A SHA-256 verified Track D checkpoint is active ({checkpoint.name if checkpoint else 'verified'}) and all clinical governance gates pass.",
         "target_classes": [
             "Secondary bone metastasis",
             "Paget's disease of bone",

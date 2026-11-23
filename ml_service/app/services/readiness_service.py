@@ -9,6 +9,9 @@ finite state of the model lifecycle and enforcing strict medical AI governance:
 """
 
 from datetime import datetime, timezone
+import hashlib
+import os
+import re
 from pathlib import Path
 import time
 from typing import Dict, List, Optional, Tuple
@@ -152,19 +155,20 @@ class MLReadinessService:
         )
 
     def get_active_checkpoint(self) -> Optional[Path]:
-        """Checks if a verified model checkpoint exists on disk."""
-        if self.settings.active_checkpoint_path:
-            chk = Path(self.settings.active_checkpoint_path)
-            if chk.is_file():
-                return chk
-
-        chk_dir = self.settings.get_resolved_checkpoints_dir()
-        if chk_dir.exists():
-            checkpoints = list(chk_dir.glob("*.pt")) + list(chk_dir.glob("*.pth"))
-            if checkpoints:
-                # Return newest
-                return sorted(checkpoints, key=lambda p: p.stat().st_mtime, reverse=True)[0]
-        return None
+        """Returns only the explicitly configured, SHA-pinned Track D checkpoint."""
+        if not self.settings.active_checkpoint_path:
+            return None
+        expected = os.getenv("OSTEO_TRACK_D_CHECKPOINT_SHA256", "").strip().upper()
+        if not re.fullmatch(r"[A-F0-9]{64}", expected):
+            return None
+        checkpoint = self.settings.resolve_path(self.settings.active_checkpoint_path)
+        if not checkpoint.is_file():
+            return None
+        digest = hashlib.sha256()
+        with checkpoint.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return checkpoint if digest.hexdigest().upper() == expected else None
 
     def determine_model_state(self) -> Tuple[ModelState, List[str]]:
         """
@@ -300,6 +304,40 @@ class MLReadinessService:
         Strict inference gatekeeper.
         Raises ModelNotReadyException if models are not fully trained and verified.
         """
+        # Track D requires the dedicated intake gates and institutional governance
+        # clearance in addition to weights/logs. Historical A/B/C assets never count.
+        try:
+            from pathlib import Path
+            from ml_service.datasets.track_d_intake import run_track_d_intake_pipeline
+            from ml_service.app.services.acquisition_governance import AcquisitionGovernanceService
+            repo_root = Path(__file__).resolve().parents[3]
+            intake = run_track_d_intake_pipeline(root_dir=repo_root, write_outputs=False)["readiness"]
+            governance = AcquisitionGovernanceService(root_dir=repo_root).get_governance_status_payload()
+            governance_status = str(governance.get("governance_gate_status") or "BLOCKED")
+            if not intake.get("ready_for_training") or governance_status not in {"APPROVED", "ALL_GOVERNANCE_VERIFIED"}:
+                blockers = list(intake.get("blockers") or [])
+                blockers.extend(["Institutional governance approval and data use agreements are not fully verified."]
+                                if governance_status not in {"APPROVED", "ALL_GOVERNANCE_VERIFIED"} else [])
+                raise ModelNotReadyException(
+                    message="Four-class inference remains blocked until genuine clinical intake and governance gates pass.",
+                    current_state="BLOCKED_BY_DATA_OR_GOVERNANCE",
+                    details={"status": "BLOCKED", "blockers": blockers, "target_classes": [
+                        "Secondary bone metastasis", "Paget's disease of bone",
+                        "Osteogenesis imperfecta (OI)", "Healthy skeletal control",
+                    ]},
+                )
+        except ModelNotReadyException:
+            raise
+        except Exception as exc:
+            raise ModelNotReadyException(
+                message="Four-class inference remains blocked because intake or governance readiness could not be verified.",
+                current_state="READINESS_VERIFICATION_FAILED",
+                details={"status": "BLOCKED", "blockers": [type(exc).__name__], "target_classes": [
+                    "Secondary bone metastasis", "Paget's disease of bone",
+                    "Osteogenesis imperfecta (OI)", "Healthy skeletal control",
+                ]},
+            ) from exc
+
         model_status = self.get_model_status()
         if not model_status.can_infer:
             raise ModelNotReadyException(
@@ -308,5 +346,8 @@ class MLReadinessService:
                     "Zero verified clinical checkpoints exist. Rule 6 & 7 violation avoided."
                 ),
                 current_state=model_status.model_state.value,
-                details={"blockers": model_status.blockers},
+                details={"status": "BLOCKED", "blockers": model_status.blockers, "target_classes": [
+                    "Secondary bone metastasis", "Paget's disease of bone",
+                    "Osteogenesis imperfecta (OI)", "Healthy skeletal control",
+                ]},
             )

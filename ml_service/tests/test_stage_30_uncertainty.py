@@ -26,8 +26,8 @@ import hashlib
 import json
 import math
 import os
-import sys
 from pathlib import Path
+import sys
 
 import numpy as np
 import pytest
@@ -392,10 +392,10 @@ def test_17_governance_and_research_boundary_preservation():
 
 def test_18_host_python_and_frontend_integrity():
     """Verify host Python environment and frontend files remain untouched."""
-    host_python = Path("C:/Python313/python.exe")
+    host_python = Path(sys.executable)
     assert host_python.exists()
 
-    frontend_dir = WORKSPACE_ROOT / "osteophorosis-main" / "src"
+    frontend_dir = WORKSPACE_ROOT / "src"
     assert frontend_dir.exists()
     assert (frontend_dir / "App.tsx").exists()
     assert (frontend_dir / "main.tsx").exists()

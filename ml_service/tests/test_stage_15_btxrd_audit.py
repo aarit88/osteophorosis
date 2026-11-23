@@ -223,6 +223,6 @@ def test_12_environment_and_frontend_integrity(base_dir):
     assert res.returncode == 0
     assert "+cpu" in res.stdout
 
-    frontend_dir = base_dir / "osteophorosis-main/src"
+    frontend_dir = base_dir / "src"
     assert frontend_dir.exists()
 

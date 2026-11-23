@@ -315,7 +315,7 @@ def test_12_cpu_python_and_frontend_preservation(base_dir):
     assert "+cpu" in res.stdout, "System CPU Python must be CPU-only"
 
     # Frontend integrity
-    frontend_dir = base_dir / "osteophorosis-main/src"
+    frontend_dir = base_dir / "src"
     assert frontend_dir.exists(), "React frontend src directory missing!"
     assert (frontend_dir / "App.tsx").exists(), "Frontend App.tsx missing!"
 

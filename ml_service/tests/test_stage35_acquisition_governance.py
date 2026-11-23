@@ -9,6 +9,9 @@ Runs cleanly with pure Python stdlib unittest inside AI Studio.
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+import os
 import csv
 from datetime import date, timedelta
 from pathlib import Path
@@ -398,6 +401,14 @@ class TestStage35AcquisitionGovernance(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             engine = AdjudicationEngine()
+            token = "test-only-stage35-reviewer"
+            registry = root / "reviewers.json"
+            registry.write_text(json.dumps({"registry_version": "1.0", "reviewers": [{
+                "reviewer_pseudo_id": "CLIN_REV_34", "roles": ["CLINICAL_ADJUDICATOR"],
+                "token_sha256": hashlib.sha256(token.encode()).hexdigest(), "active": True,
+            }]}), encoding="utf-8")
+            from ml_service.app.services.reviewer_authorization import ReviewerAuthorizationService
+            engine._reviewer_authorization = ReviewerAuthorizationService(registry)
             rec = _valid_record(root, "S34_PRES", "PT_S34", "paget", "xray", seed=8)
             adj_direct = adjudicate_diagnostic_label(rec)
             self.assertEqual(adj_direct["adjudication_status"], AdjudicationStatus.ACCEPTED.value)
@@ -408,6 +419,7 @@ class TestStage35AcquisitionGovernance(unittest.TestCase):
                 decision=AdjudicationStatus.UNCERTAIN,
                 reviewer_pseudo_id="CLIN_REV_34",
                 rationale="Borderline trabecular pattern flagged during dual review",
+                reviewer_token=token,
             )
             self.assertEqual(updated["adjudication"]["adjudication_status"], AdjudicationStatus.UNCERTAIN.value)
             hist = engine.get_sample_provenance_history("S34_PRES")

@@ -371,6 +371,7 @@ export interface TrackDDatasetReadinessDashboard {
   >;
   missing_metadata_count: number;
   duplicate_samples_count: number;
+  manifest_schema_validation: string;
   ontology_version: string;
   accepted_by_class: Record<
     'SECONDARY_BONE_METASTASIS' | 'PAGETS_DISEASE' | 'OSTEOGENESIS_IMPERFECTA' | 'HEALTHY_SKELETAL_CONTROL',
@@ -435,6 +436,7 @@ export function getTrackDDatasetReadiness(rootDir: string): TrackDDatasetReadine
   const quarantineDir = path.join(rootDir, 'ml_service', 'data', 'quarantine');
   const readinessReportPath = path.join(reportsDir, 'track_d_readiness_report.json');
   const quarantineReportPath = path.join(quarantineDir, 'quarantine_manifest.json');
+  const qualityReportPath = path.join(reportsDir, 'track_d_quality_report.json');
 
   // Always measure real physical files on disk across strictly separated modalities
   const diskMatrix: TrackDDatasetReadinessDashboard['class_modality_matrix'] = {
@@ -462,6 +464,10 @@ export function getTrackDDatasetReadiness(rootDir: string): TrackDDatasetReadine
     diskModalityCounts.xray + diskModalityCounts.bone_scan + diskModalityCounts.ct + legacyRawFiles;
 
   let parsedReport: Record<string, any> | null = null;
+  let parsedQuality: Record<string, any> | null = null;
+  if (fs.existsSync(qualityReportPath)) {
+    try { parsedQuality = JSON.parse(fs.readFileSync(qualityReportPath, 'utf8')); } catch { parsedQuality = null; }
+  }
   if (fs.existsSync(readinessReportPath)) {
     try {
       parsedReport = JSON.parse(fs.readFileSync(readinessReportPath, 'utf8'));
@@ -508,6 +514,7 @@ export function getTrackDDatasetReadiness(rootDir: string): TrackDDatasetReadine
       class_modality_matrix: diskMatrix,
       missing_metadata_count: 0,
       duplicate_samples_count: 0,
+      manifest_schema_validation: parsedQuality?.manifest_schema_validation || 'NOT_TESTED',
       ontology_version: 'OSTEO_ONTOLOGY_V1.0_STAGE34',
       accepted_by_class: {
         SECONDARY_BONE_METASTASIS: 0,
@@ -586,6 +593,7 @@ export function getTrackDDatasetReadiness(rootDir: string): TrackDDatasetReadine
     class_modality_matrix: parsedReport?.class_modality_matrix ?? diskMatrix,
     missing_metadata_count: Number(parsedReport?.missing_metadata_count ?? 0),
     duplicate_samples_count: Number(parsedReport?.duplicate_samples_count ?? 0),
+    manifest_schema_validation: parsedQuality?.manifest_schema_validation || 'NOT_TESTED',
     ontology_version: String(parsedReport?.ontology_version || 'OSTEO_ONTOLOGY_V1.0_STAGE34'),
     accepted_by_class: parsedReport?.accepted_by_class ?? {
       SECONDARY_BONE_METASTASIS: 0,

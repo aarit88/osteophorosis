@@ -12,6 +12,9 @@ Verifies:
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
+import os
 import tempfile
 import unittest
 
@@ -25,6 +28,14 @@ from ml_service.tests.test_track_d_intake import _valid_record
 
 
 class TestAdjudicationEngine(unittest.TestCase):
+    def setUp(self):
+        self._old_key = os.environ.get("OSTEO_AUDIT_LEDGER_HMAC_KEY")
+        os.environ["OSTEO_AUDIT_LEDGER_HMAC_KEY"] = "test-only-ledger-integrity-key-32-bytes"
+
+    def tearDown(self):
+        if self._old_key is None: os.environ.pop("OSTEO_AUDIT_LEDGER_HMAC_KEY", None)
+        else: os.environ["OSTEO_AUDIT_LEDGER_HMAC_KEY"] = self._old_key
+
     def test_01_batch_adjudication_statuses_and_provenance_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -76,14 +87,23 @@ class TestAdjudicationEngine(unittest.TestCase):
 
             engine = AdjudicationEngine()
             engine.adjudicate_batch([pending_rec, oos_rec])
+            reviewer_token = "test-only-synthetic-reviewer-token"
+            auth_file = root / "reviewers.json"
+            auth_file.write_text(json.dumps({"registry_version": "1.0", "reviewers": [{
+                "reviewer_pseudo_id": "RAD_BOARD_02", "roles": ["RADIOLOGIST"],
+                "token_sha256": hashlib.sha256(reviewer_token.encode()).hexdigest(), "active": True,
+            }]}), encoding="utf-8")
+            os.environ["OSTEO_REVIEWER_AUTHORIZATION_FILE"] = str(auth_file)
+            engine._reviewer_authorization = __import__("ml_service.app.services.reviewer_authorization", fromlist=["ReviewerAuthorizationService"]).ReviewerAuthorizationService(auth_file)
 
             # Reject non-pseudonymized reviewer ID (direct name/MRN disallowed)
-            with self.assertRaises(ValueError):
+            with self.assertRaises(PermissionError):
                 engine.submit_reviewer_decision(
                     sample_id="AE_REV_1",
                     decision=AdjudicationStatus.ACCEPTED,
                     reviewer_pseudo_id="Dr. Jane Doe",
                     rationale="Attempting non-pseudonymized reviewer ID",
+                    reviewer_token=reviewer_token,
                 )
 
             # Never allow forcing OUT_OF_SCOPE sample directly to ACCEPTED without valid ontology match
@@ -93,6 +113,7 @@ class TestAdjudicationEngine(unittest.TestCase):
                     decision=AdjudicationStatus.ACCEPTED,
                     reviewer_pseudo_id="RAD_BOARD_02",
                     rationale="Attempt force accept on out-of-scope osteoarthritis",
+                    reviewer_token=reviewer_token,
                 )
 
             # Valid authorized reviewer sign-off updates status to ACCEPTED and records transition
@@ -101,6 +122,7 @@ class TestAdjudicationEngine(unittest.TestCase):
                 decision=AdjudicationStatus.ACCEPTED,
                 reviewer_pseudo_id="RAD_BOARD_02",
                 rationale="Confirmed radiographic triad + elevated serum ALP.",
+                reviewer_token=reviewer_token,
                 resolved_target_class=OntologyTargetClass.PAGETS_DISEASE,
                 diagnostic_evidence_category="SERUM_ALP_AND_RADIOGRAPH",
                 radiology_report_confirmation_status="CONFIRMED",
@@ -138,6 +160,22 @@ class TestAdjudicationEngine(unittest.TestCase):
                 reloaded.get_provenance_summary()["total_tracked_samples"],
                 2,
             )
+            signed = json.loads(ledger_file.read_text(encoding="utf-8"))
+            signed["samples"]["AE_C1"]["current_status"]["reason"] = "tampered"
+            ledger_file.write_text(json.dumps(signed), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "integrity"):
+                AdjudicationEngine(ledger_path=ledger_file)
+
+    def test_04_ledger_refuses_implicit_integrity_key(self) -> None:
+        old_key = os.environ.pop("OSTEO_AUDIT_LEDGER_HMAC_KEY", None)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                engine = AdjudicationEngine(ledger_path=Path(tmp) / "ledger.json")
+                with self.assertRaisesRegex(RuntimeError, "integrity key"):
+                    engine.save_ledger()
+        finally:
+            if old_key is not None:
+                os.environ["OSTEO_AUDIT_LEDGER_HMAC_KEY"] = old_key
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+services:
+  ml-service:
+    environment:
+      OSTEO_ENV: production
+      OSTEO_REVIEWER_AUTHORIZATION_FILE: /run/osteoguard/reviewer-registry.json
+    volumes:
+      - type: bind
+        source: ${OSTEO_REVIEWER_REGISTRY_HOST_PATH:?Set OSTEO_REVIEWER_REGISTRY_HOST_PATH to an institution-provisioned registry file}
+        target: /run/osteoguard/reviewer-registry.json
+        read_only: true
+        bind:
+          create_host_path: false
+  gateway:
+    environment:
+      NODE_ENV: production

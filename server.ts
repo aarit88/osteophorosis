@@ -3,12 +3,13 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
-import { createServer as createViteServer } from 'vite';
 import { simulateAnalysis } from './mock-server/simulation.js';
 import { registerResearchRoutes } from './research-api.js';
+import { isStrongProductionSecret, isSupportedUploadMediaType, resolveCorsOrigins } from './security-policy.js';
 import {
   getOrProvisionEncryptionKey,
   appendEncryptedJsonl,
@@ -18,6 +19,7 @@ import {
   stripImageMetadataAndEncodePng,
   signGatewayHeaders,
   inspectClinicalReadinessOnDisk,
+  summarizeClinicalReadiness,
 } from './security.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,8 +30,8 @@ async function startServer() {
 
   // Parse command line arguments for host and port
   const args = process.argv.slice(2);
-  let PORT = Number(process.env.PORT) || 3000;
-  let HOST = process.env.HOST || '0.0.0.0';
+  let PORT = process.env.PORT === undefined ? 3000 : Number(process.env.PORT);
+  let HOST = process.env.HOST?.trim() || '0.0.0.0';
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--port' && args[i + 1]) {
@@ -41,7 +43,14 @@ async function startServer() {
     }
   }
 
-  app.use(cors());
+  if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535.');
+  }
+  if (!HOST || /\s/.test(HOST)) throw new Error('HOST must be a non-empty bind address.');
+
+  const production = process.env.NODE_ENV === 'production';
+  const configuredOrigins = resolveCorsOrigins(process.env.OSTEO_CORS_ORIGINS, production);
+  app.use(cors({ origin: configuredOrigins, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'X-OsteoGuard-Timestamp', 'X-OsteoGuard-Signature'] }));
   app.use(express.json({ limit: '2mb' }));
 
   // Clinical transport & cache-hardening headers across all responses
@@ -64,11 +73,25 @@ async function startServer() {
   const CLINICAL_API_TOKEN = process.env.OSTEO_CLINICAL_API_TOKEN?.trim() || '';
   const GATEWAY_HMAC_SECRET = process.env.OSTEO_GATEWAY_HMAC_SECRET?.trim() || '';
   const STRICT_CLINICAL_MODE = process.env.OSTEO_STRICT_CLINICAL_MODE === 'true';
+  const probeMLProcessReadiness = async () => {
+    if (!EXPLICIT_BACKEND_URL) return false;
+    try {
+      const response = await fetch(new URL('/health/ready', EXPLICIT_BACKEND_URL), { signal: AbortSignal.timeout(2000) });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+  if (production && (!isStrongProductionSecret(CLINICAL_API_TOKEN) || !isStrongProductionSecret(GATEWAY_HMAC_SECRET) || !isStrongProductionSecret(process.env.OSTEO_AUDIT_ENCRYPTION_KEY))) {
+    throw new Error('Production requires externally supplied clinical, gateway HMAC, and audit encryption secrets of at least 32 characters.');
+  }
 
   const requireClinicalToken: express.RequestHandler = (req, res, next) => {
-    if (!CLINICAL_API_TOKEN) return next();
+    if (!CLINICAL_API_TOKEN) return production ? res.status(503).json({ error: 'Authentication is not configured.' }) : next();
     const authHeader = req.headers.authorization || '';
-    if (authHeader === `Bearer ${CLINICAL_API_TOKEN}`) {
+    const supplied = Buffer.from(authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '', 'utf8');
+    const expected = Buffer.from(CLINICAL_API_TOKEN, 'utf8');
+    if (supplied.length === expected.length && timingSafeEqual(supplied, expected)) {
       return next();
     }
     return res.status(401).json({
@@ -85,6 +108,7 @@ async function startServer() {
         '/v1/evidence',
         '/v1/architecture',
         '/v1/datasets',
+        '/v1/dataset-onboarding',
         '/v1/radiomics',
         '/v1/biomechanics',
         '/v1/explainability',
@@ -137,7 +161,7 @@ async function startServer() {
         const data = await backendRes.text();
         res.send(data);
       } catch (err: any) {
-        console.warn(`[Proxy Fallback] External ML backend unreachable (${err.message}); using built-in Node.js research engine.`);
+        console.warn('[Proxy Fallback] ML backend is unreachable; returning the configured gateway fallback response.');
         return next();
       }
     });
@@ -151,6 +175,23 @@ async function startServer() {
       status: 'ok',
       service: 'osteoguard-frontend-server',
     });
+  });
+
+  // Readiness for the gateway workload includes the configured ML service. This is
+  // distinct from Track D clinical/model readiness, reported by FastAPI model status.
+  app.get('/readyz', async (_req, res) => {
+    if (!EXPLICIT_BACKEND_URL) {
+      if (production) return res.status(503).json({ status: 'not_ready', dependency: 'ml_service_not_configured' });
+      return res.json({ status: 'ready', mode: 'standalone_development', clinical_readiness: 'separate' });
+    }
+    try {
+      if (!(await probeMLProcessReadiness())) {
+        return res.status(503).json({ status: 'not_ready', dependency: 'ml_service_unavailable' });
+      }
+      return res.json({ status: 'ready', dependencies: { ml_service: 'ready' }, clinical_readiness: 'separate' });
+    } catch {
+      return res.status(503).json({ status: 'not_ready', dependency: 'ml_service_unavailable' });
+    }
   });
 
   // Purge any legacy unencrypted images under public/uploads/ so patient uploads remain RAM-only
@@ -185,7 +226,7 @@ async function startServer() {
   }
 
   // Data persistence directory for AES-256-GCM encrypted audit feedback and telemetry
-  const dataDir = path.resolve(__dirname, 'mock-server/data');
+  const dataDir = path.resolve(process.env.OSTEO_NODE_DATA_DIR || path.join(__dirname, 'mock-server/data'));
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
@@ -194,7 +235,11 @@ async function startServer() {
   const eventsFile = path.join(dataDir, 'events.jsonl');
 
   // Seed initial demo feedback encrypted at rest if empty, and migrate any legacy plaintext records
-  if (!fs.existsSync(feedbackFile) || fs.readFileSync(feedbackFile, 'utf-8').trim() === '') {
+  if (production || process.env.OSTEO_DISABLE_DEMO_SEED === 'true') {
+    if (fs.existsSync(feedbackFile) && fs.readFileSync(feedbackFile, 'utf-8').trim() !== '') {
+      migrateJsonlToEncrypted(feedbackFile, auditEncryptionKey);
+    }
+  } else if (!fs.existsSync(feedbackFile) || fs.readFileSync(feedbackFile, 'utf-8').trim() === '') {
     const initialFeedback = [
       { feedbackId: 'fb_01', requestId: 'req_demo1', decision: 'agree', predictedClass: 'metastasis', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
       { feedbackId: 'fb_02', requestId: 'req_demo2', decision: 'agree', predictedClass: 'paget', timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
@@ -235,15 +280,36 @@ async function startServer() {
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 15 * 1024 * 1024 },
+    fileFilter: (_req, file, callback) => {
+      if (!isSupportedUploadMediaType(file.mimetype)) return callback(new Error('Unsupported image media type.'));
+      callback(null, true);
+    },
   });
 
   // GET /api/health (unversioned)
-  app.get('/api/health', (_req, res) => {
-    const readiness = inspectClinicalReadinessOnDisk(__dirname);
-    res.json({
-      status: 'ok',
-      mode: readiness.isFourClassReady && EXPLICIT_BACKEND_URL ? 'production' : 'simulation',
-    });
+  app.get('/api/health', async (_req, res) => {
+    if (!EXPLICIT_BACKEND_URL) {
+      if (production || STRICT_CLINICAL_MODE) {
+        return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_SERVICE_NOT_CONFIGURED' });
+      }
+      return res.json({ status: 'ok', mode: 'simulation', clinical_readiness: 'blocked' });
+    }
+    if (!(await probeMLProcessReadiness())) {
+      return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_SERVICE_UNAVAILABLE' });
+    }
+    try {
+      const modelResponse = await fetch(new URL('/api/ml/models/status', EXPLICIT_BACKEND_URL), {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!modelResponse.ok) {
+        return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_READINESS_UNAVAILABLE' });
+      }
+      const model = await modelResponse.json() as { can_infer?: boolean; checkpoint_verified?: boolean };
+      const clinicallyReady = model.can_infer === true && model.checkpoint_verified === true;
+      return res.json({ status: 'ok', mode: clinicallyReady ? 'production' : 'research', clinical_readiness: clinicallyReady ? 'ready' : 'blocked' });
+    } catch {
+      return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_READINESS_UNAVAILABLE' });
+    }
   });
 
   // GET /api/v1/security/status — live cryptographic & clinical checkpoint readiness telemetry
@@ -307,12 +373,12 @@ async function startServer() {
         mlBackendCanInfer,
         strictClinicalMode: STRICT_CLINICAL_MODE,
       },
-      clinicalReadiness: diskReadiness,
+      clinicalReadiness: summarizeClinicalReadiness(diskReadiness),
     });
   });
 
   // GET /api/v1/ephemeral/:assetId — decrypts and streams RAM-only radiograph / Grad-CAM PNG
-  app.get('/api/v1/ephemeral/:assetId', (req, res) => {
+  app.get('/api/v1/ephemeral/:assetId', requireClinicalToken, (req, res) => {
     const assetId = String(req.params.assetId || '').replace(/[^a-zA-Z0-9._-]/g, '');
     if (!assetId) {
       return res.status(400).json({ error: 'Invalid asset identifier.' });
@@ -335,12 +401,12 @@ async function startServer() {
       }
 
       const modality = (req.body.modality as any) || 'xray';
-      let sanitizedBuffer = req.file.buffer;
+      if (!['xray', 'ct', 'bone_scan'].includes(String(modality).toLowerCase())) return res.status(422).json({ error: 'Unsupported modality.' });
+      let sanitizedBuffer: Buffer;
       try {
         sanitizedBuffer = await stripImageMetadataAndEncodePng(req.file.buffer);
       } catch {
-        // Keep raw bytes if synthetic minimal non-image fixture is submitted
-        sanitizedBuffer = req.file.buffer;
+        return res.status(415).json({ error: 'Uploaded file is not a supported, valid image.' });
       }
 
       const diskReadiness = inspectClinicalReadinessOnDisk(__dirname);
@@ -542,6 +608,13 @@ async function startServer() {
     });
   });
 
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!req.path.startsWith('/api') || res.headersSent) return next(err);
+    if (err?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Upload exceeds the 15 MiB limit.' });
+    if (String(err?.message || '').includes('Unsupported image media type')) return res.status(415).json({ error: 'Unsupported image media type.' });
+    return res.status(400).json({ error: 'Invalid API request or upload.' });
+  });
+
   // Serve static production build when NODE_ENV=production and dist/ exists; otherwise mount Vite middleware
   const distDir = path.resolve(__dirname, 'dist');
   if (process.env.NODE_ENV === 'production' && fs.existsSync(distDir)) {
@@ -550,18 +623,38 @@ async function startServer() {
       res.sendFile(path.join(distDir, 'index.html'));
     });
   } else {
-    const vite = await createViteServer({
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
+    app.locals.closeDevelopmentServer = () => vite.close();
   }
 
-  app.listen(PORT, HOST, () => {
+  const httpServer = app.listen(PORT, HOST, () => {
     console.log(`[OsteoGuard Server] Full-stack application running at http://${HOST}:${PORT}`);
     console.log(`[OsteoGuard Server] AES-256-GCM at-rest ledger encryption + RAM-only EXIF-stripped image processing active`);
     console.log(`[OsteoGuard Server] Swagger UI available at http://${HOST}:${PORT}/docs`);
   });
+
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[OsteoGuard Server] Received ${signal}; closing HTTP listener.`);
+    const closeDev = app.locals.closeDevelopmentServer as (() => Promise<void>) | undefined;
+    const closeHttp = () => httpServer.close((error) => {
+      if (error) {
+        console.error('[OsteoGuard Server] Graceful shutdown failed.');
+        process.exitCode = 1;
+      }
+    });
+    if (closeDev) void closeDev().catch(() => undefined).finally(closeHttp);
+    else closeHttp();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer().catch((err) => {

@@ -4,10 +4,11 @@ Centralized environment-driven settings using Pydantic V2 and pydantic-settings.
 """
 
 from functools import lru_cache
+import json
 from pathlib import Path
-from typing import List, Optional
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated, List, Optional
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class MLSettings(BaseSettings):
@@ -63,15 +64,27 @@ class MLSettings(BaseSettings):
     )
 
     # Security & CORS
-    cors_origins: List[str] = Field(
+    cors_origins: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
             "http://localhost:3000",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000",
-            "*",
         ]
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value):
+        if isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+                if isinstance(decoded, list):
+                    return [str(origin).strip() for origin in decoded if str(origin).strip()]
+            except json.JSONDecodeError:
+                pass
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     # Operational Guardrails
     enable_mock_fallback: bool = Field(
