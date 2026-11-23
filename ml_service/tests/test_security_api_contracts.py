@@ -99,6 +99,8 @@ def test_production_startup_requires_institutional_reviewer_registry_and_ledger(
     monkeypatch.setenv("OSTEO_GATEWAY_HMAC_SECRET", "g" * 64)
     monkeypatch.setenv("OSTEO_AUDIT_LEDGER_HMAC_KEY", "l" * 64)
     monkeypatch.setenv("OSTEO_ONBOARDING_LEDGER_HMAC_KEY", "o" * 64)
+    monkeypatch.setenv("OSTEO_SOURCE_QUALIFICATION_HMAC_KEY", "q" * 64)
+    monkeypatch.setenv("OSTEO_SOURCE_QUALIFICATION_FILE", str(tmp_path / "qualification.json"))
     monkeypatch.setenv("OSTEO_ADJUDICATION_LEDGER_FILE", str(tmp_path / "ledger.jsonl"))
     monkeypatch.setenv("OSTEO_CORS_ORIGINS", "https://research.example")
     monkeypatch.setenv("OSTEO_REVIEWER_AUTHORIZATION_FILE", str(tmp_path / "missing-registry.json"))
@@ -130,3 +132,4 @@ def test_clinical_adjudication_dependency_rejects_provisioned_nonclinical_role(t
         assert exc.status_code == 403
     else:
         raise AssertionError("A non-clinical reviewer role was allowed to adjudicate")
+
