@@ -86,7 +86,10 @@ def stop_process(process: subprocess.Popen | None, name: str, logs) -> bool:
         process.terminate()
         process.wait(timeout=5)
         return False
-    process.terminate()
+    # Uvicorn handles SIGINT as a normal server exit (status 0). SIGTERM
+    # completes ASGI shutdown but leaves Python with a signal-derived -15
+    # status, which CI correctly reports as a failed process.
+    process.send_signal(signal.SIGINT)
     try:
         process.wait(timeout=12)
     except subprocess.TimeoutExpired:
@@ -96,15 +99,7 @@ def stop_process(process: subprocess.Popen | None, name: str, logs) -> bool:
     if process.returncode != 0:
         logs.seek(0)
         output = logs.read()
-        # Uvicorn handles SIGTERM gracefully but retains the signal-derived
-        # negative return code on POSIX. Require its shutdown-complete record
-        # so an actual crash or forced termination still fails this smoke test.
-        if not (
-            os.name != "nt"
-            and process.returncode == -signal.SIGTERM
-            and "Application shutdown complete." in output
-        ):
-            raise RuntimeError(f"{name} exited unexpectedly (exit={process.returncode}):\n{output}")
+        raise RuntimeError(f"{name} exited unexpectedly (exit={process.returncode}):\n{output}")
     return True
 
 
