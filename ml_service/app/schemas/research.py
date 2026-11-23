@@ -221,7 +221,19 @@ class UncertaintyDemoResponse(BaseModel):
 
 class SyntheticWorkbenchRunRequest(BaseModel):
     phantom_type: str = Field(default="checkerboard")
-    bone_geometry_type: str = Field(default="intact_femur_diaphysis")
+    bone_geometry_type: Literal[
+        "intact_circular_ring",
+        "uniform_cortical_thinning",
+        "symmetric_cortical_defect",
+        "eccentric_cortical_defect",
+        "lytic_cavity",
+        "multiple_small_defects",
+        "non_circular_elliptical_annulus",
+        "anisotropic_spacing_annulus",
+    ] = Field(
+        default="intact_circular_ring",
+        description="Registered synthetic cross-section phantom used by the biomechanics geometry service",
+    )
     mirels_site: int = Field(default=2)
     mirels_pain: int = Field(default=2)
     mirels_nature: int = Field(default=3)
@@ -379,6 +391,7 @@ class ReviewerAdjudicationDecisionRequest(BaseModel):
     radiology_report_confirmation_status: Optional[str] = None
     histopathology_confirmation_status: Optional[str] = None
     review_date: Optional[str] = None
+
 
 
 
