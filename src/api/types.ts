@@ -336,6 +336,7 @@ export interface RadiomicsDemoResponse {
 export interface BiomechanicsGeometryResponse {
   phantom_type: string;
   voxel_size_mm: number;
+  pixel_spacing_mm: number[];
   area_mm2: number;
   centroid_x_mm: number;
   centroid_y_mm: number;

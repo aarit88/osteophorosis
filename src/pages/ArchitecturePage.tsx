@@ -1,390 +1,169 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Layers,
-  ShieldAlert,
-  ShieldCheck,
-  Lock,
-  Play,
-  RotateCw,
-  HardDrive,
-  KeyRound,
-  Server,
-} from 'lucide-react';
-import { getArchitectureReadiness, getSecurityStatus, requestFourClassInference } from '../api/client';
-import {
-  ArchitectureReadinessResponse,
-  ArchitectureComponentStatus,
-  BlockedInferenceResponse,
-  SecurityStatusResponse,
-} from '../api/types';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowDown, ArrowRight, Boxes, Check, ChevronRight, Database, FileCheck2, LockKeyhole, RotateCw, Server, ShieldAlert } from 'lucide-react';
+import { getArchitectureReadiness, requestFourClassInference } from '../api/client';
+import type { ArchitectureComponentStatus, ArchitectureReadinessResponse, BlockedInferenceResponse } from '../api/types';
+
+const stackLayers = [
+  {
+    title: 'Web application',
+    technology: 'React · TypeScript · Vite',
+    icon: Boxes,
+    description: 'Shared shell, Home, Workbench, Tracks, Governance, research tools, and evidence pages.',
+    status: 'Browser-facing UI',
+  },
+  {
+    title: 'Express gateway',
+    technology: 'Node.js · Express 5',
+    icon: Server,
+    description: 'Serves the built application and proxies supported API paths to the private ML service.',
+    status: 'Public application entry',
+  },
+  {
+    title: 'Research and governance API',
+    technology: 'FastAPI · Python',
+    icon: Database,
+    description: 'Research endpoints, dataset onboarding and qualification, preparation, governance, readiness, and gated diagnosis routes.',
+    status: 'Private service behind gateway',
+  },
+] as const;
+
+const dataControls = [
+  ['Stage 33–35', 'Manifest intake, clinical ontology/adjudication, and governance/security checks'],
+  ['Stage 38', 'Source registration, acquisition tracking, provenance verification, and safe staging'],
+  ['Stage 39–40', 'Dataset inventory, technical QC, harmonization/split audits, and source qualification'],
+] as const;
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'IMPLEMENTED': return 'Implemented';
+    case 'PARTIALLY_IMPLEMENTED': return 'Partially implemented';
+    case 'ARCHITECTURALLY_SPECIFIED': return 'Specified, unverified';
+    case 'BLOCKED_BY_DATA': return 'Blocked by data';
+    default: return 'Not verified';
+  }
+}
 
 export const ArchitecturePage: React.FC = () => {
-  const [data, setData] = useState<ArchitectureReadinessResponse | null>(null);
-  const [securityStatus, setSecurityStatus] = useState<SecurityStatusResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<ArchitectureReadinessResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [gateResult, setGateResult] = useState<BlockedInferenceResponse | null>(null);
+  const [gateError, setGateError] = useState(false);
+  const [gateTesting, setGateTesting] = useState(false);
 
-  // Safe Gate Test state
-  const [blockedResult, setBlockedResult] = useState<BlockedInferenceResponse | null>(null);
-  const [gateTesting, setGateTesting] = useState<boolean>(false);
-
-  useEffect(() => {
-    Promise.all([
-      getArchitectureReadiness(),
-      getSecurityStatus().catch(() => null),
-    ])
-      .then(([archRes, secRes]) => {
-        setData(archRes);
-        setSecurityStatus(secRes);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load architecture readiness.');
-        setLoading(false);
-      });
+  const loadReadiness = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      setReadiness(await getArchitectureReadiness());
+    } catch {
+      setReadiness(null);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleTestSafeGate = async () => {
+  useEffect(() => { void loadReadiness(); }, [loadReadiness]);
+
+  const testReadinessGate = async () => {
     setGateTesting(true);
+    setGateError(false);
+    setGateResult(null);
     try {
-      const res = await requestFourClassInference();
-      setBlockedResult(res);
-    } catch (err: any) {
-      setBlockedResult({
-        status: 'BLOCKED',
-        error_code: 'CLIENT_CAUGHT_ERROR',
-        message: err.message,
-        target_classes: [],
-        blockers: ['Network or connection error'],
-        mandatory_safeguard: 'System blocked request.',
-      });
+      const result = await requestFourClassInference() as Partial<BlockedInferenceResponse>;
+      if (result.error_code && result.message && result.status) {
+        setGateResult({
+          status: result.status,
+          error_code: result.error_code,
+          message: result.message,
+          target_classes: result.target_classes ?? [],
+          blockers: result.blockers ?? [],
+          mandatory_safeguard: result.mandatory_safeguard ?? 'Track D inference is controlled by the backend readiness gate.',
+        });
+      } else {
+        setGateError(true);
+      }
+    } catch {
+      setGateError(true);
     } finally {
       setGateTesting(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === 'IMPLEMENTED') {
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-          IMPLEMENTED
-        </span>
-      );
-    }
-    if (status === 'PARTIALLY_IMPLEMENTED') {
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
-          PARTIALLY IMPLEMENTED
-        </span>
-      );
-    }
-    if (status === 'ARCHITECTURALLY_SPECIFIED') {
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-          ARCHITECTURALLY SPECIFIED
-        </span>
-      );
-    }
-    return (
-      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
-        BLOCKED BY DATA
-      </span>
-    );
+  const componentBadge = (component: ArchitectureComponentStatus) => {
+    const status = component.status;
+    const color = status === 'IMPLEMENTED' ? 'border-teal-800 bg-teal-950/50 text-teal-200'
+      : status === 'PARTIALLY_IMPLEMENTED' ? 'border-cyan-900 bg-cyan-950/50 text-cyan-200'
+        : status === 'ARCHITECTURALLY_SPECIFIED' ? 'border-amber-800 bg-amber-950/40 text-amber-200'
+          : 'border-rose-900 bg-rose-950/40 text-rose-200';
+    return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${color}`}>{statusLabel(status)}</span>;
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-6 px-4">
-      {/* Header */}
-      <div className="border-b border-slate-800 pb-5 space-y-2">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800 text-cyan-300 text-xs font-semibold">
-          <Layers className="w-3.5 h-3.5" />
-          <span>Stage 26 / 31 Architectural Readiness</span>
+    <article className="mx-auto max-w-6xl space-y-10 py-5 sm:py-9" aria-labelledby="architecture-title">
+      <header className="max-w-3xl border-b border-slate-800 pb-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-900 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-200"><Boxes className="h-4 w-4" aria-hidden="true" /> Current application architecture</div>
+        <h1 id="architecture-title" className="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">A layered research platform with explicit data and readiness gates</h1>
+        <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">This view describes the modules and API boundary present in this repository. The proposal’s future multimodal diagnostic model is not presented as an implemented or clinically ready system.</p>
+      </header>
+
+      <section aria-labelledby="request-path-title" className="space-y-4">
+        <div><p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Runtime request path</p><h2 id="request-path-title" className="mt-1 text-2xl font-bold text-white">Web client → gateway → research API</h2></div>
+        <ol className="grid gap-3 lg:grid-cols-3">
+          {stackLayers.map(({ title, technology, icon: Icon, description, status }, index) => <React.Fragment key={title}>
+            <li className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-900 bg-cyan-950/50 text-cyan-300"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="rounded-full border border-slate-700 px-2.5 py-1 text-[10px] text-slate-400">{status}</span></div>
+              <h3 className="mt-5 text-lg font-bold text-white">{title}</h3><p className="mt-1 font-mono text-xs text-cyan-300">{technology}</p><p className="mt-3 text-sm leading-6 text-slate-400">{description}</p>
+              {index < stackLayers.length - 1 && <div className="mt-5 hidden items-center gap-2 text-xs text-slate-500 lg:flex"><span className="h-px flex-1 bg-slate-700" /><ChevronRight className="h-4 w-4 text-cyan-500" aria-hidden="true" /></div>}
+              {index < stackLayers.length - 1 && <div className="mt-4 flex items-center justify-center text-slate-600 lg:hidden"><ArrowDown className="h-4 w-4" aria-hidden="true" /></div>}
+            </li>
+          </React.Fragment>)}
+        </ol>
+        <p className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-5 text-slate-400"><strong className="text-slate-200">API boundary:</strong> browser requests use supported gateway routes; FastAPI is not the public web entry point. Deployment configuration keeps the ML service private behind Express.</p>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/65 p-5 sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Data governance path</p><h2 className="mt-2 text-xl font-bold text-white">From candidate source to prepared package</h2>
+          <ol className="mt-5 space-y-3">{dataControls.map(([stage, description]) => <li key={stage} className="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4"><span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-950/60 text-teal-300"><Check className="h-4 w-4" aria-hidden="true" /></span><div><p className="text-xs font-bold uppercase tracking-wide text-teal-300">{stage}</p><p className="mt-1 text-sm leading-5 text-slate-300">{description}</p></div></li>)}</ol>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Registration, qualification, integrity verification, preparation, and clinical validity are separate states. Staging does not trigger training.</p>
         </div>
-        <h1 className="text-3xl font-black text-white tracking-tight">
-          Four-Class System Architecture & Diagnostic Safety Gate
-        </h1>
-        <p className="text-slate-400 text-sm max-w-3xl">
-          Visualizes the full multi-modal fusion architecture specified in the original KSCST proposal and demonstrates the immutable safety gate blocking diagnostic inference until clinical cohorts are acquired.
-        </p>
-      </div>
-
-      {loading && (
-        <div className="p-8 text-center text-slate-400 animate-pulse">
-          Loading architecture readiness...
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/65 p-5 sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Research modules</p><h2 className="mt-2 text-xl font-bold text-white">Methods available in the prototype</h2>
+          <ul className="mt-5 space-y-3 text-sm">{[
+            ['Radiomics', '/radiomics'], ['Biomechanics and Mirels-related calculations', '/biomechanics'], ['Explainability demonstrations', '/explainability'], ['Uncertainty and abstention methods', '/uncertainty'], ['Evidence registry', '/evidence'],
+          ].map(([label, path]) => <li key={path}><Link to={path} className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-400"><span>{label}</span><ArrowRight className="h-4 w-4 shrink-0 text-cyan-500" aria-hidden="true" /></Link></li>)}</ul>
+          <p className="mt-4 text-xs leading-5 text-slate-500">A module being implemented does not imply that it is validated on clinical Track D data.</p>
         </div>
-      )}
+      </section>
 
-      {error && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-sm">
-          {error}
+      <section aria-labelledby="track-d-gate-title" className="rounded-2xl border border-rose-900/70 bg-rose-950/20 p-5 sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex gap-4"><LockKeyhole className="mt-1 h-6 w-6 shrink-0 text-rose-300" aria-hidden="true" /><div><h2 id="track-d-gate-title" className="text-xl font-bold text-white">Track D diagnosis remains gated</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">The four-class model is not clinically ready. The backend blocks diagnostic inference with HTTP 503 <code className="rounded bg-slate-950 px-1.5 py-0.5 text-rose-200">FOUR_CLASS_MODEL_NOT_READY</code> until genuine data, governance, training, validation, and readiness requirements are met.</p></div></div>
+          <button type="button" onClick={testReadinessGate} disabled={gateTesting} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-rose-700 bg-rose-950/50 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-900/50 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-rose-300">{gateTesting ? <RotateCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ShieldAlert className="h-4 w-4" aria-hidden="true" />}{gateTesting ? 'Checking gate…' : 'Verify backend gate'}</button>
         </div>
-      )}
+        {gateError && <p role="alert" className="mt-4 rounded-lg border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-200">The gate response could not be retrieved. This is a connection result, not a readiness result.</p>}
+        {gateResult && <div role="status" aria-live="polite" className="mt-4 rounded-xl border border-rose-800 bg-slate-950/70 p-4"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-bold text-rose-200">Backend response: {gateResult.status}</span><span className="rounded border border-rose-900 px-2 py-0.5 font-mono text-[10px] text-rose-300">{gateResult.error_code}</span></div><p className="mt-2 text-sm text-slate-300">{gateResult.message}</p>{gateResult.blockers.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-400">{gateResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>}</div>}
+      </section>
 
-      {data && (
-        <div className="space-y-8">
-          {/* End-to-End Encryption, Privacy & Live PyTorch Bridge Status */}
-          {securityStatus && (
-            <div className="p-6 rounded-2xl bg-slate-900/70 border border-emerald-500/30 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>End-to-End Encryption, Privacy & Live PyTorch Bridge</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Live verification of cryptographic audit storage, zero-disk RAM radiograph processing, and PyTorch checkpoint readiness on disk.
-                  </p>
-                </div>
-                <span className="px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  {securityStatus.encryptionAtRest.algorithm} ACTIVE
-                </span>
-              </div>
+      <section aria-labelledby="readiness-title" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Live API response</p><h2 id="readiness-title" className="mt-1 text-2xl font-bold text-white">Engineering component readiness</h2><p className="mt-2 text-sm text-slate-400">This status describes implementation and unresolved research gaps; it is not clinical validation.</p></div><button type="button" onClick={() => void loadReadiness()} disabled={loading} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-400"><RotateCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />Refresh status</button></div>
+        {loading && <div role="status" aria-live="polite" className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 text-sm text-slate-400">Loading current architecture readiness…</div>}
+        {loadError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-900 bg-rose-950/25 p-4"><p className="text-sm text-rose-200">Current readiness is unavailable. The architecture diagram above shows the configured application layers, not live service health.</p><button type="button" onClick={() => void loadReadiness()} className="min-h-10 rounded-lg border border-rose-800 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-950 focus:outline-none focus:ring-2 focus:ring-rose-300">Retry</button></div>}
+        {!loading && !loadError && readiness && <>
+          <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">System status</p><p className="mt-2 break-words text-sm font-semibold text-slate-200">{readiness.system_readiness.replace(/_/g, ' ')}</p></div><div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Fusion contract</p><p className="mt-2 text-sm text-slate-200">{readiness.fusion_contract_status}</p></div><div className="rounded-xl border border-rose-900/70 bg-rose-950/15 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-rose-300">Inference eligibility</p><p className="mt-2 text-sm text-rose-100">{readiness.inference_eligibility}</p></div></div>
+          {readiness.components.length === 0
+            ? <div role="status" className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 text-sm text-slate-400">The readiness service returned no component records. Refresh to check again; no component status is being inferred.</div>
+            : <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead className="bg-slate-950/80 text-[10px] uppercase tracking-wide text-slate-400"><tr><th scope="col" className="px-4 py-3">Component</th><th scope="col" className="px-4 py-3">Layer</th><th scope="col" className="px-4 py-3">Implementation</th><th scope="col" className="px-4 py-3">Known gap and dependency</th></tr></thead><tbody className="divide-y divide-slate-800">{readiness.components.map((component) => <tr key={`${component.component_name}-${component.layer_group}`} className="align-top"><th scope="row" className="max-w-64 px-4 py-4 font-semibold text-slate-100">{component.component_name}</th><td className="px-4 py-4 text-slate-400">{component.layer_group}</td><td className="px-4 py-4"><div>{componentBadge(component)}</div><p className="mt-2 max-w-sm leading-5 text-slate-300">{component.implemented_features}</p></td><td className="max-w-md px-4 py-4 leading-5"><p className="text-amber-200/90">{component.unresolved_gaps}</p><p className="mt-2 text-slate-500">Dependency: {component.governance_dependency}</p></td></tr>)}</tbody></table></div></div>}
+          <p className="text-xs leading-5 text-slate-500">Status as of {new Date(readiness.timestamp).toLocaleString()}. {readiness.disclaimer}</p>
+        </>}
+      </section>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase">At-Rest Ledger</span>
-                    <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {securityStatus.encryptionAtRest.algorithm} Encrypted
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {securityStatus.encryptionAtRest.feedbackEncryptedCount} feedback &{' '}
-                    {securityStatus.encryptionAtRest.eventsEncryptedCount} event records (0 plaintext)
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase">Uploaded Scans</span>
-                    <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    RAM-Only + EXIF Stripped
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {securityStatus.ephemeralMedia.diskUploadsRemaining} disk files · {securityStatus.ephemeralMedia.ttlSeconds}s RAM TTL
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase">ML Gateway Auth</span>
-                    <Server className="w-3.5 h-3.5 text-cyan-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {securityStatus.gatewayTransport.mlBackendConfigured
-                      ? securityStatus.gatewayTransport.mlBackendReachable
-                        ? 'FastAPI Linked'
-                        : 'FastAPI Offline'
-                      : 'Standalone Gateway'}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    HMAC-SHA256: {securityStatus.gatewayTransport.hmacSigningConfigured ? 'Active' : 'Optional'} ·{' '}
-                    <span className="whitespace-nowrap">no-store</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase">4-Class PyTorch Weights</span>
-                    <Lock className="w-3.5 h-3.5 text-rose-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {securityStatus.clinicalReadiness.checkpointCount} Checkpoints Found
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    Clinical dataset: {securityStatus.clinicalReadiness.clinicalDatasetAvailable ? 'Present' : 'Unavailable'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Visual Architecture Flowchart */}
-          <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              KSCST Multi-Modal Fusion Pipeline Architecture
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-center text-xs">
-              {/* Step 1: Input Modalities */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Inputs</span>
-                  <div className="font-extrabold text-white text-sm mt-1">Skeletal Radiograph + ROI Mask</div>
-                </div>
-                <div className="text-[11px] text-slate-400">Standard DICOM / PNG / TIFF</div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Ready
-                </div>
-              </div>
-
-              {/* Step 2: Dual Extraction */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Extraction</span>
-                  <div className="font-extrabold text-white text-sm mt-1">DenseNet-121 (512-D) + Radiomics (102-D)</div>
-                </div>
-                <div className="text-[11px] text-slate-400">Deep CNN + 81 IBSI Textures</div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                  81 / 102 Verified
-                </div>
-              </div>
-
-              {/* Step 3: Fusion Layer */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Fusion</span>
-                  <div className="font-extrabold text-white text-sm mt-1">Multi-Modal Concatenation (614-D)</div>
-                </div>
-                <div className="text-[11px] text-slate-400">Bottleneck Linear Layer</div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                  Specified / Unverified
-                </div>
-              </div>
-
-              {/* Step 4: Modifiers & Safety */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Modifiers</span>
-                  <div className="font-extrabold text-white text-sm mt-1">Biomechanics + Uncertainty Gate</div>
-                </div>
-                <div className="text-[11px] text-slate-400">Mirels + H_norm ≥ 0.60 Gate</div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Verified Engine
-                </div>
-              </div>
-
-              {/* Step 5: Final Output */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Output</span>
-                  <div className="font-extrabold text-white text-sm mt-1">Four-Class Differential Diagnosis</div>
-                </div>
-                <div className="text-[11px] text-slate-400">Metastasis, Paget, OI, Healthy</div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
-                  {securityStatus?.clinicalReadiness.isFourClassReady ? 'CHECKPOINT READY' : 'BLOCKED BY DATA'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Safe Gate Verification Test */}
-          <div className="p-6 rounded-2xl bg-rose-950/20 border border-rose-900/60 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-rose-900/40 pb-3">
-              <div>
-                <h3 className="font-extrabold text-white text-lg flex items-center space-x-2">
-                  <Lock className="w-5 h-5 text-rose-400" />
-                  <span>Four-Class Inference Safety Gate Verification</span>
-                </h3>
-                <p className="text-xs text-rose-200 mt-0.5">
-                  Test that requesting four-class diagnosis immediately triggers the HTTP 503 BLOCKED safeguard.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleTestSafeGate}
-                disabled={gateTesting}
-                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs disabled:opacity-50 transition cursor-pointer self-start sm:self-auto"
-              >
-                {gateTesting ? <RotateCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                <span>Trigger Four-Class Inference Request</span>
-              </button>
-            </div>
-
-            {blockedResult && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`p-5 rounded-xl bg-slate-950 border text-xs space-y-3 ${
-                  blockedResult.status === 'READY' ? 'border-emerald-700' : 'border-rose-800'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`font-bold flex items-center space-x-1.5 text-sm ${
-                      blockedResult.status === 'READY' ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
-                    {blockedResult.status === 'READY' ? (
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    ) : (
-                      <ShieldAlert className="w-4 h-4 text-rose-400" />
-                    )}
-                    <span>
-                      GATE RESPONSE: {blockedResult.status} (
-                      {blockedResult.status === 'READY' ? 'HTTP 200 CLINICAL ELIGIBLE' : 'HTTP 503 SERVICE UNAVAILABLE'})
-                    </span>
-                  </span>
-                  <span
-                    className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
-                      blockedResult.status === 'READY'
-                        ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                        : 'bg-rose-950 text-rose-300 border-rose-800'
-                    }`}
-                  >
-                    {blockedResult.error_code}
-                  </span>
-                </div>
-                <p className="text-slate-200">{blockedResult.message}</p>
-
-                {blockedResult.blockers.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="font-bold text-amber-400 block">Active Blocker Checklist:</span>
-                    <ul className="space-y-0.5 text-slate-300 list-disc list-inside text-[11px]">
-                      {blockedResult.blockers.map((blk, idx) => (
-                        <li key={idx}>{blk}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-slate-850 text-[11px] text-slate-400 italic">
-                  <strong>Mandatory Safeguard:</strong> {blockedResult.mandatory_safeguard}
-                </div>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Component Readiness Table */}
-          <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-            <h3 className="font-bold text-white text-base">Architectural Component Readiness Register</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
-                    <th className="py-2.5 px-3">Component</th>
-                    <th className="py-2.5 px-3">Layer Group</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Implemented Features</th>
-                    <th className="py-2.5 px-3">Unresolved Gaps</th>
-                    <th className="py-2.5 px-3">Governance Dependency</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850">
-                  {data.components.map((c: ArchitectureComponentStatus, idx: number) => (
-                    <tr key={idx} className="hover:bg-slate-850/40 transition">
-                      <td className="py-3 px-3 font-bold text-white whitespace-nowrap">{c.component_name}</td>
-                      <td className="py-3 px-3 text-slate-300">{c.layer_group}</td>
-                      <td className="py-3 px-3">{getStatusBadge(c.status)}</td>
-                      <td className="py-3 px-3 text-slate-300">{c.implemented_features}</td>
-                      <td className="py-3 px-3 text-amber-300/90">{c.unresolved_gaps}</td>
-                      <td className="py-3 px-3 text-slate-400">{c.governance_dependency}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <nav aria-label="Architecture links" className="flex flex-wrap gap-3 border-t border-slate-800 pt-6"><Link to="/governance" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300">Dataset governance <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link><Link to="/about" className="inline-flex min-h-11 items-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">About the project</Link></nav>
+    </article>
   );
 };
 
 export default ArchitecturePage;
-
-

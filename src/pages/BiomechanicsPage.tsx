@@ -1,374 +1,142 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Compass,
-  Activity,
-  AlertTriangle,
-  RotateCw,
-  ShieldAlert,
-  Sliders,
-  CheckCircle2,
-  FileText,
-} from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Activity, AlertTriangle, RotateCw, Ruler } from 'lucide-react';
 import { runBiomechanicsGeometry, runBiomechanicsMirels } from '../api/client';
-import { BiomechanicsGeometryResponse, BiomechanicsMirelsResponse } from '../api/types';
+import type { BiomechanicsGeometryResponse, BiomechanicsMirelsResponse } from '../api/types';
+
+const panelClass = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-5';
+const phantoms = [
+  ['intact_circular_ring', 'Intact circular cortical ring'],
+  ['uniform_cortical_thinning', 'Uniform cortical thinning'],
+  ['symmetric_cortical_defect', 'Symmetric cortical defect'],
+  ['eccentric_cortical_defect', 'Eccentric cortical defect'],
+  ['lytic_cavity', 'Lytic cavity'],
+  ['multiple_small_defects', 'Multiple small defects'],
+  ['non_circular_elliptical_annulus', 'Elliptical annulus'],
+  ['anisotropic_spacing_annulus', 'Anisotropic spacing annulus'],
+] as const;
+const selectClass = 'mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100';
+const actionClass = 'mt-4 inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-50';
+
+type MirelsFactors = { site: number | ''; pain: number | ''; nature: number | ''; size: number | '' };
 
 export const BiomechanicsPage: React.FC = () => {
-  // Geometry State
-  const [phantomType, setPhantomType] = useState<string>('intact_femur');
-  const [voxelSize, setVoxelSize] = useState<number>(0.5);
-  const [geomData, setGeomData] = useState<BiomechanicsGeometryResponse | null>(null);
-  const [geomLoading, setGeomLoading] = useState<boolean>(false);
-  const [geomError, setGeomError] = useState<string | null>(null);
+  const [phantomType, setPhantomType] = useState<string>('intact_circular_ring');
+  const [spacing, setSpacing] = useState(0.5);
+  const [geometry, setGeometry] = useState<BiomechanicsGeometryResponse | null>(null);
+  const [geometryAt, setGeometryAt] = useState<string | null>(null);
+  const [geometryLoading, setGeometryLoading] = useState(false);
+  const [geometryError, setGeometryError] = useState<string | null>(null);
+  const geometryLock = useRef(false);
 
-  // Mirels State
-  const [site, setSite] = useState<number>(2); // lower extremity
-  const [pain, setPain] = useState<number>(2); // moderate
-  const [nature, setNature] = useState<number>(3); // lytic
-  const [size, setSize] = useState<number>(2); // 1/3 - 2/3
-  const [mirelsData, setMirelsData] = useState<BiomechanicsMirelsResponse | null>(null);
-  const [mirelsLoading, setMirelsLoading] = useState<boolean>(false);
+  const [factors, setFactors] = useState<MirelsFactors>({ site: '', pain: '', nature: '', size: '' });
+  const [mirels, setMirels] = useState<BiomechanicsMirelsResponse | null>(null);
+  const [mirelsAt, setMirelsAt] = useState<string | null>(null);
+  const [mirelsLoading, setMirelsLoading] = useState(false);
   const [mirelsError, setMirelsError] = useState<string | null>(null);
+  const mirelsLock = useRef(false);
 
-  const fetchGeometry = async (type = phantomType, sizeVal = voxelSize) => {
-    setGeomLoading(true);
-    setGeomError(null);
+  const computeGeometry = async () => {
+    if (geometryLock.current || geometryLoading) return;
+    if (!phantoms.some(([key]) => key === phantomType) || ![0.5, 1].includes(spacing)) {
+      setGeometryError('Select a supported synthetic phantom and pixel spacing.');
+      setGeometry(null);
+      return;
+    }
+    geometryLock.current = true;
+    setGeometryLoading(true);
+    setGeometryError(null);
+    setGeometry(null);
     try {
-      const res = await runBiomechanicsGeometry({
-        phantom_type: type,
-        voxel_size_mm: sizeVal,
-      });
-      setGeomData(res);
-    } catch (err: any) {
-      setGeomError(err.message || 'Failed to compute cross-sectional geometry.');
+      setGeometry(await runBiomechanicsGeometry({ phantom_type: phantomType, voxel_size_mm: spacing }));
+      setGeometryAt(new Date().toISOString());
+    } catch (cause) {
+      setGeometryError(cause instanceof Error ? cause.message : 'Geometry service could not complete this calculation.');
     } finally {
-      setGeomLoading(false);
+      geometryLock.current = false;
+      setGeometryLoading(false);
     }
   };
 
-  const fetchMirels = async (s = site, p = pain, n = nature, sz = size) => {
+  const computeMirels = async () => {
+    if (mirelsLock.current || mirelsLoading) return;
+    if ([factors.site, factors.pain, factors.nature, factors.size].some((value) => value === '')) {
+      setMirelsError('Choose all four hypothetical score inputs before calculating.');
+      setMirels(null);
+      return;
+    }
+    mirelsLock.current = true;
     setMirelsLoading(true);
     setMirelsError(null);
+    setMirels(null);
     try {
-      const res = await runBiomechanicsMirels({
-        site: s,
-        pain: p,
-        radiographic_nature: n,
-        lesion_size: sz,
-      });
-      setMirelsData(res);
-    } catch (err: any) {
-      setMirelsError(err.message || 'Failed to calculate Mirels score.');
+      setMirels(await runBiomechanicsMirels({ site: factors.site as number, pain: factors.pain as number, radiographic_nature: factors.nature as number, lesion_size: factors.size as number }));
+      setMirelsAt(new Date().toISOString());
+    } catch (cause) {
+      setMirelsError(cause instanceof Error ? cause.message : 'Mirels scoring service could not complete this calculation.');
     } finally {
+      mirelsLock.current = false;
       setMirelsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchGeometry();
-    fetchMirels();
-  }, []);
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-6 px-4">
-      {/* Header */}
-      <div className="border-b border-slate-800 pb-5 space-y-2">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-teal-950/70 border border-teal-800 text-teal-300 text-xs font-semibold">
-          <Compass className="w-3.5 h-3.5" />
-          <span>Stage 28 Engine: Biomechanics & Mirels Scoring</span>
+    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      <header className="space-y-3 border-b border-slate-800 pb-5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-teal-800 bg-teal-950/60 px-3 py-1 text-xs font-semibold text-teal-200"><Ruler size={14} /> Biomechanics · research calculations</div>
+        <h1 className="text-3xl font-black tracking-tight text-white">Biomechanics methods</h1>
+        <p className="max-w-3xl text-sm leading-6 text-slate-300">Available operations are a 2D synthetic cross-section geometry calculation and a conventional four-factor Mirels score calculation. Neither operation accepts an image or estimates patient-specific mechanical properties from imaging.</p>
+      </header>
+
+      <section className={panelClass} aria-labelledby="geometry-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h2 id="geometry-title" className="text-xl font-bold text-white">Synthetic cross-section geometry</h2><p className="mt-1 text-sm leading-5 text-slate-300">Backend method: validate a 2D binary phantom mask, then compute cortical area, centroid, second moments of area, and polar moment. This is geometric analysis, not a material-strength or fracture prediction.</p></div>
+          <span className="rounded-full border border-teal-900 bg-teal-950/40 px-2.5 py-1 text-xs text-teal-100">POST /api/v1/biomechanics/geometry</span>
         </div>
-        <h1 className="text-3xl font-black text-white tracking-tight">
-          Biomechanical Geometry & Conventional Mirels Engine
-        </h1>
-        <p className="text-slate-400 text-sm max-w-3xl">
-          Integrates deterministic cross-sectional second moment calculation (I_xx, I_yy, J) on synthetic cortical phantoms with conventional Mirels (1989) clinical fracture risk scoring logic.
-        </p>
-      </div>
-
-      {/* Geometry Section */}
-      <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-850 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-              <Compass className="w-5 h-5 text-teal-400" />
-              <span>1. Cross-Sectional Geometry Engine</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Computes geometric area moments of inertia and torsion resistance on synthetic cross-sections.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => fetchGeometry(phantomType, voxelSize)}
-            disabled={geomLoading}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs disabled:opacity-50 transition cursor-pointer self-start sm:self-auto"
-          >
-            {geomLoading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
-            <span>Calculate Geometry</span>
-          </button>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-slate-300">Synthetic mask
+            <select aria-label="Synthetic bone phantom" className={selectClass} value={phantomType} onChange={(event) => setPhantomType(event.target.value)}>{phantoms.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+          </label>
+          <label className="text-xs font-semibold text-slate-300">Pixel spacing (mm/pixel)
+            <select aria-label="Pixel spacing" disabled={phantomType === 'anisotropic_spacing_annulus'} className={`${selectClass} disabled:opacity-50`} value={spacing} onChange={(event) => setSpacing(Number(event.target.value))}><option value={0.5}>0.5</option><option value={1}>1.0</option></select>
+          </label>
         </div>
+        {phantomType === 'anisotropic_spacing_annulus' && <p className="mt-3 text-xs text-amber-200">This fixture preserves its built-in anisotropic spacing (dy 0.4, dx 0.8 mm); the scalar spacing control is disabled.</p>}
+        <p className="mt-3 text-xs leading-5 text-slate-400">Validation: backend requires a non-empty 2D binary mask containing at least one bone pixel; spacing must be positive and API-bounded (0.1–5 mm/pixel). The selected mask is a generated phantom, not a user study.</p>
+        <button className={actionClass} type="button" onClick={() => void computeGeometry()} disabled={geometryLoading}>{geometryLoading ? <RotateCw size={15} className="animate-spin" /> : <Activity size={15} />}{geometryLoading ? 'Calculating…' : 'Calculate geometry'}</button>
+        {geometryLoading && <p role="status" className="mt-2 text-xs text-teal-200">Waiting for backend calculation; no progress endpoint is available.</p>}
+        {geometryError && <div role="alert" className="mt-3 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200">Geometry request failed: {geometryError}<button type="button" onClick={() => void computeGeometry()} disabled={geometryLoading} className="ml-3 underline">Retry</button></div>}
+        {!geometry && !geometryLoading && !geometryError && <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">No geometry calculation yet. Select phantom parameters and run the API calculation.</p>}
+        {geometry && <div className="mt-4 space-y-3" aria-label="Geometry result">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[["Cortical area", geometry.area_mm2, 'mm²'], ['Centroid X', geometry.centroid_x_mm, 'mm'], ['Centroid Y', geometry.centroid_y_mm, 'mm'], ['Iₓₓ', geometry.I_xx_mm4, 'mm⁴'], ['Iᵧᵧ', geometry.I_yy_mm4, 'mm⁴'], ['Iₓᵧ', geometry.I_xy_mm4, 'mm⁴'], ['Polar J', geometry.polar_J_mm4, 'mm⁴'], ['Area retention', geometry.area_retention_ratio * 100, '%'], ['Bending retention X', geometry.bending_retention_ratio_x * 100, '%'], ['Bending retention Y', geometry.bending_retention_ratio_y * 100, '%'], ['Torsion retention', geometry.torsion_retention_ratio * 100, '%']].map(([label, value, unit]) => <div key={String(label)} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3"><p className="text-xs text-slate-400">{label}</p><p className="mt-1 font-mono text-lg font-bold text-slate-100">{Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 })} <span className="text-xs font-normal text-slate-400">{unit}</span></p></div>)}
+          </div>
+          <div className="rounded-lg border border-amber-900/70 bg-amber-950/20 p-3 text-xs leading-5 text-amber-100"><AlertTriangle size={14} className="mr-1 inline" />{geometry.warning}</div>
+          <p className="text-xs text-slate-400">Configuration: {geometry.phantom_type}; effective pixel spacing dy {geometry.pixel_spacing_mm[0]} / dx {geometry.pixel_spacing_mm[1]} mm. Input reference: synthetic phantom. Browser received: {geometryAt ? new Date(geometryAt).toLocaleString() : 'unavailable'}. Backend software version is not included in the response.</p>
+        </div>}
+      </section>
 
-        {/* Geometry Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Synthetic Bone Phantom (Cross-Section)
-            </label>
-            <select
-              value={phantomType}
-              onChange={(e) => {
-                setPhantomType(e.target.value);
-                fetchGeometry(e.target.value, voxelSize);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="intact_femur">Intact Diaphyseal Femur Baseline</option>
-              <option value="mild_osteopenia">Mild Osteopenia (Endosteal Thinning)</option>
-              <option value="severe_osteopenia">Severe Osteopenia (Marked Cortical Loss)</option>
-              <option value="small_lytic_defect">Small Lytic Defect (&lt; 1/3 circumference)</option>
-              <option value="med_lytic_defect">Moderate Lytic Defect (1/3 - 2/3 circumference)</option>
-              <option value="large_lytic_defect">Large Lytic Defect (&gt; 2/3 circumference)</option>
-              <option value="sclerotic_rim">Sclerotic Rim Lesion (Dense Margin)</option>
-              <option value="cortical_defect_33">Cortical Defect 33% Arc Loss</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Pixel / Voxel Resolution (mm)
-            </label>
-            <select
-              value={voxelSize}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setVoxelSize(val);
-                fetchGeometry(phantomType, val);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value={0.5}>0.5 mm / pixel (High Precision)</option>
-              <option value={1.0}>1.0 mm / pixel (Standard)</option>
-            </select>
-          </div>
+      <section className={panelClass} aria-labelledby="mirels-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h2 id="mirels-title" className="text-xl font-bold text-white">Conventional Mirels score rule</h2><p className="mt-1 text-sm leading-5 text-slate-300">The service adds the four selected 1–3 point categories (total 4–12) and returns the rule's tier and historical fields. The score was developed for metastatic long-bone lesions; this page does not present its risk percentage or treatment recommendation as a patient-specific result.</p></div>
+          <span className="rounded-full border border-amber-900 bg-amber-950/40 px-2.5 py-1 text-xs text-amber-100">POST /api/v1/biomechanics/mirels</span>
         </div>
-
-        {geomError && (
-          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
-            {geomError}
-          </div>
-        )}
-
-        {geomData && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-[11px]">Cortical Area</span>
-                <span className="text-lg font-mono font-bold text-white mt-1 block">
-                  {geomData.area_mm2.toFixed(1)} <span className="text-xs text-slate-400 font-normal">mm²</span>
-                </span>
-                <span className="text-[10px] text-teal-300 block mt-1">
-                  Retention: {(geomData.area_retention_ratio * 100).toFixed(1)}%
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-[11px]">Bending Inertia I_xx</span>
-                <span className="text-lg font-mono font-bold text-white mt-1 block">
-                  {geomData.I_xx_mm4.toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs text-slate-400 font-normal">mm⁴</span>
-                </span>
-                <span className="text-[10px] text-teal-300 block mt-1">
-                  Retention: {(geomData.bending_retention_ratio_x * 100).toFixed(1)}%
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-[11px]">Bending Inertia I_yy</span>
-                <span className="text-lg font-mono font-bold text-white mt-1 block">
-                  {geomData.I_yy_mm4.toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs text-slate-400 font-normal">mm⁴</span>
-                </span>
-                <span className="text-[10px] text-teal-300 block mt-1">
-                  Retention: {(geomData.bending_retention_ratio_y * 100).toFixed(1)}%
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-[11px]">Polar Torsion J</span>
-                <span className="text-lg font-mono font-bold text-teal-300 mt-1 block">
-                  {geomData.polar_J_mm4.toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                  <span className="text-xs text-slate-400 font-normal">mm⁴</span>
-                </span>
-                <span className="text-[10px] text-teal-300 block mt-1">
-                  Retention: {(geomData.torsion_retention_ratio * 100).toFixed(1)}%
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-amber-300 flex items-start space-x-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
-              <span>
-                <strong>Biomechanical Notice:</strong> {geomData.warning}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Conventional Mirels Scoring Section */}
-      <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-850 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-              <FileText className="w-5 h-5 text-amber-400" />
-              <span>2. Conventional Mirels Clinical Scoring System (1989)</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Standard 4-parameter clinical rubric for pathologic fracture risk assessment in metastatic long bone disease.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => fetchMirels(site, pain, nature, size)}
-            disabled={mirelsLoading}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs disabled:opacity-50 transition cursor-pointer self-start sm:self-auto"
-          >
-            {mirelsLoading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
-            <span>Calculate Mirels</span>
-          </button>
+        <p className="mt-3 rounded-lg border border-amber-900/70 bg-amber-950/20 p-3 text-xs leading-5 text-amber-100">Use only hypothetical category selections for this interface. No patient data, image, diagnosis, lesion report, or study reference is submitted. The score is not a clinical fracture-risk prediction or medical advice.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-xs font-semibold text-slate-300">Anatomic site<select className={selectClass} aria-label="Anatomic site" value={factors.site} onChange={(event) => setFactors({ ...factors, site: event.target.value ? Number(event.target.value) : '' })}><option value="">Choose…</option><option value={1}>Upper extremity · 1</option><option value={2}>Lower extremity · 2</option><option value={3}>Peritrochanteric · 3</option></select></label>
+          <label className="text-xs font-semibold text-slate-300">Pain category<select className={selectClass} aria-label="Pain category" value={factors.pain} onChange={(event) => setFactors({ ...factors, pain: event.target.value ? Number(event.target.value) : '' })}><option value="">Choose…</option><option value={1}>Mild · 1</option><option value={2}>Moderate · 2</option><option value={3}>Functional · 3</option></select></label>
+          <label className="text-xs font-semibold text-slate-300">Radiographic nature<select className={selectClass} aria-label="Radiographic nature" value={factors.nature} onChange={(event) => setFactors({ ...factors, nature: event.target.value ? Number(event.target.value) : '' })}><option value="">Choose…</option><option value={1}>Blastic · 1</option><option value={2}>Mixed · 2</option><option value={3}>Lytic · 3</option></select></label>
+          <label className="text-xs font-semibold text-slate-300">Lesion size relative to cortex<select className={selectClass} aria-label="Lesion size" value={factors.size} onChange={(event) => setFactors({ ...factors, size: event.target.value ? Number(event.target.value) : '' })}><option value="">Choose…</option><option value={1}>&lt; 1/3 · 1</option><option value={2}>1/3–2/3 · 2</option><option value={3}>&gt; 2/3 · 3</option></select></label>
         </div>
-
-        {/* Mirels 4 Parameters Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Anatomic Site
-            </label>
-            <select
-              value={site}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setSite(val);
-                fetchMirels(val, pain, nature, size);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value={1}>Upper Extremity (1 pt)</option>
-              <option value={2}>Lower Extremity (2 pts)</option>
-              <option value={3}>Peritrochanteric Femur (3 pts)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Pain Quality
-            </label>
-            <select
-              value={pain}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setPain(val);
-                fetchMirels(site, val, nature, size);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value={1}>Mild / Non-weightbearing (1 pt)</option>
-              <option value={2}>Moderate (2 pts)</option>
-              <option value={3}>Functional / Weightbearing (3 pts)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Radiographic Nature
-            </label>
-            <select
-              value={nature}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setNature(val);
-                fetchMirels(site, pain, val, size);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value={1}>Blastic (1 pt)</option>
-              <option value={2}>Mixed (2 pts)</option>
-              <option value={3}>Lytic (3 pts)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Lesion Size (Cortical Diameter)
-            </label>
-            <select
-              value={size}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setSize(val);
-                fetchMirels(site, pain, nature, val);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value={1}>&lt; 1/3 Cortical Width (1 pt)</option>
-              <option value={2}>1/3 - 2/3 Cortical Width (2 pts)</option>
-              <option value={3}>&gt; 2/3 Cortical Width (3 pts)</option>
-            </select>
-          </div>
-        </div>
-
-        {mirelsError && (
-          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
-            {mirelsError}
-          </div>
-        )}
-
-        {mirelsData && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-xs">Total Mirels Score</span>
-                <span className="text-3xl font-black text-amber-400 mt-1 block">
-                  {mirelsData.total_score} <span className="text-xs text-slate-500 font-normal">/ 12</span>
-                </span>
-                <span className="text-[11px] text-slate-400 block mt-1">
-                  Tier: <strong className="text-white">{mirelsData.recommendation_tier}</strong>
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-xs">Empirical Fracture Risk</span>
-                <span className="text-3xl font-black text-rose-400 mt-1 block">
-                  {mirelsData.fracture_risk_percent}%
-                </span>
-                <span className="text-[11px] text-slate-400 block mt-1">
-                  Based on Mirels 1989 cohort rate
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block text-xs">Prophylactic Fixation</span>
-                <span className={`text-base font-bold mt-1 block ${
-                  mirelsData.prophylactic_fixation_indicated ? 'text-rose-400' : 'text-emerald-400'
-                }`}>
-                  {mirelsData.prophylactic_fixation_indicated ? 'Indicated (Score ≥ 9)' : 'Observation / Radiotherapy'}
-                </span>
-                <span className="text-[11px] text-slate-400 block mt-1">
-                  Threshold: Score ≥ 9 prompts surgical consultation
-                </span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2">
-              <span className="font-bold text-slate-200 block">Clinical Guidance:</span>
-              <p className="text-slate-300 leading-relaxed">{mirelsData.clinical_guidance}</p>
-              <div className="pt-2 border-t border-slate-850 text-[11px] text-slate-400 italic">
-                {mirelsData.disclaimer}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-    </div>
+        <button className={`${actionClass} bg-amber-700 hover:bg-amber-600`} type="button" onClick={() => void computeMirels()} disabled={mirelsLoading}>{mirelsLoading ? <RotateCw size={15} className="animate-spin" /> : <Activity size={15} />}{mirelsLoading ? 'Calculating…' : 'Calculate hypothetical score'}</button>
+        {mirelsError && <div role="alert" className="mt-3 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200">Score request failed: {mirelsError}<button type="button" onClick={() => void computeMirels()} disabled={mirelsLoading} className="ml-3 underline">Retry</button></div>}
+        {!mirels && !mirelsLoading && !mirelsError && <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">Choose all four hypothetical categories to enable a score calculation. No result is pre-filled.</p>}
+        {mirels && <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/70 p-4" aria-label="Mirels score result">
+          <p className="text-xs font-semibold text-slate-400">Rule output · not a patient risk estimate</p><p className="mt-1 text-2xl font-black text-amber-200">Total score: {mirels.total_score} / 12</p><p className="mt-1 text-sm text-slate-200">Rule tier: {mirels.recommendation_tier.replace(/_/g, ' ')}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">Selected factors: site {factors.site}, pain {factors.pain}, nature {factors.nature}, size {factors.size}. Browser received: {mirelsAt ? new Date(mirelsAt).toLocaleString() : 'unavailable'}. API disclaimer: {mirels.disclaimer} Backend software version is not included in the response.</p>
+        </div>}
+      </section>
+      <p className="text-xs leading-5 text-slate-500">These APIs are stand-alone research calculations; they are not linked to a patient or staged dataset. Future governed data workflows must pass through Stage 38 onboarding and Stage 39 preparation before any permitted dataset analysis.</p>
+    </main>
   );
 };
 

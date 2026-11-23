@@ -1,90 +1,38 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { DisclaimerBanner } from './components/DisclaimerBanner';
-import { NavBar } from './components/NavBar';
-import { Home } from './pages/Home';
 import { AnalysisProvider } from './context/AnalysisContext';
+import { ApplicationShell } from './components/ApplicationShell';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { SkeletonCard } from './components/Loader';
+import { RouteLoadingState } from './components/RouteLoadingState';
+import { APPLICATION_ROUTES } from './app/routes';
+import { NotFoundPage } from './pages/NotFoundPage';
 import './i18n/config';
 
-// Code-split pages for performance budget optimization
-const Results = lazy(() => import('./pages/Results').then((m) => ({ default: m.Results })));
-const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
-const AuditPage = lazy(() => import('./pages/AuditPage').then((m) => ({ default: m.AuditPage })));
-const ResearchWorkbenchPage = lazy(() => import('./pages/ResearchWorkbenchPage').then((m) => ({ default: m.ResearchWorkbenchPage })));
-const ResearchTracksPage = lazy(() => import('./pages/ResearchTracksPage').then((m) => ({ default: m.ResearchTracksPage })));
-const RadiomicsPage = lazy(() => import('./pages/RadiomicsPage').then((m) => ({ default: m.RadiomicsPage })));
-const BiomechanicsPage = lazy(() => import('./pages/BiomechanicsPage').then((m) => ({ default: m.BiomechanicsPage })));
-const ExplainabilityPage = lazy(() => import('./pages/ExplainabilityPage').then((m) => ({ default: m.ExplainabilityPage })));
-const UncertaintyPage = lazy(() => import('./pages/UncertaintyPage').then((m) => ({ default: m.UncertaintyPage })));
-const EvidenceRegistryPage = lazy(() => import('./pages/EvidenceRegistryPage').then((m) => ({ default: m.EvidenceRegistryPage })));
-const GovernancePage = lazy(() => import('./pages/GovernancePage').then((m) => ({ default: m.GovernancePage })));
-const ArchitecturePage = lazy(() => import('./pages/ArchitecturePage').then((m) => ({ default: m.ArchitecturePage })));
-
-const AnimatedRoutes: React.FC = () => {
+export const ApplicationRoutes: React.FC = () => {
   const location = useLocation();
-
   return (
     <AnimatePresence mode="wait">
-      <Suspense fallback={<div className="max-w-4xl mx-auto py-12"><SkeletonCard /></div>}>
+      <Suspense key={location.pathname} fallback={<RouteLoadingState />}>
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Home />} />
-          <Route path="/workbench" element={<ResearchWorkbenchPage />} />
-          <Route path="/tracks" element={<ResearchTracksPage />} />
-          <Route path="/radiomics" element={<RadiomicsPage />} />
-          <Route path="/biomechanics" element={<BiomechanicsPage />} />
-          <Route path="/explainability" element={<ExplainabilityPage />} />
-          <Route path="/uncertainty" element={<UncertaintyPage />} />
-          <Route path="/evidence" element={<EvidenceRegistryPage />} />
-          <Route path="/governance" element={<GovernancePage />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-          <Route path="/results" element={<Results />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/audit" element={<AuditPage />} />
-          <Route path="*" element={<Home />} />
+          {APPLICATION_ROUTES.map(({ path, component: Page }) => <Route key={path} path={path} element={<Page />} />)}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </AnimatePresence>
   );
 };
 
-export const App: React.FC = () => {
-  return (
-    <ErrorBoundary>
-      <AnalysisProvider>
-        <BrowserRouter>
-          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/25 selection:text-cyan-200">
-            {/* 1 & 2. Persistent non-dismissible warning banner + Sticky navigation bar */}
-            <div className="sticky top-0 z-40">
-              <DisclaimerBanner />
-              <NavBar />
-            </div>
-
-            {/* 3. Main routed content */}
-            <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-              <AnimatedRoutes />
-            </main>
-
-            {/* 4. Global Footer */}
-            <footer className="border-t border-slate-900 bg-slate-950 py-8 text-xs text-slate-500">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-slate-300">OsteoGuard AI</span>
-                  <span>•</span>
-                  <span>Explainable Bone Pathology Classification Prototype</span>
-                </div>
-                <div className="text-slate-500 text-center sm:text-right">
-                  <span>EU AI Act Art. 14 Audit Trail • FDA GMLP Principles Supported</span>
-                </div>
-              </div>
-            </footer>
-          </div>
-        </BrowserRouter>
-      </AnalysisProvider>
-    </ErrorBoundary>
-  );
-};
+export const App: React.FC = () => (
+  <ErrorBoundary>
+    <AnalysisProvider>
+      <BrowserRouter>
+        <ApplicationShell>
+          <ApplicationRoutes />
+        </ApplicationShell>
+      </BrowserRouter>
+    </AnalysisProvider>
+  </ErrorBoundary>
+);
 
 export default App;

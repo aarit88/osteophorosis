@@ -109,6 +109,8 @@ async function startServer() {
         '/v1/architecture',
         '/v1/datasets',
         '/v1/dataset-onboarding',
+        '/v1/dataset-preparation',
+        '/v1/dataset-qualification',
         '/v1/radiomics',
         '/v1/biomechanics',
         '/v1/explainability',

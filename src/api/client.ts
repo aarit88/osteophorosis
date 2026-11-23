@@ -460,5 +460,108 @@ export async function stageOnboardingSource(bearerToken: string, sourceId: strin
   return onboardingJson<{ status: string; training_authorized: boolean }>(response);
 }
 
+export interface DatasetPreparationRun {
+  run_id: string;
+  source_id: string;
+  source_version: string;
+  state: string;
+  validation_status: string;
+  config_version: string;
+  governance_state?: string;
+  access_restriction?: string;
+  source_restrictions?: string[];
+  inventory?: { file_count: number; inventory_sha256: string; missing_metadata: string[] } | null;
+  qc?: { status: string; finding_count: number; blocker_count: number } | null;
+  harmonization?: { status: string; file_count: number; augmentation: false; source_modified: false } | null;
+  splits?: { status: string; excluded_protected_holdout_records: number; protected_holdouts_used_for_split: false; leakage_audit: { is_clean: boolean } } | null;
+  blockers: string[];
+  report_sha256?: string | null;
+  training_authorized?: false;
+}
 
+async function preparationJson<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : `Dataset preparation request failed (${response.status}).`);
+  return body as T;
+}
 
+export async function getDatasetPreparationRuns(token: string): Promise<{ runs: DatasetPreparationRun[] }> {
+  return preparationJson(await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-preparation/runs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }));
+}
+
+export async function createDatasetPreparationRun(token: string, sourceId: string): Promise<DatasetPreparationRun> {
+  return preparationJson(await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-preparation/runs`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_id: sourceId }),
+  }));
+}
+
+export async function advanceDatasetPreparationRun(token: string, runId: string, action: 'inventory' | 'qc' | 'harmonize' | 'splits'): Promise<DatasetPreparationRun> {
+  return preparationJson(await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-preparation/runs/${encodeURIComponent(runId)}/${action}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` },
+  }));
+}
+
+export async function getDatasetPreparationReport(token: string, runId: string, format: 'json' | 'markdown' = 'json'): Promise<unknown> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/dataset-preparation/runs/${encodeURIComponent(runId)}/report?format=${format}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return preparationJson(response);
+  return format === 'markdown' ? response.text() : response.json();
+}
+
+export interface QualifiedSource {
+  source_id: string; source_name: string; original_url: string; qualification_status: string;
+  modalities: string[]; label_mapping: Record<string, string[]>; evidence: Array<{ evidence_id: string; kind: string; statement: string; reference_url: string }>;
+  target_class_interest?: string[];
+  license_verification_status: string; access_requirements: string[]; patient_grouping_feasibility: string;
+  access_request_status: string;
+  known_limitations: string[]; stage38_source_id?: string | null;
+}
+
+async function qualificationJson<T>(response: Response): Promise<T> {
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : `Source qualification request failed (${response.status}).`);
+  return body as T;
+}
+
+const qualificationUrl = `${API_BASE_URL}/api/v1/dataset-qualification`;
+const qualificationRequest = (token: string, method = 'GET', payload?: unknown) => fetchWithResilience(qualificationUrl, {
+  method, headers: { Authorization: `Bearer ${token}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+  ...(payload ? { body: JSON.stringify(payload) } : {}),
+});
+
+export async function getSourceQualifications(token: string): Promise<{ sources: QualifiedSource[] }> {
+  return qualificationJson(await qualificationRequest(token, 'GET'));
+}
+export async function createSourceQualification(token: string, source: Record<string, unknown>): Promise<QualifiedSource> {
+  return qualificationJson(await qualificationRequest(token, 'POST', { source }));
+}
+export async function addSourceEvidence(token: string, sourceId: string, evidence: Record<string, unknown>): Promise<QualifiedSource> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/sources/${encodeURIComponent(sourceId)}/evidence`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ evidence }) }));
+}
+export async function reviewSourceQualification(token: string, sourceId: string, payload: Record<string, unknown>): Promise<QualifiedSource> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/sources/${encodeURIComponent(sourceId)}/review`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }));
+}
+export async function updateSourceAssessment(token: string, sourceId: string, payload: Record<string, unknown>): Promise<QualifiedSource> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/sources/${encodeURIComponent(sourceId)}/assessment`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }));
+}
+export async function getSourceQualificationReports(token: string): Promise<{ coverage: Record<string, unknown>; feasibility: Record<string, unknown>; plans: Array<Record<string, unknown>> }> {
+  const [coverage, feasibility, plans] = await Promise.all([
+    fetchWithResilience(`${qualificationUrl}/coverage`, { headers: { Authorization: `Bearer ${token}` } }).then(qualificationJson<Record<string, unknown>>),
+    fetchWithResilience(`${qualificationUrl}/feasibility`, { headers: { Authorization: `Bearer ${token}` } }).then(qualificationJson<Record<string, unknown>>),
+    fetchWithResilience(`${qualificationUrl}/plans`, { headers: { Authorization: `Bearer ${token}` } }).then(qualificationJson<{ plans: Array<Record<string, unknown>> }>),
+  ]);
+  return { coverage, feasibility, plans: plans.plans };
+}
+export async function createAcquisitionPlan(token: string, plan: Record<string, unknown>): Promise<Record<string, unknown>> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/plans`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(plan) }));
+}
+export async function transitionAcquisitionPlan(token: string, planId: string, status: string, note: string, externalAuthorizationReference?: string): Promise<Record<string, unknown>> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/plans/${encodeURIComponent(planId)}/status`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status, note, ...(externalAuthorizationReference ? { external_authorization_reference: externalAuthorizationReference } : {}) }) }));
+}
+export async function linkQualificationStage38(token: string, sourceId: string, stage38SourceId: string, notes: string): Promise<QualifiedSource> {
+  return qualificationJson(await fetchWithResilience(`${qualificationUrl}/sources/${encodeURIComponent(sourceId)}/stage38-handoff`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ stage38_source_id: stage38SourceId, explicit_confirmation: true, notes }) }));
+}

@@ -1,469 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UploadZone } from '../components/UploadZone';
-import { ModalityType, TrainedModelsOverviewResponse } from '../api/types';
-import { getTrainedModelsOverview } from '../api/client';
-import { useAnalysis } from '../context/AnalysisContext';
-import { Toast } from '../components/Toast';
-import { Loader } from '../components/Loader';
-import { useTranslation } from 'react-i18next';
 import {
-  Sparkles,
-  Zap,
+  ArrowDown,
   ArrowRight,
+  Bone,
+  CheckCircle2,
+  ClipboardCheck,
   Database,
-  WifiOff,
-  RotateCcw,
   FileCheck2,
   FlaskConical,
-  Play,
+  GitBranch,
+  Layers3,
+  LockKeyhole,
+  ScanLine,
+  ShieldAlert,
+  type LucideIcon,
 } from 'lucide-react';
+import { UploadZone } from '../components/UploadZone';
+import { Toast } from '../components/Toast';
+import { Loader } from '../components/Loader';
+import type { ModalityType } from '../api/types';
+import { useAnalysis } from '../context/AnalysisContext';
 
-const MODALITIES: Array<{ id: ModalityType; label: string; desc: string }> = [
-  { id: 'xray', label: 'Plain Radiograph (X-Ray)', desc: 'Frontal or lateral planar beam' },
-  { id: 'ct', label: 'Computed Tomography (CT)', desc: 'Axial or coronal bone window slice' },
-  { id: 'bone_scan', label: 'Bone Scintigraphy (Tc-99m)', desc: 'Radionuclide whole-body scan' },
+const CONDITIONS = [
+  { id: 'SECONDARY_BONE_METASTASIS', label: 'Secondary bone metastasis', note: 'Metastatic disease involving the skeleton' },
+  { id: 'PAGETS_DISEASE', label: "Paget's disease of bone", note: 'A distinct disorder of bone remodeling' },
+  { id: 'OSTEOGENESIS_IMPERFECTA', label: 'Osteogenesis imperfecta', note: 'A genetic connective tissue and bone disorder' },
+  { id: 'HEALTHY_SKELETAL_CONTROL', label: 'Healthy skeletal control', note: 'A carefully defined comparison cohort' },
+] as const;
+
+const MODALITIES: Array<{ value: ModalityType; label: string; detail: string }> = [
+  { value: 'xray', label: 'X-ray', detail: 'Planar radiography' },
+  { value: 'bone_scan', label: 'Bone scintigraphy', detail: 'Nuclear medicine imaging' },
+  { value: 'ct', label: 'CT', detail: 'Cross-sectional imaging' },
 ];
 
-const DEMO_ASSETS = [
-  {
-    path: '/demo/femur-xray-1.png',
-    name: 'demo-femur-lesion.png',
-    modality: 'xray' as ModalityType,
-    label: 'Femur X-Ray (Osteolytic Lesion)',
-  },
-  {
-    path: '/demo/pelvis-xray-2.png',
-    name: 'demo-pelvis-paget.png',
-    modality: 'xray' as ModalityType,
-    label: 'Pelvis AP (Sclerotic Expansion)',
-  },
-  {
-    path: '/demo/tibia-xray-3.png',
-    name: 'demo-tibia-healthy.png',
-    modality: 'xray' as ModalityType,
-    label: 'Tibia/Fibula (Normal Adult Cortical)',
-  },
+const workflow = [
+  { icon: Layers3, title: 'Explore research tracks', body: 'Review the scope and status of the existing fracture, scintigraphy, and frozen multi-center research tracks.' },
+  { icon: ClipboardCheck, title: 'Qualify and govern sources', body: 'Record source evidence, access requirements, acquisition status, and provenance before a cohort is considered for research use.' },
+  { icon: ScanLine, title: 'Prepare data reproducibly', body: 'Run technical inventory, imaging quality checks, modality-aware preparation, and patient-level split audits.' },
+  { icon: FlaskConical, title: 'Inspect research methods', body: 'Use the workbench and research modules for engineering demonstrations and methods exploration.' },
 ];
 
-export const Home: React.FC = () => {
+const GOVERNANCE_FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
+  { icon: Database, title: 'Provenance', body: 'Source references and package integrity are tracked separately from clinical validity.' },
+  { icon: GitBranch, title: 'Patient-level grouping', body: 'Split preparation is group-aware to reduce data leakage.' },
+  { icon: LockKeyhole, title: 'Protected tracks', body: 'Track A, B, and C protections and external holdout boundaries remain in force.' },
+  { icon: FileCheck2, title: 'Reviewable reports', body: 'Preparation and governance states can be inspected without exposing patient identifiers.' },
+];
+
+const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const {
-    executeAnalysisWithQueue,
-    isAnalyzing,
-    error,
-    setError,
-    isServerOffline,
-    retryConnectivity,
-  } = useAnalysis();
-
+  const { executeAnalysisWithQueue, isAnalyzing, error, setError } = useAnalysis();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedModality, setSelectedModality] = useState<ModalityType>('xray');
-  const [demoIndex, setDemoIndex] = useState<number>(0);
-  const [isDemoLoading, setIsDemoLoading] = useState<boolean>(false);
-  const [trainedOverview, setTrainedOverview] = useState<TrainedModelsOverviewResponse | null>(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
-  useEffect(() => {
-    getTrainedModelsOverview()
-      .then((overview) => setTrainedOverview(overview))
-      .catch((err) => console.debug('Trained models summary unavailable:', err));
-  }, []);
-
-  const fetchDemoFile = async (targetDemo: (typeof DEMO_ASSETS)[number]): Promise<File> => {
-    const response = await fetch(targetDemo.path);
-    if (!response.ok) {
-      throw new Error(`Could not fetch demo file from ${targetDemo.path}`);
-    }
-    const blob = await response.blob();
-    return new File([blob], targetDemo.name, { type: 'image/png' });
-  };
-
-  // Load bundled demo image from /public/demo/
-  const handleLoadDemoImage = async (specificIdx?: number) => {
-    setIsDemoLoading(true);
-    const chosenIdx = typeof specificIdx === 'number' ? specificIdx : demoIndex % DEMO_ASSETS.length;
-    const targetDemo = DEMO_ASSETS[chosenIdx];
-    if (typeof specificIdx !== 'number') {
-      setDemoIndex((prev) => prev + 1);
-    }
-
-    try {
-      const file = await fetchDemoFile(targetDemo);
-      setSelectedFile(file);
-      setSelectedModality(targetDemo.modality);
-      setError(null);
-    } catch (err) {
-      console.error('Demo asset load error:', err);
-      setError('Unable to load demo radiograph asset.');
-    } finally {
-      setIsDemoLoading(false);
-    }
-  };
-
-  // One-click demo load + immediate analysis
-  const handleQuickAnalyzeDemo = async (idx: number) => {
-    setIsDemoLoading(true);
-    const targetDemo = DEMO_ASSETS[idx];
-    try {
-      const file = await fetchDemoFile(targetDemo);
-      setSelectedFile(file);
-      setSelectedModality(targetDemo.modality);
-      setError(null);
-      setIsDemoLoading(false);
-      await executeAnalysisWithQueue({
-        image: file,
-        modality: targetDemo.modality,
-      });
-      navigate('/results');
-    } catch (err) {
-      console.error('Quick demo analysis failed:', err);
-      setIsDemoLoading(false);
-    }
-  };
-
-  const handleRunAnalysis = async () => {
+  const runPrototypeAnalysis = async () => {
     if (!selectedFile) return;
-
     try {
-      await executeAnalysisWithQueue({
-        image: selectedFile,
-        modality: selectedModality,
-      });
+      await executeAnalysisWithQueue({ image: selectedFile, modality: selectedModality });
       navigate('/results');
-    } catch (err) {
-      // Error is set in context
-      console.error('Analysis execution caught in Home:', err);
+    } catch {
+      // The shared analysis context presents the current backend or simulation error.
     }
   };
 
   return (
-    <div className="space-y-16 py-6 sm:py-10">
-      {/* Toast Notification */}
+    <div className="space-y-16 pb-8 sm:space-y-20">
       <Toast message={error} onClose={() => setError(null)} />
 
-      {/* Resilience Offline Banner */}
-      {isServerOffline && (
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/80 text-rose-100 flex items-center justify-between shadow-2xl">
-            <div className="flex items-center space-x-3">
-              <WifiOff className="w-5 h-5 text-rose-400 shrink-0" />
-              <div>
-                <span className="font-bold text-sm block">Simulation Server Offline</span>
-                <span className="text-xs text-rose-300">
-                  Unable to reach OsteoGuard API endpoint. Dev server is starting up or restarting.
-                </span>
-              </div>
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/80 px-5 py-12 shadow-2xl shadow-cyan-950/20 sm:px-10 sm:py-16 lg:px-14" aria-labelledby="home-title">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,rgba(8,145,178,.16),transparent_46%),radial-gradient(ellipse_at_bottom_left,rgba(13,148,136,.11),transparent_42%)]" />
+        <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr]">
+          <div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-800/70 bg-cyan-950/50 px-3 py-1.5 text-xs font-semibold text-cyan-200">
+              <Bone className="h-4 w-4" aria-hidden="true" /> Research software for skeletal imaging
             </div>
-            <button
-              onClick={retryConnectivity}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Retry</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Hero Section */}
-      <section className="relative text-center max-w-4xl mx-auto px-4 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] h-[300px] bg-gradient-to-r from-cyan-500/10 via-teal-500/10 to-indigo-500/10 blur-3xl pointer-events-none rounded-full" />
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-800/60 text-cyan-300 text-xs font-semibold mb-6 shadow-sm"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{t('hero.badge', 'Explainable Deep Learning + Radiomics Inference')}</span>
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight sm:leading-none"
-        >
-          Instant Bone Pathology Classification & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-sky-400">XAI Attention</span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-6 text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed"
-        >
-          {t('hero.subtitle', "OsteoGuard AI fuses a dual-stream CNN + Vision Transformer with quantitative radiomics features to differentiate Metastasis, Paget's Disease, Osteogenesis Imperfecta, and Healthy Bone in seconds.")}
-        </motion.p>
-      </section>
-
-      {/* Upload & Configuration Card */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        className="max-w-3xl mx-auto px-4"
-      >
-        <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-          {/* Top Row: Modality Selector */}
-          <div className="mb-6">
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
-              {t('upload.selectModality', 'Select Radiographic Modality')}
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {MODALITIES.map((mod) => {
-                const isSelected = selectedModality === mod.id;
-                return (
-                  <button
-                    key={mod.id}
-                    type="button"
-                    onClick={() => setSelectedModality(mod.id)}
-                    className={`p-3 rounded-xl border text-left transition relative ${
-                      isSelected
-                        ? 'bg-cyan-950/50 border-cyan-500/70 text-cyan-200 shadow-md shadow-cyan-950/60'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="text-xs font-bold">{mod.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">{mod.desc}</div>
-                    {isSelected && (
-                      <motion.div
-                        layoutId="modality-pill"
-                        className="absolute inset-0 rounded-xl border-2 border-cyan-400 pointer-events-none"
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Upload Drop Zone */}
-          <div className="mb-6">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Upload Skeletal Radiograph
-              </label>
-
-              {/* Load Demo Image Button */}
-              <button
-                type="button"
-                onClick={() => handleLoadDemoImage()}
-                disabled={isDemoLoading || isAnalyzing}
-                className="flex items-center space-x-1.5 text-xs font-semibold px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition disabled:opacity-50"
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span>{isDemoLoading ? 'Loading…' : t('hero.loadDemo', 'Load Demo Image')}</span>
+            <h1 id="home-title" className="max-w-3xl text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+              OsteoGuard AI<span className="text-cyan-400">.</span><br />
+              <span className="text-slate-300">A research framework for bone imaging.</span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+              Explore reproducible imaging methods, dataset governance, and safety controls for research into skeletal disease. The four-class Track D diagnostic capability is not clinically ready and remains gated.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/workbench" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300">
+                Open research workbench <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link to="/tracks" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">
+                Explore research tracks
+              </Link>
+              <button type="button" onClick={() => { setWorkspaceOpen(true); document.getElementById('prototype-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="inline-flex min-h-12 items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">
+                Open image interface <ArrowDown className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
+          </div>
 
-            <UploadZone
-              selectedFile={selectedFile}
-              onSelectFile={setSelectedFile}
-              onError={setError}
-              disabled={isAnalyzing}
-            />
-
-            {/* Quick 1-Click Demo Presets */}
-            <div className="mt-3 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-400">
-                <span className="font-semibold text-slate-300">Quick Sample Radiographs (1-Click End-to-End Demo)</span>
-                <span>Generates Grad-CAM, SHAP & Uncertainty Triage</span>
+          <div className="mx-auto w-full max-w-md" aria-label="Research workflow illustration">
+            <div className="relative rounded-3xl border border-cyan-900/70 bg-slate-950/80 p-5 shadow-xl sm:p-7">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-cyan-400">Research pathway</p><p className="mt-1 text-sm font-semibold text-slate-100">Evidence before inference</p></div>
+                <ScanLine className="h-6 w-6 text-cyan-300" aria-hidden="true" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {DEMO_ASSETS.map((demo, idx) => (
-                  <button
-                    key={demo.name}
-                    type="button"
-                    disabled={isDemoLoading || isAnalyzing}
-                    onClick={() => handleQuickAnalyzeDemo(idx)}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition disabled:opacity-50 group"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300 truncate">
-                        {demo.label}
-                      </div>
-                      <div className="text-[10px] font-mono text-slate-500 truncate">{demo.name}</div>
-                    </div>
-                    <Play className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  </button>
+              <div className="mt-5 space-y-3">
+                {[
+                  ['01', 'Source and governance', 'Evidence · access · provenance'],
+                  ['02', 'Dataset preparation', 'Inventory · QC · patient groups'],
+                  ['03', 'Research methods', 'Modality-aware analysis'],
+                  ['04', 'Safety and review', 'Track D remains gated'],
+                ].map(([number, title, subtitle], index) => (
+                  <div key={number} className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${index === 3 ? 'border-amber-800 bg-amber-950/50 text-amber-300' : 'border-cyan-900 bg-cyan-950/40 text-cyan-300'}`}>{number}</span>
+                    <div className="min-w-0"><p className="text-sm font-semibold text-slate-100">{title}</p><p className="mt-0.5 text-[11px] leading-4 text-slate-400">{subtitle}</p></div>
+                    {index === 3 ? <LockKeyhole className="ml-auto h-4 w-4 shrink-0 text-amber-400" aria-label="Gated" /> : <CheckCircle2 className="ml-auto h-4 w-4 shrink-0 text-teal-400" aria-hidden="true" />}
+                  </div>
                 ))}
               </div>
+              <p className="mt-4 text-[11px] leading-5 text-slate-500">Workflow states describe software controls; they do not establish clinical validity or dataset availability.</p>
             </div>
-          </div>
-
-          {/* Action Trigger Button or Loading State */}
-          <div className="pt-2">
-            {isAnalyzing ? (
-              <div className="rounded-2xl bg-slate-950 border border-slate-800 p-4">
-                <Loader message="Running Dual-Stream ViT & Radiomics Extraction…" />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRunAnalysis}
-                disabled={!selectedFile || isAnalyzing}
-                className={`w-full py-4 px-6 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 transition-all duration-200 shadow-xl ${
-                  selectedFile
-                    ? 'bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 shadow-cyan-500/25 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0'
-                    : 'bg-slate-800/80 text-slate-500 border border-slate-800 cursor-not-allowed'
-                }`}
-              >
-                <Zap className="w-5 h-5" />
-                <span>{t('hero.runButton', 'Run OsteoGuard Analysis')}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
           </div>
         </div>
-      </motion.section>
+      </section>
 
-      {/* Target Diagnostic Classes */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-50px' }}
-        transition={{ duration: 0.6 }}
-        className="max-w-6xl mx-auto px-4"
-      >
-        <div className="text-center mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">4 Target Diagnostic Classes</h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Trained to capture osteolytic erosion, cortical thickening, and trabecular brittleness
-          </p>
+      <section id="research-workflow" aria-labelledby="workflow-title" className="scroll-mt-24">
+        <div className="mb-6 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-cyan-400">How the platform is organized</p><h2 id="workflow-title" className="mt-2 text-2xl font-bold text-white sm:text-3xl">A governed research workflow</h2><p className="mt-3 text-sm leading-6 text-slate-400">Dataset qualification, verification, and preparation are separate steps. None automatically starts training or enables diagnosis.</p></div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {workflow.map(({ icon: Icon, title, body }, index) => <article key={title} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 transition hover:border-cyan-900/80">
+            <div className="flex items-center justify-between"><span className="text-xs font-mono text-slate-500">0{index + 1}</span><Icon className="h-5 w-5 text-cyan-400" aria-hidden="true" /></div>
+            <h3 className="mt-5 text-base font-bold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p>
+          </article>)}
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-rose-500/30 shadow-lg">
-            <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-xs mb-3 border border-rose-500/40">
-              01
-            </div>
-            <h3 className="text-base font-bold text-white">Bone Metastasis</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Malignant osteolytic/osteoblastic secondary seeding with cortical thinning and periosteal disruption.
-            </p>
-            <span className="inline-block mt-3 text-[10px] font-mono text-rose-400">Class Color: #EF4444</span>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-amber-500/30 shadow-lg">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs mb-3 border border-amber-500/40">
-              02
-            </div>
-            <h3 className="text-base font-bold text-white">Paget's Disease</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Disorganized osteoclastic/osteoblastic remodeling leading to cortical expansion and sclerosis.
-            </p>
-            <span className="inline-block mt-3 text-[10px] font-mono text-amber-400">Class Color: #F59E0B</span>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-purple-500/30 shadow-lg">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs mb-3 border border-purple-500/40">
-              03
-            </div>
-            <h3 className="text-base font-bold text-white">Osteogenesis Imp. (OI)</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Type I collagen structural mutation causing marked osteopenia, slender gracile bones, and bowing.
-            </p>
-            <span className="inline-block mt-3 text-[10px] font-mono text-purple-400">Class Color: #8B5CF6</span>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-emerald-500/30 shadow-lg">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs mb-3 border border-emerald-500/40">
-              04
-            </div>
-            <h3 className="text-base font-bold text-white">Healthy Bone</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Intact trabecular architecture, uniform cortical thickness, and normal physiological mineral attenuation.
-            </p>
-            <span className="inline-block mt-3 text-[10px] font-mono text-emerald-400">Class Color: #10B981</span>
-          </div>
+      <section aria-labelledby="scope-title" className="grid gap-8 lg:grid-cols-[1fr_.8fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.2em] text-cyan-400">Research scope</p><h2 id="scope-title" className="mt-2 text-2xl font-bold text-white sm:text-3xl">Four target categories, three distinct modalities</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">The Track D ontology is fixed. It is a research target definition, not a statement that a trained or validated four-class model is available.</p>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+            {CONDITIONS.map(({ id, label, note }, index) => <li key={id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <span className="text-[10px] font-mono text-cyan-400">0{index + 1} · {id}</span><h3 className="mt-2 text-sm font-bold text-slate-100">{label}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{note}</p>
+            </li>)}
+          </ul>
         </div>
-      </motion.section>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+          <div className="flex items-start gap-3"><div className="rounded-xl border border-teal-900 bg-teal-950/50 p-2.5 text-teal-300"><ScanLine className="h-5 w-5" aria-hidden="true" /></div><div><h3 className="text-lg font-bold text-white">Imaging modalities</h3><p className="mt-1 text-sm text-slate-400">Handled as distinct imaging pathways; they are not silently combined.</p></div></div>
+          <ul className="mt-5 space-y-3">{MODALITIES.map(({ value, label, detail }) => <li key={value} className="flex items-center justify-between gap-4 border-t border-slate-800 pt-3"><div><p className="text-sm font-semibold text-slate-100">{label}</p><p className="text-xs text-slate-500">{detail}</p></div><span className="rounded-full border border-slate-700 px-2.5 py-1 text-[10px] font-mono uppercase text-slate-400">{value.replace('_', ' ')}</span></li>)}</ul>
+          <p className="mt-5 rounded-lg bg-slate-950/70 p-3 text-xs leading-5 text-amber-200/90">Availability of a modality in the interface does not mean an authorized clinical cohort or validated model exists for it.</p>
+        </div>
+      </section>
 
-      {/* Trained Sub-Track Artifacts Summary */}
-      {trainedOverview && (
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.5 }}
-          className="max-w-6xl mx-auto px-4"
-        >
-          <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-              <div>
-                <div className="inline-flex items-center space-x-2 text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                  <FileCheck2 className="w-4 h-4" />
-                  <span>Verified Trained Model Artifacts</span>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  {trainedOverview.trained_models_count} Sub-Track Models Evaluated on{' '}
-                  {trainedOverview.total_holdout_samples_evaluated.toLocaleString()} Burned Holdout Samples
-                </h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-                  Explore real holdout ROC/PR curves, confusion matrices, and CSV test predictions from your trained ResNet-101, 5-Fold ResNet-18, and BTXRD ResNet-34 pipelines.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <Link
-                  to="/evidence"
-                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition"
-                >
-                  <FileCheck2 className="w-4 h-4" />
-                  <span>Inspect Curves & Predictions</span>
-                </Link>
-                <Link
-                  to="/workbench"
-                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold text-xs border border-slate-700 transition"
-                >
-                  <FlaskConical className="w-4 h-4 text-cyan-400" />
-                  <span>Research Workbench</span>
-                </Link>
-              </div>
-            </div>
+      <section aria-labelledby="integrity-title" className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 sm:p-8">
+        <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+          <div><p className="text-xs font-bold uppercase tracking-[.2em] text-cyan-400">Data integrity and governance</p><h2 id="integrity-title" className="mt-2 text-2xl font-bold text-white">Traceable preparation. Explicit boundaries.</h2><p className="mt-3 text-sm leading-6 text-slate-400">The repository includes controlled source qualification, onboarding and provenance records, package verification, technical QC, and patient-level split audits.</p><Link to="/governance" className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-cyan-900 px-3 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-950/50 focus:outline-none focus:ring-2 focus:ring-cyan-400">Review governance <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div>
+          <div className="grid gap-3 sm:grid-cols-2">{GOVERNANCE_FEATURES.map(({ icon: Icon, title, body }) => <div key={title} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4"><Icon className="h-4 w-4 text-cyan-400" aria-hidden="true" /><h3 className="mt-3 text-sm font-bold text-slate-100">{title}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{body}</p></div>)}</div>
+        </div>
+      </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {trainedOverview.models.map((m) => (
-                <div
-                  key={m.model_id}
-                  className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between space-y-3"
-                >
-                  <div>
-                    <div className="text-[11px] font-mono text-cyan-400 uppercase">{m.modality}</div>
-                    <h3 className="text-sm font-bold text-white mt-0.5">{m.title}</h3>
-                    <div className="text-[11px] text-slate-400 mt-1">{m.architecture}</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs">
-                    <div>
-                      <span className="text-[10px] text-slate-500 block">Holdout Samples</span>
-                      <span className="font-mono font-bold text-white">{m.total_holdout_evaluated.toLocaleString()}</span>
-                    </div>
-                    {m.headline_metrics.roc_auc !== undefined ? (
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">ROC-AUC</span>
-                        <span className="font-mono font-bold text-emerald-400">
-                          {(m.headline_metrics.roc_auc * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">Center 2 Acc</span>
-                        <span className="font-mono font-bold text-amber-400">
-                          {((m.headline_metrics.center2_accuracy || 0) * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-      )}
+      <section aria-labelledby="responsible-title" className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5 sm:p-7">
+        <div className="flex items-start gap-4"><ShieldAlert className="mt-0.5 h-6 w-6 shrink-0 text-amber-300" aria-hidden="true" /><div><h2 id="responsible-title" className="text-lg font-bold text-white">Research prototype, not a clinical decision system</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Track D has no validated four-class clinical model. Its diagnostic API remains gated with HTTP 503 <code className="rounded bg-slate-950 px-1.5 py-0.5 text-amber-200">FOUR_CLASS_MODEL_NOT_READY</code>. Existing demos and preliminary track results do not establish clinical performance or readiness.</p></div></div>
+        <Link to="/architecture" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-amber-800 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-950/50 focus:outline-none focus:ring-2 focus:ring-amber-300">View safety status <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+      </section>
+
+      <section className="rounded-3xl bg-gradient-to-r from-cyan-950/60 to-slate-900 px-5 py-8 text-center ring-1 ring-cyan-900/60 sm:px-10 sm:py-10" aria-labelledby="next-step-title">
+        <h2 id="next-step-title" className="text-2xl font-bold text-white sm:text-3xl">Start with the research, not a diagnosis.</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-300">Explore implemented research demonstrations, inspect the track boundaries, or review the source governance workflow.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/workbench" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300">Open Workbench <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link><Link to="/tracks" className="inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">Research tracks</Link><Link to="/about" className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">About the project</Link></div>
+      </section>
+
+      <section id="prototype-workspace" className="scroll-mt-24" aria-labelledby="workspace-title">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-800 bg-slate-900/55 p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-slate-500">Existing interface</p><h2 id="workspace-title" className="mt-1 text-xl font-bold text-white">Prototype image workspace</h2><p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">This preserves the current upload flow. It is an engineering interface; do not interpret its output as a Track D clinical diagnosis.</p></div><button type="button" className="min-h-10 rounded-lg border border-slate-700 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400" onClick={() => setWorkspaceOpen((open) => !open)} aria-expanded={workspaceOpen}>{workspaceOpen ? 'Close workspace' : 'Open workspace'}</button></div>
+          {workspaceOpen && <div className="mt-6 space-y-5 border-t border-slate-800 pt-5">
+            <p className="text-sm leading-6 text-amber-200/90">Use only images you are authorized to process. The prototype may use configured research or simulation paths; returned output is not clinical evidence.</p>
+            <fieldset disabled={isAnalyzing} className="grid gap-2 sm:grid-cols-3"><legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Select an input modality</legend>{MODALITIES.map(({ value, label, detail }) => <button type="button" key={value} aria-pressed={selectedModality === value} onClick={() => setSelectedModality(value)} className={`rounded-xl border p-3 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400 ${selectedModality === value ? 'border-cyan-600 bg-cyan-950/40 text-cyan-100' : 'border-slate-800 bg-slate-950/60 text-slate-300'}`}><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</fieldset>
+            <UploadZone selectedFile={selectedFile} onSelectFile={setSelectedFile} onError={setError} disabled={isAnalyzing} />
+            {isAnalyzing ? <div role="status" aria-live="polite" className="rounded-xl border border-slate-800 bg-slate-950 p-4"><Loader message="Processing research prototype input…" /></div> : <button type="button" onClick={runPrototypeAnalysis} disabled={!selectedFile} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300">Run prototype analysis <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>}
+          </div>}
+        </div>
+      </section>
+
+      <nav aria-label="Explore OsteoGuard pages" className="border-t border-slate-800 pt-6">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[.16em] text-slate-500">Explore</p>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">{[
+          ['/about', 'About'], ['/workbench', 'Research Workbench'], ['/tracks', 'Research Tracks'], ['/governance', 'Governance'], ['/evidence', 'Evidence Registry'], ['/architecture', 'Architecture and Safety'], ['/audit', 'Audit'],
+        ].map(([path, label]) => <Link key={path} to={path} className="rounded text-slate-400 underline-offset-4 hover:text-cyan-300 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400">{label}</Link>)}</div>
+      </nav>
     </div>
   );
 };
+
+export { Home };
+export default Home;

@@ -13,6 +13,7 @@ Exposes:
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 import os
 from pathlib import Path
+from typing import Literal
 
 from ml_service.app.schemas.research import (
     ResearchTracksResponse,
@@ -47,9 +48,19 @@ from ml_service.app.services.reviewer_authorization import (
 from ml_service.app.services.cohort_onboarding import (
     AcquisitionEvent, CohortOnboardingService, OnboardingStateError, SourceRegistration,
 )
+from ml_service.app.services.dataset_preparation import (
+    DatasetPreparationService, PreparationConfig, PreparationError, PreparationRunRequest,
+)
+from ml_service.app.services.source_qualification import (
+    AcquisitionPlan, EvidenceAdd, QualificationError, QualificationReview, SourceAssessmentUpdate,
+    QualificationCreate, SourceQualification, SourceQualificationService, Stage38Handoff,
+)
+from fastapi.responses import PlainTextResponse
 
 router = APIRouter(prefix="/api/v1", tags=["Research Operations & Prototype Workbench"])
 onboarding_router = APIRouter(prefix="/api/v1/dataset-onboarding", tags=["Dataset Acquisition & Provenance"])
+preparation_router = APIRouter(prefix="/api/v1/dataset-preparation", tags=["Dataset Preparation & QC"])
+qualification_router = APIRouter(prefix="/api/v1/dataset-qualification", tags=["Dataset Source Qualification"])
 
 ONBOARDING_ROLES = {"DATA_STEWARD", "PRINCIPAL_INVESTIGATOR", "DATA_PROTECTION_OFFICER", "IRB_OFFICER", "LEGAL_COUNSEL"}
 
@@ -161,6 +172,198 @@ def stage_onboarding_package(source_id: str, principal=Depends(get_authenticated
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except OnboardingStateError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _preparation_service() -> DatasetPreparationService:
+    return DatasetPreparationService()
+
+
+def _require_preparation_role(principal):
+    _require_onboarding_role(principal, {"DATA_STEWARD", "PRINCIPAL_INVESTIGATOR"})
+    return principal
+
+
+def _qualification_service() -> SourceQualificationService:
+    return SourceQualificationService()
+
+
+def _require_qualification_role(principal, reviewers=False):
+    roles = {"PRINCIPAL_INVESTIGATOR", "DATA_STEWARD"} if reviewers else ONBOARDING_ROLES
+    if not principal["roles"].intersection(roles):
+        raise HTTPException(status_code=403, detail="Dataset source qualification role is required.")
+    return principal
+
+
+@qualification_router.get("/sources")
+def qualification_sources(principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try: return {"schema_version": SourceQualificationService.SCHEMA_VERSION, "sources": _qualification_service().list_sources()}
+    except QualificationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@qualification_router.post("/sources", status_code=201)
+def create_qualification_source(payload: QualificationCreate, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().create_source(payload.source, principal["reviewer_pseudo_id"])
+    except FileExistsError as exc: raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.get("/sources/{source_id}")
+def get_qualification_source(source_id: str, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try: return _qualification_service().get_source(source_id)
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@qualification_router.post("/sources/{source_id}/evidence")
+def add_qualification_evidence(source_id: str, payload: EvidenceAdd, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().add_evidence(source_id, payload.evidence, principal["reviewer_pseudo_id"])
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileExistsError as exc: raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.post("/sources/{source_id}/review")
+def review_qualification_source(source_id: str, payload: QualificationReview, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().review(source_id, payload, principal["reviewer_pseudo_id"])
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.post("/sources/{source_id}/assessment")
+def update_qualification_assessment(source_id: str, payload: SourceAssessmentUpdate, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().update_assessment(source_id, payload, principal["reviewer_pseudo_id"])
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.get("/coverage")
+def qualification_coverage(principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try: return _qualification_service().coverage(_onboarding_service().list_sources())
+    except QualificationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@qualification_router.get("/feasibility")
+def qualification_feasibility(principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try:
+        prep = _preparation_service().list_runs()
+        prepared = [r["source_id"] for r in prep if r.get("status") == "PREPARATION_COMPLETED"]
+        return _qualification_service().feasibility(_onboarding_service().list_sources(), prepared)
+    except (QualificationError, PreparationError) as exc: raise HTTPException(status_code=503, detail="Qualification feasibility report is unavailable.") from exc
+
+
+@qualification_router.get("/plans")
+def qualification_plans(principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try: return {"plans": _qualification_service().list_plans()}
+    except QualificationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@qualification_router.post("/plans", status_code=201)
+def create_qualification_plan(payload: AcquisitionPlan, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().create_plan(payload, principal["reviewer_pseudo_id"])
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileExistsError as exc: raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.get("/plans/{plan_id}")
+def get_qualification_plan(plan_id: str, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal)
+    try: return _qualification_service().get_plan(plan_id)
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@qualification_router.post("/plans/{plan_id}/status")
+def transition_qualification_plan(plan_id: str, payload: dict, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    status_value = payload.get("status") if isinstance(payload, dict) else None
+    note = payload.get("note", "") if isinstance(payload, dict) else ""
+    if status_value not in {"REVIEW_REQUIRED", "READY_FOR_EXTERNAL_REQUEST", "REQUEST_SUBMITTED", "ACCESS_DECISION_PENDING", "APPROVED_EXTERNALLY", "BLOCKED", "REJECTED", "ARCHIVED"}:
+        raise HTTPException(status_code=422, detail="Unsupported acquisition plan status.")
+    try: return _qualification_service().transition_plan(plan_id, status_value, principal["reviewer_pseudo_id"], note, payload.get("external_authorization_reference"))
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@qualification_router.post("/sources/{source_id}/stage38-handoff")
+def link_stage38_handoff(source_id: str, payload: Stage38Handoff, principal=Depends(get_authenticated_reviewer)):
+    _require_qualification_role(principal, reviewers=True)
+    try: return _qualification_service().handoff_stage38(source_id, payload, principal["reviewer_pseudo_id"], _onboarding_service())
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileExistsError as exc: raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except QualificationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@preparation_router.get("/runs")
+def list_preparation_runs(principal=Depends(get_authenticated_reviewer)):
+    _require_preparation_role(principal)
+    try: return {"schema_version": DatasetPreparationService.SCHEMA_VERSION, "runs": _preparation_service().list_runs()}
+    except PreparationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@preparation_router.post("/runs", status_code=201)
+def create_preparation_run(payload: PreparationRunRequest, principal=Depends(get_authenticated_reviewer)):
+    _require_preparation_role(principal)
+    try: return _preparation_service().create(payload.source_id, principal["reviewer_pseudo_id"], payload.config)
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PreparationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@preparation_router.get("/runs/{run_id}")
+def get_preparation_run(run_id: str, principal=Depends(get_authenticated_reviewer)):
+    _require_preparation_role(principal)
+    try: return _preparation_service().get(run_id)
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PreparationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _preparation_action(run_id: str, principal, action: str):
+    _require_preparation_role(principal)
+    try: return getattr(_preparation_service(), action)(run_id, principal["reviewer_pseudo_id"])
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileExistsError as exc: raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PreparationError as exc: raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@preparation_router.post("/runs/{run_id}/inventory")
+def inventory_preparation_run(run_id: str, principal=Depends(get_authenticated_reviewer)):
+    return _preparation_action(run_id, principal, "inventory")
+
+
+@preparation_router.post("/runs/{run_id}/qc")
+def qc_preparation_run(run_id: str, principal=Depends(get_authenticated_reviewer)):
+    return _preparation_action(run_id, principal, "qc")
+
+
+@preparation_router.post("/runs/{run_id}/harmonize")
+def harmonize_preparation_run(run_id: str, principal=Depends(get_authenticated_reviewer)):
+    return _preparation_action(run_id, principal, "harmonize")
+
+
+@preparation_router.post("/runs/{run_id}/splits")
+def audit_preparation_splits(run_id: str, principal=Depends(get_authenticated_reviewer)):
+    return _preparation_action(run_id, principal, "prepare_splits")
+
+
+@preparation_router.get("/runs/{run_id}/report")
+def get_preparation_report(run_id: str, format: Literal["json", "markdown"] = "json", principal=Depends(get_authenticated_reviewer)):
+    _require_preparation_role(principal)
+    try:
+        report = _preparation_service().report(run_id)
+        if format == "markdown": return PlainTextResponse(report["markdown"])
+        report.pop("markdown", None); return report
+    except KeyError as exc: raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PreparationError as exc: raise HTTPException(status_code=503, detail=str(exc)) from exc
+
 
 # Dependency singleton
 _service_instance = None

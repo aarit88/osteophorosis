@@ -19,7 +19,8 @@ describe('ErrorBoundary Component', () => {
     );
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText(/Simulation network crash test/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/unexpected interface error/i);
+    expect(screen.queryByText(/Simulation network crash test/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Back to Home/i })).toBeInTheDocument();
 
     spy.mockRestore();

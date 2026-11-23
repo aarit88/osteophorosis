@@ -27,6 +27,9 @@ services:
       OSTEO_ONBOARDING_REGISTRY_FILE: /var/lib/osteoguard/onboarding/registry.json
       OSTEO_ONBOARDING_ROOT: /var/lib/osteoguard/onboarding/packages
       OSTEO_STAGING_ROOT: /var/lib/osteoguard/onboarding/staged
+      OSTEO_PREPARATION_REGISTRY_FILE: /var/lib/osteoguard/onboarding/preparation/registry.json
+      OSTEO_PREPARATION_ROOT: /var/lib/osteoguard/onboarding/preparation/runs
+      OSTEO_SOURCE_QUALIFICATION_FILE: /var/lib/osteoguard/onboarding/qualification/registry.json
     expose:
       - "8000"
     volumes:

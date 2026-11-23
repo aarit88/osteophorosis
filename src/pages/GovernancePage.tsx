@@ -35,6 +35,8 @@ import {
   CohortPlanningResponse,
 } from '../api/types';
 import DatasetOnboardingPanel from '../components/DatasetOnboardingPanel';
+import DatasetPreparationPanel from '../components/DatasetPreparationPanel';
+import DatasetSourceQualificationPanel from '../components/DatasetSourceQualificationPanel';
 
 const CLASS_LABELS: Array<{ key: 'metastasis' | 'paget' | 'oi' | 'healthy'; label: string }> = [
   { key: 'metastasis', label: 'Secondary Bone Metastasis' },
@@ -112,6 +114,8 @@ export const GovernancePage: React.FC = () => {
       </div>
 
       <DatasetOnboardingPanel />
+      <DatasetPreparationPanel />
+      <DatasetSourceQualificationPanel />
 
       {loading && (
         <div className="p-8 text-center text-slate-400 animate-pulse">
