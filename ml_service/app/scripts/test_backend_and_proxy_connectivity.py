@@ -129,7 +129,7 @@ def run_tests_for_target(name: str, base_url: str) -> bool:
 
         # 8. POST Biomechanics geometry
         try:
-            payload = {"phantom_type": "intact_femur_diaphysis", "voxel_size_mm": 1.0}
+            payload = {"phantom_type": "intact_circular_ring", "voxel_size_mm": 1.0}
             r = client.post("/api/v1/biomechanics/geometry", json=payload)
             assert r.status_code == 200, f"Expected 200, got {r.status_code}"
             data = r.json()
@@ -183,7 +183,7 @@ def run_tests_for_target(name: str, base_url: str) -> bool:
         try:
             payload = {
                 "phantom_type": "checkerboard",
-                "bone_geometry_type": "intact_femur_diaphysis",
+                "bone_geometry_type": "intact_circular_ring",
                 "mirels_site": 2,
                 "mirels_pain": 2,
                 "mirels_nature": 3,
@@ -239,3 +239,4 @@ if __name__ == "__main__":
     if not all(results.values()):
         sys.exit(1)
     sys.exit(0)
+
