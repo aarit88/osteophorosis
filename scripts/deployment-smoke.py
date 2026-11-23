@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import signal
 import socket
 import struct
 import subprocess
@@ -94,7 +95,16 @@ def stop_process(process: subprocess.Popen | None, name: str, logs) -> bool:
         raise RuntimeError(f"{name} did not shut down gracefully.")
     if process.returncode != 0:
         logs.seek(0)
-        raise RuntimeError(f"{name} exited unexpectedly (exit={process.returncode}):\n{logs.read()}")
+        output = logs.read()
+        # Uvicorn handles SIGTERM gracefully but retains the signal-derived
+        # negative return code on POSIX. Require its shutdown-complete record
+        # so an actual crash or forced termination still fails this smoke test.
+        if not (
+            os.name != "nt"
+            and process.returncode == -signal.SIGTERM
+            and "Application shutdown complete." in output
+        ):
+            raise RuntimeError(f"{name} exited unexpectedly (exit={process.returncode}):\n{output}")
     return True
 
 
