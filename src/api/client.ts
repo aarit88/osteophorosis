@@ -342,7 +342,7 @@ export async function runSyntheticWorkbench(payload: Record<string, any> = {}): 
   return (await response.json()) as import('./types').SyntheticWorkbenchRunResponse;
 }
 
-export async function requestFourClassInference(): Promise<any> {
+export async function requestFourClassInference(): Promise<import('./types').BlockedInferenceResponse> {
   const url = `${API_BASE_URL}/api/v1/diagnostic/four-class`;
   try {
     const response = await fetch(url, {
@@ -350,9 +350,21 @@ export async function requestFourClassInference(): Promise<any> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    return await response.json();
-  } catch (err: any) {
-    return { status: 'BLOCKED', message: err.message };
+    const body = await response.json() as Partial<import('./types').BlockedInferenceResponse>;
+    if (body.status && body.error_code && body.message) {
+      return {
+        status: body.status,
+        error_code: body.error_code,
+        message: body.message,
+        target_classes: body.target_classes ?? [],
+        blockers: body.blockers ?? [],
+        mandatory_safeguard: body.mandatory_safeguard ?? 'Inference remains controlled by the backend readiness gate.',
+      };
+    }
+    throw new Error(`Unexpected readiness response (${response.status}).`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Readiness service unavailable.';
+    throw new Error(message === 'Failed to fetch' ? 'Readiness service unavailable.' : message);
   }
 }
 

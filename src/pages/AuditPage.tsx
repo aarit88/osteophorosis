@@ -17,9 +17,11 @@ export const AuditPage: React.FC = () => {
   const [securityStatus, setSecurityStatus] = useState<SecurityStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filterDecision, setFilterDecision] = useState<string>('all');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [listData, statsData, secData] = await Promise.all([
         getFeedbackList(),
@@ -29,8 +31,8 @@ export const AuditPage: React.FC = () => {
       setRecords(listData);
       setStats(statsData);
       setSecurityStatus(secData);
-    } catch (err) {
-      console.error('Failed to load audit data:', err);
+    } catch {
+      setLoadError('Feedback records could not be loaded. Check the API connection and retry.');
     } finally {
       setIsLoading(false);
     }
@@ -63,10 +65,10 @@ export const AuditPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Clinician Audit Trail & Feedback Ledger
+                Research Feedback Log
               </h1>
               <p className="text-xs text-slate-400">
-                EU AI Act Article 14 (Human Oversight) & FDA Good Machine Learning Practice (GMLP)
+                Operational feedback records returned by the application API
               </p>
             </div>
           </div>
@@ -92,11 +94,13 @@ export const AuditPage: React.FC = () => {
 
         {/* Regulatory callout */}
         <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 leading-relaxed font-sans">
-          <strong>Regulatory Mandate:</strong> Article 14 of the EU AI Act specifies that high-risk AI medical devices must be designed with interfaces enabling healthcare professionals to monitor operation, identify anomalies, and intervene or reject automated predictions.
+          This page displays feedback records and aggregate counts from the current API. It is not the signed clinical adjudication ledger or a complete immutable governance audit log. Feedback entries do not establish clinical validity or regulatory compliance.
         </div>
       </div>
 
       {/* Aggregate Statistics Row */}
+      {loadError && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-sm text-rose-200">{loadError}</div>}
+
       {stats && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           {/* Metrics summary cards */}
@@ -104,14 +108,14 @@ export const AuditPage: React.FC = () => {
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
               <span className="text-[11px] text-slate-400 font-medium block">Total Reviews</span>
               <span className="text-2xl font-mono font-bold text-white mt-1 block">{stats.total}</span>
-              <span className="text-[10px] text-slate-500">Recorded cases</span>
+              <span className="text-[10px] text-slate-500">Feedback entries</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-emerald-500/30">
-              <span className="text-[11px] text-emerald-400 font-medium block">Clinician Concurrence</span>
+              <span className="text-[11px] text-emerald-400 font-medium block">Agree decisions</span>
               <span className="text-2xl font-mono font-bold text-emerald-300 mt-1 block">{stats.agree}</span>
               <span className="text-[10px] text-slate-500">
-                {stats.total > 0 ? `${Math.round((stats.agree / stats.total) * 100)}% agreement` : '0%'}
+                {stats.total > 0 ? `${Math.round((stats.agree / stats.total) * 100)}% of feedback entries` : 'No feedback entries'}
               </span>
             </div>
 
@@ -119,14 +123,14 @@ export const AuditPage: React.FC = () => {
               <span className="text-[11px] text-rose-400 font-medium block">Disagreements</span>
               <span className="text-2xl font-mono font-bold text-rose-300 mt-1 block">{stats.disagree}</span>
               <span className="text-[10px] text-slate-500">
-                {stats.total > 0 ? `${Math.round((stats.disagree / stats.total) * 100)}% discordance` : '0%'}
+                {stats.total > 0 ? `${Math.round((stats.disagree / stats.total) * 100)}% of feedback entries` : 'No feedback entries'}
               </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30">
               <span className="text-[11px] text-amber-400 font-medium block">Equivocal / Unsure</span>
               <span className="text-2xl font-mono font-bold text-amber-300 mt-1 block">{stats.unsure}</span>
-              <span className="text-[10px] text-slate-500">Referred to panel</span>
+              <span className="text-[10px] text-slate-500">No clinical referral is implied</span>
             </div>
           </div>
 
@@ -173,7 +177,7 @@ export const AuditPage: React.FC = () => {
       {/* Filter and Table */}
       <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <h2 className="text-sm font-bold text-white">Logged Feedback Records</h2>
+          <h2 className="text-sm font-bold text-white">Feedback records</h2>
 
           {/* Decision filter buttons */}
           <div className="flex items-center space-x-1 text-xs">
@@ -207,7 +211,9 @@ export const AuditPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-mono">
-              {filteredRecords.map((item, idx) => {
+              {filteredRecords.length === 0 ? (
+                <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400" role="status">{isLoading ? 'Loading feedback records…' : 'No feedback records are available for this filter.'}</td></tr>
+              ) : filteredRecords.map((item, idx) => {
                 const isAgree = item.decision === 'agree';
                 const isDisagree = item.decision === 'disagree';
                 return (

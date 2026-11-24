@@ -56,8 +56,9 @@ describe('public project pages', () => {
     });
   });
 
-  it('renders the homepage with accurate scope, direct Workbench and Tracks links, and no invented metrics', () => {
+  it('renders the homepage with accurate scope, direct Workbench and Tracks links, and no invented metrics', async () => {
     renderAt('/', <Home />);
+    await screen.findByRole('button', { name: 'View status' });
     expect(screen.getByRole('heading', { name: /A research framework for bone imaging/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open research workbench/ })).toHaveAttribute('href', '/workbench');
     expect(screen.getByRole('link', { name: /Explore research tracks/ })).toHaveAttribute('href', '/tracks');
@@ -66,15 +67,15 @@ describe('public project pages', () => {
     expect(screen.getByText(/PAGETS_DISEASE/)).toBeInTheDocument();
     expect(screen.queryByText(/accuracy|patients analyzed|clinical approval/i)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Four target categories, three distinct modalities' }).closest('section')).toHaveClass('lg:grid-cols-[1fr_.8fr]');
-    expect(screen.getByRole('heading', { name: 'Prototype image workspace' }).closest('section')).toHaveClass('scroll-mt-24');
+    expect(screen.getByRole('heading', { name: 'Image analysis availability' }).closest('section')).toHaveClass('scroll-mt-24');
   });
 
-  it('retains the existing image workspace as an explicitly opened research interface', () => {
+  it('keeps image submission disabled when the backend readiness gate is blocked', async () => {
     renderAt('/', <Home />);
-    expect(screen.queryByRole('button', { name: 'Run prototype analysis' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Open workspace' }));
-    expect(screen.getByRole('button', { name: 'Run prototype analysis' })).toBeDisabled();
-    expect(screen.getByText(/not clinical evidence/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View status' }));
+    expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Run authorized analysis' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review governance readiness' })).toHaveAttribute('href', '/governance');
   });
 
   it('explains motivation, ontology, modality scope, current implementation, and limits on About', () => {

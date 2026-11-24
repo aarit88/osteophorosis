@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DisclaimerBanner } from './DisclaimerBanner';
 import { NavBar } from './NavBar';
@@ -11,9 +11,13 @@ interface ApplicationShellProps {
 export const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
   const { pathname } = useLocation();
   const route = ROUTE_BY_PATH.get(pathname);
+  const previousPathname = useRef(pathname);
 
   useEffect(() => {
-    document.getElementById('main-content')?.focus({ preventScroll: true });
+    if (previousPathname.current !== pathname) {
+      document.getElementById('main-content')?.focus({ preventScroll: true });
+      previousPathname.current = pathname;
+    }
   }, [pathname]);
 
   return (

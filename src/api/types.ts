@@ -435,7 +435,7 @@ export interface TrainedModelArtifactSummary {
   architecture: string;
   modality: string;
   total_holdout_evaluated: number;
-  headline_metrics: Record<string, number>;
+  headline_metrics: Record<string, number | null>;
   plots: TrainedModelPlot[];
   sample_predictions: TrainedPredictionSample[];
 }

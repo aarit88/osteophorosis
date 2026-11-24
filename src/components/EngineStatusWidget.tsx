@@ -18,19 +18,19 @@ export const EngineStatusWidget: React.FC<EngineStatusWidgetProps> = ({ mode }) 
       badgeClass: 'bg-emerald-950/70 border-emerald-800 text-emerald-300',
       desc: 'Connected to active production ML inference server via VITE_API_BASE_URL_LIVE.',
     },
-    mock: {
-      label: 'Simulation Mock',
-      shortLabel: 'Mock',
+    gateway: {
+      label: 'Gated Research API',
+      shortLabel: 'Gated API',
       dotColor: 'bg-cyan-400',
       badgeClass: 'bg-cyan-950/70 border-cyan-800 text-cyan-300',
-      desc: 'Connected to unified OsteoGuard API server (deterministic SHA-256 simulation + trained model artifact registry).',
+      desc: 'Connected to the OsteoGuard gateway. Image inference is forwarded to the backend and remains blocked until its readiness checks pass.',
     },
-    fallback: {
-      label: 'Fallback: Simulation',
-      shortLabel: 'Fallback',
+    unavailable: {
+      label: 'Backend unavailable',
+      shortLabel: 'Offline',
       dotColor: 'bg-amber-400',
       badgeClass: 'bg-amber-950/70 border-amber-800 text-amber-300',
-      desc: 'Live backend was unconfigured or unreachable. Auto-switched to simulation mock.',
+      desc: 'The API gateway could not be reached. No simulation fallback is available.',
     },
   }[mode] || {
     label: 'Engine: Auto',
@@ -79,7 +79,7 @@ export const EngineStatusWidget: React.FC<EngineStatusWidgetProps> = ({ mode }) 
             </div>
 
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[10px] text-slate-400 font-mono space-y-1">
-              <div>VITE_ENGINE: &quot;mock&quot; | &quot;live&quot; | &quot;auto&quot;</div>
+              <div>VITE_ENGINE: &quot;gateway&quot; | &quot;live&quot; | &quot;auto&quot;</div>
               <div>VITE_API_BASE_URL_LIVE: Real backend URL</div>
             </div>
 

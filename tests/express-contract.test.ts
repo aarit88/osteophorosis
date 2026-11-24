@@ -45,4 +45,18 @@ describe('Express research API contracts', () => {
     expect(response.status).toBe(503);
     expect(response.body).toMatchObject({ error_code: 'FOUR_CLASS_MODEL_NOT_READY' });
   });
+
+  it('does not expose synthetic radiomics, geometry, explanation, uncertainty, or workbench fixtures at runtime', async () => {
+    for (const path of [
+      '/api/v1/radiomics/demo',
+      '/api/v1/biomechanics/geometry',
+      '/api/v1/explainability/demo',
+      '/api/v1/uncertainty/demo',
+      '/api/v1/workbench/run-demo',
+    ]) {
+      const response = await invoke('POST', path);
+      expect(response.status).toBe(404);
+      expect(response.body).toMatchObject({ error_code: 'SYNTHETIC_DEMO_NOT_AVAILABLE' });
+    }
+  });
 });

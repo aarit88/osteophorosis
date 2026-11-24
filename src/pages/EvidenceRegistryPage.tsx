@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Hash,
   BarChart2,
-  Search,
   ZoomIn,
   X,
 } from 'lucide-react';
@@ -38,8 +37,8 @@ export const EvidenceRegistryPage: React.FC = () => {
         }
         setLoading(false);
       })
-      .catch((err) => {
-        setError(err.message || 'Failed to load model evidence registry.');
+      .catch(() => {
+        setError('Evidence summaries could not be loaded. Check the API connection and retry.');
         setLoading(false);
       });
   }, []);
@@ -53,24 +52,8 @@ export const EvidenceRegistryPage: React.FC = () => {
     );
   }, [trainedData, selectedModelId]);
 
-  const filteredSamples = useMemo(() => {
-    if (!activeTrainedModel) return [];
-    return activeTrainedModel.sample_predictions.filter((row) => {
-      if (filterMode === 'correct' && !row.is_correct) return false;
-      if (filterMode === 'error' && row.is_correct) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.trim().toLowerCase();
-        return (
-          row.sample_id.toLowerCase().includes(q) ||
-          row.cohort.toLowerCase().includes(q) ||
-          row.ground_truth.toLowerCase().includes(q) ||
-          row.predicted_label.toLowerCase().includes(q) ||
-          row.metadata.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [activeTrainedModel, filterMode, searchQuery]);
+  // Individual rows remain withheld even if a stale or misconfigured API returns them.
+  const filteredSamples = useMemo<TrainedModelsOverviewResponse['models'][number]['sample_predictions']>(() => [], []);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-6 px-4">
@@ -78,13 +61,13 @@ export const EvidenceRegistryPage: React.FC = () => {
       <div className="border-b border-slate-800 pb-5 space-y-2">
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800 text-cyan-300 text-xs font-semibold">
           <FileCheck2 className="w-3.5 h-3.5" />
-          <span>Stage 31 Evidence Registry & Checkpoint Verification</span>
+          <span>Historical Research Evidence</span>
         </div>
         <h1 className="text-3xl font-black text-white tracking-tight">
           Model Evidence & Multi-Center Evaluation Registry
         </h1>
         <p className="text-slate-400 text-sm max-w-3xl">
-          Complete historical registry of all models developed across research sub-tracks. Documents verified metrics, external generalization collapses, burned holdouts, evaluation curves, and real CSV test predictions.
+          Historical aggregate evaluation records are shown separately from current checkpoint verification. Individual prediction rows and protected holdout samples are not exposed by this page.
         </p>
       </div>
 
@@ -106,31 +89,31 @@ export const EvidenceRegistryPage: React.FC = () => {
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">
-                Primary Checkpoint Immutability Verification
+                Track C Expected Checkpoint Digest
               </span>
               <div className="flex items-center space-x-2 font-mono text-xs text-slate-300">
                 <Hash className="w-4 h-4 text-slate-500" />
                 <span className="break-all font-bold text-slate-200">
-                  SHA-256: 21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD
+                  Expected SHA-256: 21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD
                 </span>
               </div>
             </div>
             <div>
-              <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>CRYPTOGRAPHICALLY VERIFIED</span>
+              <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold border ${data.frozen_checkpoint_verified ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-amber-950 text-amber-200 border-amber-800'}`}>
+                {data.frozen_checkpoint_verified ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                <span>{data.frozen_checkpoint_verified ? 'CHECKPOINT VERIFIED IN THIS RUNTIME' : 'CHECKPOINT NOT VERIFIED IN THIS RUNTIME'}</span>
               </span>
             </div>
           </div>
 
-          {/* Interactive Trained Model Artifacts Explorer (Charts + Holdout CSV Predictions) */}
+              {/* Historical aggregate evidence; individual rows stay withheld. */}
           {trainedData && activeTrainedModel && (
             <div className="p-6 rounded-2xl bg-slate-900/75 border border-cyan-900/60 space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center space-x-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
                     <BarChart2 className="w-4 h-4" />
-                    <span>Trained Model Evaluation Curves & Holdout Test Predictions</span>
+                    <span>Historical Aggregate Evaluation Artifacts</span>
                   </div>
                   <h2 className="text-xl font-extrabold text-white mt-1">
                     {activeTrainedModel.title}
@@ -199,20 +182,20 @@ export const EvidenceRegistryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Holdout CSV Prediction Samples Table */}
+              {/* Do not expose individual prediction or holdout rows through the public UI. */}
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    Holdout Test Set Predictions Sample ({filteredSamples.length} shown)
+                    Individual prediction rows are always withheld from this public summary
                   </h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Filter ID, site, label..."
+                        placeholder="Individual records are not exposed"
+                        disabled
                         className="pl-8 pr-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                       />
                     </div>
@@ -221,6 +204,7 @@ export const EvidenceRegistryPage: React.FC = () => {
                         key={mode}
                         type="button"
                         onClick={() => setFilterMode(mode)}
+                        disabled
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize border transition ${
                           filterMode === mode
                             ? 'bg-slate-800 text-cyan-300 border-cyan-600'
@@ -249,7 +233,7 @@ export const EvidenceRegistryPage: React.FC = () => {
                       {filteredSamples.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                            No prediction rows match your current filter.
+                            Individual prediction rows are withheld by the public UI. Protected holdout samples remain undisclosed.
                           </td>
                         </tr>
                       ) : (
@@ -379,7 +363,7 @@ export const EvidenceRegistryPage: React.FC = () => {
 
                   {/* Clinical Clearance Status */}
                   <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-                    <span>Clinical Deployment Clearance:</span>
+                    <span>Historical artifact deployment status:</span>
                     <span className="font-bold text-rose-400">{model.clinical_deployment_status}</span>
                   </div>
                 </motion.div>

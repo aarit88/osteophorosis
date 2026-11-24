@@ -24,44 +24,30 @@ interface AnalysisContextType {
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
-const STORAGE_LAST_KEY = 'osteoguard_last_result';
-const STORAGE_HISTORY_KEY = 'osteoguard_history_list';
-
 export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lastResult, setLastResultState] = useState<AnalyzeResponse | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem(STORAGE_LAST_KEY);
-        if (cached) return JSON.parse(cached) as AnalyzeResponse;
-      } catch (err) {
-        console.warn('Failed to parse cached analysis result:', err);
-      }
-    }
-    return null;
-  });
-
-  const [recentAnalyses, setRecentAnalyses] = useState<AnalyzeResponse[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem(STORAGE_HISTORY_KEY);
-        if (cached) return JSON.parse(cached) as AnalyzeResponse[];
-      } catch {}
-    }
-    return [];
-  });
+  // Keep image-derived output and references in memory only. Remove caches created by older builds.
+  const [lastResult, setLastResultState] = useState<AnalyzeResponse | null>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<AnalyzeResponse[]>([]);
 
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [engineMode, setEngineMode] = useState<EngineMode>('mock');
+  const [engineMode, setEngineMode] = useState<EngineMode>('gateway');
   const [activeQueueCount, setActiveQueueCount] = useState<number>(0);
   const [queuedJobsCount, setQueuedJobsCount] = useState<number>(0);
   const [isServerOffline, setIsServerOffline] = useState<boolean>(false);
 
   // Initialize engine & verify server connectivity
   useEffect(() => {
+    try {
+      window.sessionStorage.removeItem('osteoguard_last_result');
+      window.sessionStorage.removeItem('osteoguard_history_list');
+    } catch {
+      // Storage may be disabled; current result state is memory-only regardless.
+    }
+
     createPredictionEngine()
       .then((eng) => setEngineMode(eng.mode))
-      .catch(() => setEngineMode('fallback'));
+      .catch(() => setEngineMode('unavailable'));
 
     checkHealth()
       .then(() => setIsServerOffline(false))
@@ -80,32 +66,19 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setLastResult = (result: AnalyzeResponse | null) => {
     setLastResultState(result);
-    if (typeof window !== 'undefined') {
-      if (result) {
-        sessionStorage.setItem(STORAGE_LAST_KEY, JSON.stringify(result));
-        addRecentAnalysis(result);
-      } else {
-        sessionStorage.removeItem(STORAGE_LAST_KEY);
-      }
-    }
+    if (result) addRecentAnalysis(result);
   };
 
   const addRecentAnalysis = (res: AnalyzeResponse) => {
     setRecentAnalyses((prev) => {
       const filtered = prev.filter((item) => item.requestId !== res.requestId);
       const updated = [res, ...filtered].slice(0, 20); // Keep max N=20
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(updated));
-      }
       return updated;
     });
   };
 
   const clearRecentAnalyses = () => {
     setRecentAnalyses([]);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem(STORAGE_HISTORY_KEY);
-    }
   };
 
   const clearResult = () => {

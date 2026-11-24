@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'url';
 import {
   evaluateFourClassClinicalState,
@@ -21,6 +22,22 @@ import {
 const __researchFilename = fileURLToPath(import.meta.url);
 const __researchDirname = path.dirname(__researchFilename);
 const ML_ARTIFACTS_DIR = path.resolve(__researchDirname, 'ml_artifacts');
+const TRACK_C_CHECKPOINT_SHA256 = '21064670FA6277B0E96135333708DE4692DDB80E428B792F3675405B5DC109CD';
+
+function verifyFrozenTrackCCheckpoint(): boolean {
+  const checkpoint = path.join(ML_ARTIFACTS_DIR, 'btxrd_frozen_model', 'best_checkpoint.pt');
+  try {
+    const stat = fs.lstatSync(checkpoint);
+    if (!stat.isFile() || stat.isSymbolicLink()) return false;
+    const realPath = fs.realpathSync(checkpoint);
+    const relative = path.relative(ML_ARTIFACTS_DIR, realPath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) return false;
+    const digest = crypto.createHash('sha256').update(fs.readFileSync(realPath)).digest('hex').toUpperCase();
+    return digest === TRACK_C_CHECKPOINT_SHA256;
+  } catch {
+    return false;
+  }
+}
 
 const TARGET_CLASSES = ['metastasis', 'paget', 'oi', 'healthy'];
 const CLASS_DISPLAY_NAMES: Record<string, string> = {
@@ -927,7 +944,9 @@ export function registerResearchRoutes(app: Express): void {
         : state.trackDState === 'READY_FOR_TRAINING'
         ? 'CLINICAL_COHORTS_READY__AWAITING_TRAINING_RUN'
         : 'ENGINEERING_COMPONENTS_VERIFIED__CLINICAL_MODEL_BLOCKED',
-      frozen_checkpoint_status: 'LOCKED (SHA-256 verified)',
+      frozen_checkpoint_status: verifyFrozenTrackCCheckpoint()
+        ? 'EXPECTED SHA-256 VERIFIED; CHECKPOINT REMAINS FROZEN'
+        : 'EXPECTED SHA-256 RECORDED; CHECKPOINT FILE MISSING OR NOT VERIFIED',
       synthetic_workbench_available: true,
       disclaimer: ready
         ? 'CLINICAL SUPPORT ELIGIBLE: Verified 4-class weights present. Mandatory H_norm >= 0.60 abstention active.'
@@ -956,8 +975,8 @@ export function registerResearchRoutes(app: Express): void {
       timestamp: new Date().toISOString(),
       total_models: models.length,
       models,
-      frozen_checkpoint_verified: true,
-      disclaimer: 'Evidence compiled from verified stage reports and live on-disk 4-class training artifacts.',
+      frozen_checkpoint_verified: verifyFrozenTrackCCheckpoint(),
+      disclaimer: 'Historical evidence and current artifact integrity are distinct. Track C is verified only when the frozen checkpoint file is present and matches its expected SHA-256; absent Track D metrics remain unavailable.',
     });
   });
 
@@ -1051,54 +1070,20 @@ export function registerResearchRoutes(app: Express): void {
     return res.status(200).json(result.transition);
   });
 
-  app.post('/api/v1/radiomics/demo', (req: Request, res: Response) => {
-    res.json(runRadiomicsDemoData(req.body || {}));
+  const denySyntheticDemo = (_req: Request, res: Response) => res.status(404).json({
+    error_code: 'SYNTHETIC_DEMO_NOT_AVAILABLE',
+    detail: 'Synthetic phantom demonstrations are available only in isolated test runs.',
   });
-
-  app.post('/api/v1/biomechanics/geometry', (req: Request, res: Response) => {
-    res.json(runBiomechanicsGeometryData(req.body || {}));
-  });
+  app.post('/api/v1/radiomics/demo', denySyntheticDemo);
+  app.post('/api/v1/biomechanics/geometry', denySyntheticDemo);
 
   app.post('/api/v1/biomechanics/mirels', (req: Request, res: Response) => {
     res.json(runBiomechanicsMirelsData(req.body || {}));
   });
 
-  app.post('/api/v1/explainability/demo', (req: Request, res: Response) => {
-    res.json(runExplainabilityDemoData(req.body || {}));
-  });
-
-  app.post('/api/v1/uncertainty/demo', (req: Request, res: Response) => {
-    res.json(runUncertaintyDemoData(req.body || {}));
-  });
-
-  app.post('/api/v1/workbench/run-demo', (req: Request, res: Response) => {
-    const body = req.body || {};
-    const state = evaluateFourClassClinicalState(__researchDirname);
-    const trackD = buildTrackDPayload(state);
-    res.json({
-      timestamp: new Date().toISOString(),
-      status: 'SYNTHETIC_WORKBENCH_RUN_COMPLETED',
-      radiomics_panel: runRadiomicsDemoData({ phantom_type: body.phantom_type || 'checkerboard' }),
-      biomechanics_geometry_panel: runBiomechanicsGeometryData({
-        phantom_type: body.bone_geometry_type || 'intact_femur_diaphysis',
-      }),
-      biomechanics_mirels_panel: runBiomechanicsMirelsData({
-        site: body.mirels_site ?? 2,
-        pain: body.mirels_pain ?? 2,
-        radiographic_nature: body.mirels_nature ?? 3,
-        lesion_size: body.mirels_size ?? 2,
-      }),
-      explainability_panel: runExplainabilityDemoData({ target_class: 1 }),
-      uncertainty_panel: runUncertaintyDemoData({
-        distribution_preset: body.uncertainty_preset || 'moderately_confident',
-        ood_flag: Boolean(body.ood_simulation),
-      }),
-      four_class_system_status: trackD.status,
-      outstanding_clinical_requirements: trackD.limitations,
-      disclaimer:
-        'INTEGRATED RESEARCH DEMONSTRATION ONLY: Modules are displayed as separate, transparent analysis panels. Synthetic values are NOT fed into a clinical model, and no automated patient predictions are generated.',
-    });
-  });
+  app.post('/api/v1/explainability/demo', denySyntheticDemo);
+  app.post('/api/v1/uncertainty/demo', denySyntheticDemo);
+  app.post('/api/v1/workbench/run-demo', denySyntheticDemo);
 
   app.post('/api/v1/diagnostic/four-class', (_req: Request, res: Response) => {
     const state = evaluateFourClassClinicalState(__researchDirname);
@@ -1119,6 +1104,12 @@ function safeReadJson(relPath: string): Record<string, any> | null {
   } catch {
     return null;
   }
+}
+
+function metricOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseCsvRows(relPath: string): Array<Record<string, string>> {
@@ -1146,22 +1137,6 @@ function parseCsvRows(relPath: string): Array<Record<string, string>> {
   }
 }
 
-function pickBalancedSample<T>(items: T[], isPositive: (item: T) => boolean, limit = 18): T[] {
-  const positives = items.filter(isPositive);
-  const negatives = items.filter((item) => !isPositive(item));
-  const half = Math.ceil(limit / 2);
-  const selected: T[] = [];
-  selected.push(...positives.slice(0, half));
-  selected.push(...negatives.slice(0, limit - selected.length));
-  if (selected.length < limit) {
-    for (const item of positives.slice(half)) {
-      if (selected.length >= limit) break;
-      selected.push(item);
-    }
-  }
-  return selected;
-}
-
 function filterExistingPlots(plots: Array<{ title: string; url: string; caption: string }>) {
   return plots.filter((p) => {
     const rel = p.url.replace(/^\/ml-artifacts\//, '');
@@ -1173,70 +1148,14 @@ function loadTrainedModelsOverview() {
   // 1. Track A: FracAtlas ResNet-101
   const fracMetrics = safeReadJson('fracatlas_test_evaluation/test_metrics.json');
   const fracRows = parseCsvRows('fracatlas_test_evaluation/test_predictions.csv');
-  const fracSample = pickBalancedSample(
-    fracRows,
-    (r) => r.actual_label === '1',
-    18
-  ).map((r) => ({
-    sample_id: r.image_id,
-    cohort: 'FracAtlas Holdout Test',
-    metadata: `${r.anatomic_region || 'unknown'} • ${r.view_projection || 'planar'}`,
-    ground_truth: r.actual_label === '1' ? 'Fractured' : 'Non-fractured',
-    predicted_label: r.pred_threshold_031 === '1' ? 'Fractured (θ=0.31)' : 'Non-fractured (θ=0.31)',
-    probability: Number(Number(r.fracture_probability || 0).toFixed(4)),
-    is_correct: r.actual_label === r.pred_threshold_031,
-  }));
-
   // 2. Track B: Bone Scintigraphy 5-Fold ResNet-18 Ensemble
   const bsMetrics = safeReadJson('bone_scan_test_evaluation/test_metrics.json');
   const bsRows = parseCsvRows('bone_scan_test_evaluation/test_patient_predictions.csv');
-  const bsSample = pickBalancedSample(
-    bsRows,
-    (r) => r.actual_label === '1',
-    18
-  ).map((r) => ({
-    sample_id: r.patient_id,
-    cohort: 'Bone Scan Test (5-Fold)',
-    metadata: `Ant: ${(Number(r.prob_anterior_mean || 0) * 100).toFixed(1)}% / Post: ${(Number(r.prob_posterior_mean || 0) * 100).toFixed(1)}% • σ=${Number(r.std_disagreement || 0).toFixed(3)}`,
-    ground_truth: r.target_class || (r.actual_label === '1' ? 'BONE_METASTASIS' : 'NO_BONE_METASTASIS'),
-    predicted_label: r.pred_name_060 || (r.pred_label_060 === '1' ? 'BONE_METASTASIS' : 'NO_BONE_METASTASIS'),
-    probability: Number(Number(r.prob_patient_ensemble || 0).toFixed(4)),
-    is_correct: r.actual_label === r.pred_label_060,
-  }));
-
   // 3. Track C: BTXRD Multi-Center ResNet-34
   const c2Metrics = safeReadJson('btxrd_center2_external_evaluation/classification_metrics.json');
   const c3Metrics = safeReadJson('btxrd_center3_external_evaluation/classification_metrics.json');
   const c2Rows = parseCsvRows('btxrd_center2_external_evaluation/center2_predictions.csv');
   const c3Rows = parseCsvRows('btxrd_center3_external_evaluation/center3_predictions.csv');
-
-  const c2Sample = pickBalancedSample(
-    c2Rows,
-    (r) => r.target_class === 'PRIMARY_MALIGNANT_TUMOR',
-    10
-  ).map((r) => ({
-    sample_id: r.image_id,
-    cohort: 'BTXRD Center 2',
-    metadata: `Norm ${(Number(r.prob_normal || 0) * 100).toFixed(0)}% / Ben ${(Number(r.prob_benign || 0) * 100).toFixed(0)}% / Mal ${(Number(r.prob_malignant || 0) * 100).toFixed(0)}%`,
-    ground_truth: r.target_class,
-    predicted_label: r.predicted_class,
-    probability: Number(Math.max(Number(r.prob_normal || 0), Number(r.prob_benign || 0), Number(r.prob_malignant || 0)).toFixed(4)),
-    is_correct: r.is_correct === '1',
-  }));
-
-  const c3Sample = pickBalancedSample(
-    c3Rows,
-    (r) => r.target_class === 'PRIMARY_MALIGNANT_TUMOR',
-    8
-  ).map((r) => ({
-    sample_id: r.image_id,
-    cohort: 'BTXRD Center 3',
-    metadata: `Norm ${(Number(r.prob_normal || 0) * 100).toFixed(0)}% / Ben ${(Number(r.prob_benign || 0) * 100).toFixed(0)}% / Mal ${(Number(r.prob_malignant || 0) * 100).toFixed(0)}%`,
-    ground_truth: r.target_class,
-    predicted_label: r.predicted_class,
-    probability: Number(Math.max(Number(r.prob_normal || 0), Number(r.prob_benign || 0), Number(r.prob_malignant || 0)).toFixed(4)),
-    is_correct: r.is_correct === '1',
-  }));
 
   const models = [
     {
@@ -1247,35 +1166,36 @@ function loadTrainedModelsOverview() {
       modality: 'Plain Radiography (X-Ray)',
       total_holdout_evaluated: fracMetrics?.total_test_samples ?? fracRows.length,
       headline_metrics: {
-        roc_auc: fracMetrics?.roc_auc ?? 0.9117,
-        pr_auc: fracMetrics?.pr_auc ?? 0.7537,
-        sensitivity: fracMetrics?.frozen_primary_threshold_031?.sensitivity_recall ?? 0.9,
-        specificity: fracMetrics?.frozen_primary_threshold_031?.specificity ?? 0.744,
-        balanced_accuracy: fracMetrics?.frozen_primary_threshold_031?.balanced_accuracy ?? 0.822,
+        roc_auc: metricOrNull(fracMetrics?.roc_auc),
+        pr_auc: metricOrNull(fracMetrics?.pr_auc),
+        sensitivity: metricOrNull(fracMetrics?.frozen_primary_threshold_031?.sensitivity_recall),
+        specificity: metricOrNull(fracMetrics?.frozen_primary_threshold_031?.specificity),
+        balanced_accuracy: metricOrNull(fracMetrics?.frozen_primary_threshold_031?.balanced_accuracy),
       },
       plots: filterExistingPlots([
         {
           title: 'Holdout ROC Curve',
           url: '/ml-artifacts/fracatlas_test_evaluation/roc_curve_test.png',
-          caption: 'AUC = 0.9117 across N=614 holdout X-Rays (Stage 10)',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Precision-Recall Curve',
           url: '/ml-artifacts/fracatlas_test_evaluation/precision_recall_curve_test.png',
-          caption: 'PR-AUC = 0.7537 (Prevalence 17.9%)',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Confusion Matrix (θ=0.31)',
           url: '/ml-artifacts/fracatlas_test_evaluation/confusion_matrix_test.png',
-          caption: 'TP=99, FN=11, TN=375, FP=129 at θ=0.31',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Validation vs Holdout Test',
           url: '/ml-artifacts/fracatlas_test_evaluation/validation_vs_test_comparison.png',
-          caption: 'No degradation from validation to burned test split',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
       ]),
-      sample_predictions: fracSample,
+      // Individual holdout rows are not exposed through the unauthenticated public summary route.
+      sample_predictions: [],
     },
     {
       model_id: 'osteo-trackB-scintigraphy-v1',
@@ -1285,36 +1205,37 @@ function loadTrainedModelsOverview() {
       modality: 'Tc-99m Whole-Body Bone Scintigraphy',
       total_holdout_evaluated: bsMetrics?.evaluation_cohort?.total_patients ?? bsRows.length,
       headline_metrics: {
-        roc_auc: bsMetrics?.discriminative_performance?.roc_auc ?? 0.8317,
-        pr_auc: bsMetrics?.discriminative_performance?.pr_auc ?? 0.7257,
-        sensitivity: bsMetrics?.primary_operating_point_060?.sensitivity ?? 0.6667,
-        specificity: bsMetrics?.primary_operating_point_060?.specificity ?? 0.8857,
-        accuracy: bsMetrics?.primary_operating_point_060?.accuracy ?? 0.8409,
-        mean_fold_std: bsMetrics?.model_disagreement?.overall_mean_std ?? 0.0907,
+        roc_auc: metricOrNull(bsMetrics?.discriminative_performance?.roc_auc),
+        pr_auc: metricOrNull(bsMetrics?.discriminative_performance?.pr_auc),
+        sensitivity: metricOrNull(bsMetrics?.primary_operating_point_060?.sensitivity),
+        specificity: metricOrNull(bsMetrics?.primary_operating_point_060?.specificity),
+        accuracy: metricOrNull(bsMetrics?.primary_operating_point_060?.accuracy),
+        mean_fold_std: metricOrNull(bsMetrics?.model_disagreement?.overall_mean_std),
       },
       plots: filterExistingPlots([
         {
           title: 'Ensemble Holdout ROC Curve',
           url: '/ml-artifacts/bone_scan_test_evaluation/roc_curve_test.png',
-          caption: 'Patient-level ROC-AUC = 0.8317 (N=44 patients / 88 scans)',
+          caption: 'Archived patient-level evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Ensemble Precision-Recall Curve',
           url: '/ml-artifacts/bone_scan_test_evaluation/precision_recall_curve_test.png',
-          caption: 'PR-AUC = 0.7257 across burned holdout cohort',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
         {
           title: '5-Fold Model Disagreement',
           url: '/ml-artifacts/bone_scan_test_evaluation/ensemble_disagreement_test.png',
-          caption: 'Inter-fold standard deviation across 5 CV models',
+          caption: 'Archived fold-disagreement chart available in the local research artifact store.',
         },
         {
           title: 'Confusion Matrix (θ=0.60)',
           url: '/ml-artifacts/bone_scan_test_evaluation/confusion_matrix_test.png',
-          caption: 'TP=6, FN=3, TN=31, FP=4 (Accuracy 84.1%)',
+          caption: 'Archived evaluation chart available in the local research artifact store.',
         },
       ]),
-      sample_predictions: bsSample,
+      // Patient-level holdout rows are not exposed through the unauthenticated public summary route.
+      sample_predictions: [],
     },
     {
       model_id: 'osteo-trackC-btxrd-frozen-v1',
@@ -1324,35 +1245,36 @@ function loadTrainedModelsOverview() {
       modality: 'Planar Radiography (Tri-Center Hospital Audit)',
       total_holdout_evaluated: c2Rows.length + c3Rows.length,
       headline_metrics: {
-        center2_accuracy: c2Metrics?.overall_accuracy?.estimate ?? 0.5173,
-        center2_macro_f1: c2Metrics?.macro_f1?.estimate ?? 0.5069,
-        center2_roc_auc: c2Metrics?.macro_roc_auc_ovr?.estimate ?? 0.718,
-        center3_accuracy: c3Metrics?.overall_accuracy?.estimate ?? 0.471,
-        center3_macro_f1: c3Metrics?.macro_f1?.estimate ?? 0.3592,
+        center2_accuracy: metricOrNull(c2Metrics?.overall_accuracy?.estimate),
+        center2_macro_f1: metricOrNull(c2Metrics?.macro_f1?.estimate),
+        center2_roc_auc: metricOrNull(c2Metrics?.macro_roc_auc_ovr?.estimate),
+        center3_accuracy: metricOrNull(c3Metrics?.overall_accuracy?.estimate),
+        center3_macro_f1: metricOrNull(c3Metrics?.macro_f1?.estimate),
       },
       plots: filterExistingPlots([
         {
           title: 'Multi-Center Metric Comparison',
           url: '/ml-artifacts/btxrd_multicenter_audit/multicenter_metric_comparison.png',
-          caption: 'Accuracy & Macro-F1 collapse across Center 1 -> Center 2 -> Center 3',
+          caption: 'Archived aggregate evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Multi-Center Confusion Matrices',
           url: '/ml-artifacts/btxrd_multicenter_audit/multicenter_confusion_matrices.png',
-          caption: 'Cross-site error shifts and Center 3 referral bias',
+          caption: 'Archived aggregate evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Center 2 External ROC Curves',
           url: '/ml-artifacts/btxrd_center2_external_evaluation/center2_roc_curves.png',
-          caption: 'Center 2 OVR ROC curves (N=549)',
+          caption: 'Archived external-site evaluation chart available in the local research artifact store.',
         },
         {
           title: 'Center 3 External ROC Curves',
           url: '/ml-artifacts/btxrd_center3_external_evaluation/center3_roc_curves.png',
-          caption: 'Center 3 OVR ROC curves (N=259)',
+          caption: 'Archived external-site evaluation chart available in the local research artifact store.',
         },
       ]),
-      sample_predictions: [...c2Sample, ...c3Sample],
+      // BTXRD external holdout sample predictions remain sealed; only approved aggregate evidence may be displayed.
+      sample_predictions: [],
     },
   ];
 
@@ -1368,22 +1290,15 @@ function loadTrainedModelsOverview() {
       modality: `${s.modality.toUpperCase()} (Patient-Stratified Holdout)`,
       total_holdout_evaluated: Number(testM.n_samples || s.dataset_summary?.test_samples || 0),
       headline_metrics: {
-        accuracy: Number(testM.accuracy || 0),
-        macro_f1: Number(testM.macro_f1 || 0),
-        macro_roc_auc: Number(testM.macro_roc_auc || 0),
-        calibrated_ece: Number(testM.ece || 0),
-        brier_score: Number(testM.brier_score || 0),
+        accuracy: metricOrNull(testM.accuracy),
+        macro_f1: metricOrNull(testM.macro_f1),
+        macro_roc_auc: metricOrNull(testM.macro_roc_auc),
+        calibrated_ece: metricOrNull(testM.ece),
+        brier_score: metricOrNull(testM.brier_score),
       },
       plots: [],
-      sample_predictions: (s.sample_predictions || []).map((p: any) => ({
-        sample_id: String(p.sample_id || ''),
-        cohort: String(p.cohort || 'Clinical Holdout'),
-        metadata: String(p.metadata || ''),
-        ground_truth: String(p.ground_truth || ''),
-        predicted_label: String(p.predicted_label || ''),
-        probability: Number(p.probability || 0),
-        is_correct: Boolean(p.is_correct),
-      })),
+      // Track D records also remain aggregate-only on this public summary route.
+      sample_predictions: [],
     });
   }
 
@@ -1395,6 +1310,6 @@ function loadTrainedModelsOverview() {
     total_holdout_samples_evaluated: totalSamplesEvaluated,
     models,
     disclaimer:
-      'SUB-TRACK ARTIFACT REGISTRY: Displays real evaluation metrics, curves, and CSV predictions from your trained Stage 09-21 models plus any verified 4-class Track D model on disk.',
+      'Historical research artifact summary. Metrics are included only when present in readable local evidence files; absent metrics are null. Individual prediction rows and protected holdout samples are not returned by this public route. Historical research evidence does not establish clinical validity.',
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -22,6 +22,8 @@ import { Toast } from '../components/Toast';
 import { Loader } from '../components/Loader';
 import type { ModalityType } from '../api/types';
 import { useAnalysis } from '../context/AnalysisContext';
+import { requestFourClassInference } from '../api/client';
+import type { BlockedInferenceResponse } from '../api/types';
 
 const CONDITIONS = [
   { id: 'SECONDARY_BONE_METASTASIS', label: 'Secondary bone metastasis', note: 'Metastatic disease involving the skeleton' },
@@ -56,9 +58,17 @@ const Home: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedModality, setSelectedModality] = useState<ModalityType>('xray');
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [readiness, setReadiness] = useState<BlockedInferenceResponse | null>(null);
+  const [readinessUnavailable, setReadinessUnavailable] = useState(false);
+
+  useEffect(() => {
+    requestFourClassInference()
+      .then(setReadiness)
+      .catch(() => setReadinessUnavailable(true));
+  }, []);
 
   const runPrototypeAnalysis = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || readiness?.status !== 'READY') return;
     try {
       await executeAnalysisWithQueue({ image: selectedFile, modality: selectedModality });
       navigate('/results');
@@ -93,7 +103,7 @@ const Home: React.FC = () => {
                 Explore research tracks
               </Link>
               <button type="button" onClick={() => { setWorkspaceOpen(true); document.getElementById('prototype-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="inline-flex min-h-12 items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">
-                Open image interface <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                View image readiness <ArrowDown className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -169,15 +179,20 @@ const Home: React.FC = () => {
       </section>
 
       <section id="prototype-workspace" className="scroll-mt-24" aria-labelledby="workspace-title">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-800 bg-slate-900/55 p-5 sm:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-slate-500">Existing interface</p><h2 id="workspace-title" className="mt-1 text-xl font-bold text-white">Prototype image workspace</h2><p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">This preserves the current upload flow. It is an engineering interface; do not interpret its output as a Track D clinical diagnosis.</p></div><button type="button" className="min-h-10 rounded-lg border border-slate-700 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400" onClick={() => setWorkspaceOpen((open) => !open)} aria-expanded={workspaceOpen}>{workspaceOpen ? 'Close workspace' : 'Open workspace'}</button></div>
-          {workspaceOpen && <div className="mt-6 space-y-5 border-t border-slate-800 pt-5">
-            <p className="text-sm leading-6 text-amber-200/90">Use only images you are authorized to process. The prototype may use configured research or simulation paths; returned output is not clinical evidence.</p>
-            <fieldset disabled={isAnalyzing} className="grid gap-2 sm:grid-cols-3"><legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Select an input modality</legend>{MODALITIES.map(({ value, label, detail }) => <button type="button" key={value} aria-pressed={selectedModality === value} onClick={() => setSelectedModality(value)} className={`rounded-xl border p-3 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400 ${selectedModality === value ? 'border-cyan-600 bg-cyan-950/40 text-cyan-100' : 'border-slate-800 bg-slate-950/60 text-slate-300'}`}><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</fieldset>
-            <UploadZone selectedFile={selectedFile} onSelectFile={setSelectedFile} onError={setError} disabled={isAnalyzing} />
-            {isAnalyzing ? <div role="status" aria-live="polite" className="rounded-xl border border-slate-800 bg-slate-950 p-4"><Loader message="Processing research prototype input…" /></div> : <button type="button" onClick={runPrototypeAnalysis} disabled={!selectedFile} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300">Run prototype analysis <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>}
-          </div>}
-        </div>
+          <div className="mx-auto max-w-3xl rounded-2xl border border-slate-800 bg-slate-900/55 p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-slate-500">Backend readiness controlled</p><h2 id="workspace-title" className="mt-1 text-xl font-bold text-white">Image analysis availability</h2><p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">Image submission is enabled only when the backend reports that the verified model has cleared its readiness gate. This application does not generate simulated patient predictions.</p></div><button type="button" className="min-h-10 rounded-lg border border-slate-700 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400" onClick={() => setWorkspaceOpen((open) => !open)} aria-expanded={workspaceOpen}>{workspaceOpen ? 'Close status' : 'View status'}</button></div>
+            {workspaceOpen && <div className="mt-6 space-y-5 border-t border-slate-800 pt-5">
+              {readinessUnavailable && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-100">Readiness is unavailable. Image submission remains disabled because the gate could not be verified.</div>}
+              {!readinessUnavailable && !readiness && <p role="status" className="text-sm text-slate-300">Checking backend readiness…</p>}
+              {readiness && readiness.status !== 'READY' && <div role="alert" className="space-y-2 rounded-xl border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-100"><p className="font-bold">{readiness.error_code}</p><p>{readiness.message}</p>{readiness.blockers.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs">{readiness.blockers.map((blocker, index) => <li key={`${index}-${blocker}`}>{blocker}</li>)}</ul>}<Link className="inline-block rounded underline underline-offset-4" to="/governance">Review governance readiness</Link></div>}
+              {readiness?.status === 'READY' && <>
+                <p className="text-sm leading-6 text-amber-200/90">Use only images you are authorized to process. Uploads are sent to the configured, server-gated ML service.</p>
+                <fieldset disabled={isAnalyzing} className="grid gap-2 sm:grid-cols-3"><legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Select an input modality</legend>{MODALITIES.map(({ value, label, detail }) => <button type="button" key={value} aria-pressed={selectedModality === value} onClick={() => setSelectedModality(value)} className={`rounded-xl border p-3 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400 ${selectedModality === value ? 'border-cyan-600 bg-cyan-950/40 text-cyan-100' : 'border-slate-800 bg-slate-950/60 text-slate-300'}`}><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</fieldset>
+                <UploadZone selectedFile={selectedFile} onSelectFile={setSelectedFile} onError={setError} disabled={isAnalyzing} />
+                {isAnalyzing ? <div role="status" aria-live="polite" className="rounded-xl border border-slate-800 bg-slate-950 p-4"><Loader message="Submitting to the gated ML service…" /></div> : <button type="button" onClick={runPrototypeAnalysis} disabled={!selectedFile} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300">Run authorized analysis <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>}
+              </>}
+            </div>}
+          </div>
       </section>
 
       <nav aria-label="Explore OsteoGuard pages" className="border-t border-slate-800 pt-6">

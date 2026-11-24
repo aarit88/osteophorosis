@@ -113,6 +113,9 @@ mock-server/data/.audit-secret.key
 # 6. Frontend / Node.js
 # ------------------------------------------------------------------------------
 node_modules/
+.playwright-browsers/
+test-results/
+playwright-report/
 osteophorosis-main/node_modules/
 osteophorosis-main/dist/
 .npm

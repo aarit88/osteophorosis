@@ -1,12 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
-import { simulateAnalysis } from './simulation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,13 +15,6 @@ const PORT = process.env.PORT || 8787;
 app.use(cors());
 app.use(express.json());
 
-// Public uploads directory
-const publicUploadsDir = path.resolve(__dirname, '../public/uploads');
-if (!fs.existsSync(publicUploadsDir)) {
-  fs.mkdirSync(publicUploadsDir, { recursive: true });
-}
-app.use('/uploads', express.static(publicUploadsDir));
-
 // Data persistence directory for feedback and telemetry
 const dataDir = path.resolve(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
@@ -31,23 +22,6 @@ if (!fs.existsSync(dataDir)) {
 }
 const feedbackFile = path.join(dataDir, 'feedback.jsonl');
 const eventsFile = path.join(dataDir, 'events.jsonl');
-
-// Seed initial demo feedback if empty
-if (!fs.existsSync(feedbackFile) || fs.readFileSync(feedbackFile, 'utf-8').trim() === '') {
-  const initialFeedback = [
-    { feedbackId: 'fb_01', requestId: 'req_demo1', decision: 'agree', predictedClass: 'metastasis', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
-    { feedbackId: 'fb_02', requestId: 'req_demo2', decision: 'agree', predictedClass: 'paget', timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-    { feedbackId: 'fb_03', requestId: 'req_demo3', decision: 'disagree', predictedClass: 'oi', reasonCode: 'insufficient_context', reasonText: 'Need lateral lumbar views', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-    { feedbackId: 'fb_04', requestId: 'req_demo4', decision: 'agree', predictedClass: 'healthy', timestamp: new Date(Date.now() - 3600000 * 1).toISOString() },
-  ];
-  fs.writeFileSync(feedbackFile, initialFeedback.map((f) => JSON.stringify(f)).join('\n') + '\n');
-}
-
-// Memory storage for uploads
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
-});
 
 // Load OpenAPI Spec for Swagger UI
 try {
@@ -71,47 +45,31 @@ app.get('/api/health', (req, res) => {
 
 // ━━━ Version 1 Routes (/api/v1/*) ━━━
 
-// POST /api/v1/analyze
-const handleAnalyze = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file was uploaded. Please attach an image.' });
-    }
-
-    const modality = req.body.modality || 'xray';
-    const result = await simulateAnalysis(
-      req.file.buffer,
-      req.file.originalname,
-      modality,
-      publicUploadsDir
-    );
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error during simulated analysis:', error);
-    res.status(500).json({
-      error: error instanceof Error ? error.message : 'Internal simulation failure',
-    });
-  }
-};
-
-app.post('/api/v1/analyze', upload.single('image'), handleAnalyze);
-// Backward compatibility alias:
-app.post('/api/analyze', upload.single('image'), handleAnalyze);
+// This standalone mock server never fabricates image-derived clinical output.
+const modelUnavailable = (_req, res) => res.status(503).json({
+  status: 'BLOCKED',
+  error_code: 'FOUR_CLASS_MODEL_NOT_READY',
+  detail: 'The mock server has no verified clinical model and does not generate simulated patient predictions.',
+});
+app.post('/api/v1/analyze', modelUnavailable);
+app.post('/api/analyze', modelUnavailable);
 
 // POST /api/v1/feedback
 app.post('/api/v1/feedback', (req, res) => {
   try {
     const { requestId, decision, predictedClass, reasonCode, reasonText, timestamp } = req.body;
-    if (!requestId || !decision) {
-      return res.status(400).json({ error: 'requestId and decision are required.' });
+    if (typeof requestId !== 'string' || requestId.length < 1 || requestId.length > 128
+      || !['agree', 'disagree', 'unsure'].includes(decision)
+      || !['metastasis', 'paget', 'oi', 'healthy'].includes(predictedClass)
+      || (typeof reasonText === 'string' && reasonText.length > 2000)) {
+      return res.status(400).json({ error: 'A valid request reference, review decision, and predicted class are required.' });
     }
 
     const feedbackRecord = {
       feedbackId: `fb_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       requestId,
       decision,
-      predictedClass: predictedClass || 'healthy',
+      predictedClass,
       reasonCode: reasonCode || null,
       reasonText: reasonText || '',
       timestamp: timestamp || new Date().toISOString(),
@@ -135,7 +93,8 @@ function readFeedbackRecords() {
     } catch {
       return null;
     }
-  }).filter(Boolean);
+  }).filter((record) => record && !(['fb_01', 'fb_02', 'fb_03', 'fb_04'].includes(record.feedbackId)
+    && /^req_demo[1-4]$/.test(record.requestId || '')));
 }
 
 // GET /api/v1/feedback/stats

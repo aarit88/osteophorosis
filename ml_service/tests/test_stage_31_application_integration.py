@@ -8,6 +8,7 @@ and four-class diagnostic inference is strictly BLOCKED pending clinical data.
 """
 
 import hashlib
+import os
 from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
@@ -22,8 +23,17 @@ EXPECTED_CHECKPOINT_HASH = "21064670fa6277b0e96135333708de4692ddb80e428b792f3675
 @pytest.fixture(scope="module")
 def client():
     """FastAPI TestClient fixture."""
+    previous_env = os.environ.get("OSTEO_ENV")
+    os.environ["OSTEO_ENV"] = "test"
     app = create_app()
-    return TestClient(app)
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        if previous_env is None:
+            os.environ.pop("OSTEO_ENV", None)
+        else:
+            os.environ["OSTEO_ENV"] = previous_env
 
 
 def test_frozen_checkpoint_immutability():
@@ -224,6 +234,21 @@ def test_synthetic_workbench_demo_endpoint(client):
     assert "Grad-CAM" in data["explainability_panel"]["method"]
     assert data["uncertainty_panel"]["candidate_threshold"] == 0.60
     assert "BLOCKED" in data["four_class_system_status"]
+
+
+def test_synthetic_demo_routes_are_hidden_outside_isolated_tests(client, monkeypatch):
+    """The runtime service never serves phantom outputs outside the pytest fixture environment."""
+    monkeypatch.setenv("OSTEO_ENV", "development")
+    for path in (
+        "/api/v1/radiomics/demo",
+        "/api/v1/biomechanics/geometry",
+        "/api/v1/explainability/demo",
+        "/api/v1/uncertainty/demo",
+        "/api/v1/workbench/run-demo",
+    ):
+        response = client.post(path, json={})
+        assert response.status_code == 404
+        assert response.json()["details"]["error_code"] == "SYNTHETIC_DEMO_NOT_AVAILABLE"
 
 
 def test_four_class_inference_strictly_blocked(client):

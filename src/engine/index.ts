@@ -1,5 +1,5 @@
 import { PredictionEngine, EngineMode } from './PredictionEngine';
-import { MockEngine } from './MockEngine';
+import { GatewayEngine } from './MockEngine';
 import { LiveEngine } from './LiveEngine';
 
 export * from './PredictionEngine';
@@ -18,7 +18,7 @@ let cachedEngine: PredictionEngine | null = null;
 
 export async function createPredictionEngine(): Promise<PredictionEngine> {
   if (CONFIGURED_ENGINE_SETTING === 'mock') {
-    return new MockEngine(false);
+    return new GatewayEngine(false);
   }
 
   if (CONFIGURED_ENGINE_SETTING === 'live') {
@@ -33,13 +33,13 @@ export async function createPredictionEngine(): Promise<PredictionEngine> {
     if (isLiveAvailable) {
       return live;
     }
-    return new MockEngine(true);
+    return new GatewayEngine(true);
   }
 
-  // Standard unified deployment: check local simulation + research backend health
-  const mock = new MockEngine(false);
-  const isLocalHealthy = await mock.checkAvailability();
-  return isLocalHealthy ? mock : new MockEngine(true);
+  // Unified deployment checks the API gateway; inference remains server-gated.
+  const gateway = new GatewayEngine(false);
+  const isGatewayHealthy = await gateway.checkAvailability();
+  return isGatewayHealthy ? gateway : new GatewayEngine(true);
 }
 
 export function getPredictionEngineSync(): PredictionEngine {
@@ -47,9 +47,9 @@ export function getPredictionEngineSync(): PredictionEngine {
     if (CONFIGURED_ENGINE_SETTING === 'live') {
       cachedEngine = new LiveEngine();
     } else if (CONFIGURED_ENGINE_SETTING === 'mock' || !CONFIGURED_LIVE_URL) {
-      cachedEngine = new MockEngine(false);
+      cachedEngine = new GatewayEngine(false);
     } else {
-      cachedEngine = new MockEngine(true);
+      cachedEngine = new GatewayEngine(true);
     }
   }
   return cachedEngine;

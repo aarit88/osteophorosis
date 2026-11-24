@@ -3,6 +3,7 @@ Pytest configuration and fixtures for ml_service test suite.
 """
 
 from pathlib import Path
+import os
 import pytest
 from fastapi.testclient import TestClient
 
@@ -14,9 +15,18 @@ from ml_service.config.settings import MLSettings
 @pytest.fixture
 def client():
     """FastAPI test client fixture."""
+    # The isolated fixture app is the only place synthetic phantom API demos are enabled.
+    previous_env = os.environ.get("OSTEO_ENV")
+    os.environ["OSTEO_ENV"] = "test"
     app = create_app()
-    with TestClient(app) as test_client:
-        yield test_client
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        if previous_env is None:
+            os.environ.pop("OSTEO_ENV", None)
+        else:
+            os.environ["OSTEO_ENV"] = previous_env
 
 
 @pytest.fixture

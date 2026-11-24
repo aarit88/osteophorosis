@@ -7,7 +7,6 @@ import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
-import { simulateAnalysis } from './mock-server/simulation.js';
 import { registerResearchRoutes } from './research-api.js';
 import { isStrongProductionSecret, isSupportedUploadMediaType, resolveCorsOrigins } from './security-policy.js';
 import {
@@ -241,17 +240,7 @@ async function startServer() {
     if (fs.existsSync(feedbackFile) && fs.readFileSync(feedbackFile, 'utf-8').trim() !== '') {
       migrateJsonlToEncrypted(feedbackFile, auditEncryptionKey);
     }
-  } else if (!fs.existsSync(feedbackFile) || fs.readFileSync(feedbackFile, 'utf-8').trim() === '') {
-    const initialFeedback = [
-      { feedbackId: 'fb_01', requestId: 'req_demo1', decision: 'agree', predictedClass: 'metastasis', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
-      { feedbackId: 'fb_02', requestId: 'req_demo2', decision: 'agree', predictedClass: 'paget', timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
-      { feedbackId: 'fb_03', requestId: 'req_demo3', decision: 'disagree', predictedClass: 'oi', reasonCode: 'insufficient_context', reasonText: 'Need lateral lumbar views', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-      { feedbackId: 'fb_04', requestId: 'req_demo4', decision: 'agree', predictedClass: 'healthy', timestamp: new Date(Date.now() - 3600000 * 1).toISOString() },
-    ];
-    for (const item of initialFeedback) {
-      appendEncryptedJsonl(feedbackFile, item, auditEncryptionKey);
-    }
-  } else {
+  } else if (fs.existsSync(feedbackFile) && fs.readFileSync(feedbackFile, 'utf-8').trim() !== '') {
     const migratedFb = migrateJsonlToEncrypted(feedbackFile, auditEncryptionKey);
     if (migratedFb > 0) {
       console.log(`[OsteoGuard Security] Migrated ${migratedFb} legacy feedback record(s) to AES-256-GCM encryption.`);
@@ -395,7 +384,7 @@ async function startServer() {
     res.send(item.buffer);
   });
 
-  // Analyze handler (EXIF-stripped in RAM -> live FastAPI PyTorch bridge when ready -> safe simulation fallback)
+  // Analyze handler (EXIF-stripped in RAM -> gated FastAPI inference only; never fabricate predictions)
   const handleAnalyze = async (req: express.Request, res: express.Response) => {
     try {
       if (!req.file) {
@@ -411,97 +400,68 @@ async function startServer() {
         return res.status(415).json({ error: 'Uploaded file is not a supported, valid image.' });
       }
 
-      const diskReadiness = inspectClinicalReadinessOnDisk(__dirname);
-
-      // 1. Live PyTorch FastAPI inference bridge when BACKEND_URL is configured
-      if (EXPLICIT_BACKEND_URL) {
-        try {
-          const form = new FormData();
-          form.append('image', new Blob([new Uint8Array(sanitizedBuffer)], { type: 'image/png' }), 'sanitized.png');
-          form.append('modality', String(modality));
-
-          const mlHeaders: Record<string, string> = {};
-          if (GATEWAY_HMAC_SECRET) {
-            Object.assign(
-              mlHeaders,
-              signGatewayHeaders('POST', '/api/v1/analyze', sanitizedBuffer, GATEWAY_HMAC_SECRET)
-            );
-          }
-
-          const liveRes = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/analyze`, {
-            method: 'POST',
-            headers: mlHeaders,
-            body: form,
-          });
-
-          if (liveRes.ok) {
-            const liveJson = (await liveRes.json()) as Record<string, any>;
-            if (liveJson && liveJson.prediction) {
-              const reqTag = String(liveJson.requestId || `live_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '');
-              if (typeof liveJson.imageBase64 === 'string' && liveJson.imageBase64.length > 0) {
-                const imgId = `${reqTag}_scan.png`;
-                ephemeralStore.put(imgId, Buffer.from(liveJson.imageBase64, 'base64'), 'image/png');
-                liveJson.imageUrl = `/api/v1/ephemeral/${encodeURIComponent(imgId)}`;
-                delete liveJson.imageBase64;
-              }
-              if (typeof liveJson.gradcamBase64 === 'string' && liveJson.gradcamBase64.length > 0) {
-                const camId = `${reqTag}_gradcam.png`;
-                ephemeralStore.put(camId, Buffer.from(liveJson.gradcamBase64, 'base64'), 'image/png');
-                liveJson.gradcamUrl = `/api/v1/ephemeral/${encodeURIComponent(camId)}`;
-                delete liveJson.gradcamBase64;
-              }
-              return res.json(liveJson);
-            }
-          } else if (liveRes.status === 503 && STRICT_CLINICAL_MODE) {
-            const blockedJson = await liveRes.json().catch(() => ({
-              status: 'BLOCKED',
-              error_code: 'CLINICAL_INFERENCE_BLOCKED',
-              error: 'Live FastAPI ML backend rejected inference because verified clinical checkpoints are missing.',
-            }));
-            return res.status(503).json(blockedJson);
-          }
-        } catch (bridgeErr: any) {
-          console.warn(`[ML Bridge] External PyTorch service unavailable (${bridgeErr.message}).`);
-          if (STRICT_CLINICAL_MODE) {
-            return res.status(503).json({
-              status: 'BLOCKED',
-              error_code: 'CLINICAL_ML_BACKEND_UNREACHABLE',
-              error: 'Strict clinical mode forbids simulation fallback when the live PyTorch ML backend is unreachable.',
-            });
-          }
-        }
-      }
-
-      // 2. Strict clinical enforcement guard (forbids simulation when OSTEO_STRICT_CLINICAL_MODE=true without real weights)
-      if (STRICT_CLINICAL_MODE && !diskReadiness.isFourClassReady) {
+      if (!EXPLICIT_BACKEND_URL) {
         return res.status(503).json({
           status: 'BLOCKED',
-          error_code: 'CLINICAL_INFERENCE_BLOCKED',
-          error:
-            'Strict clinical mode is enabled: zero verified 4-class checkpoints or clinical cohorts exist under ml_artifacts/checkpoints/ and ml_service/data/raw/.',
-          readiness: diskReadiness,
+          error_code: 'FOUR_CLASS_MODEL_NOT_READY',
+          detail: 'The four-class model is unavailable because no configured ML service has cleared the dataset, governance, training, and validation gates.',
         });
       }
 
-      // 3. Research prototype simulation rendered strictly in RAM (AES-256-GCM ephemeral asset store)
-      const result = await simulateAnalysis(
-        sanitizedBuffer,
-        req.file.originalname,
-        modality,
-        undefined,
-        (filename: string, buf: Buffer, contentType = 'image/png') => {
-          const assetId = path.basename(filename);
-          ephemeralStore.put(assetId, buf, contentType);
-          return `/api/v1/ephemeral/${encodeURIComponent(assetId)}`;
-        }
-      );
+      const form = new FormData();
+      form.append('image', new Blob([new Uint8Array(sanitizedBuffer)], { type: 'image/png' }), 'sanitized.png');
+      form.append('modality', String(modality));
 
-      res.json(result);
+      const mlHeaders: Record<string, string> = {};
+      if (GATEWAY_HMAC_SECRET) {
+        Object.assign(mlHeaders, signGatewayHeaders('POST', '/api/v1/analyze', sanitizedBuffer, GATEWAY_HMAC_SECRET));
+      }
+
+      let liveRes: Response;
+      try {
+        liveRes = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/analyze`, {
+          method: 'POST',
+          headers: mlHeaders,
+          body: form,
+          signal: AbortSignal.timeout(15000),
+        });
+      } catch {
+        return res.status(503).json({
+          status: 'BLOCKED',
+          error_code: 'ML_SERVICE_UNAVAILABLE',
+          detail: 'The ML service could not be reached. No simulation fallback is available.',
+        });
+      }
+
+      const body = await liveRes.json().catch(() => null) as Record<string, unknown> | null;
+      if (!liveRes.ok) {
+        return res.status(liveRes.status).json(body ?? {
+          status: 'BLOCKED',
+          error_code: liveRes.status === 503 ? 'FOUR_CLASS_MODEL_NOT_READY' : 'ML_INFERENCE_REJECTED',
+          detail: 'The ML service rejected this request.',
+        });
+      }
+      if (!body || typeof body.prediction !== 'object' || body.prediction === null) {
+        return res.status(502).json({ status: 'ERROR', error_code: 'INVALID_ML_RESPONSE', detail: 'The ML service returned an invalid inference response.' });
+      }
+
+      const reqTag = String(body.requestId || `live_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '');
+      if (typeof body.imageBase64 === 'string' && body.imageBase64.length > 0) {
+        const imgId = `${reqTag}_scan.png`;
+        ephemeralStore.put(imgId, Buffer.from(body.imageBase64, 'base64'), 'image/png');
+        body.imageUrl = `/api/v1/ephemeral/${encodeURIComponent(imgId)}`;
+        delete body.imageBase64;
+      }
+      if (typeof body.gradcamBase64 === 'string' && body.gradcamBase64.length > 0) {
+        const camId = `${reqTag}_gradcam.png`;
+        ephemeralStore.put(camId, Buffer.from(body.gradcamBase64, 'base64'), 'image/png');
+        body.gradcamUrl = `/api/v1/ephemeral/${encodeURIComponent(camId)}`;
+        delete body.gradcamBase64;
+      }
+      return res.json(body);
     } catch (error) {
-      console.error('API Error in analyze:', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Internal simulation failure',
-      });
+      // Do not log image metadata, model inputs, or raw exceptions from inference handling.
+      res.status(500).json({ error_code: 'ANALYSIS_REQUEST_FAILED', error: 'The analysis request could not be completed.' });
     }
   };
 
@@ -513,15 +473,18 @@ async function startServer() {
   app.post('/api/v1/feedback', requireClinicalToken, (req, res) => {
     try {
       const { requestId, decision, predictedClass, reasonCode, reasonText, timestamp } = req.body;
-      if (!requestId || !decision) {
-        return res.status(400).json({ error: 'requestId and decision are required.' });
+      const allowedDecisions = new Set(['agree', 'disagree', 'unsure']);
+      const allowedClasses = new Set(['metastasis', 'paget', 'oi', 'healthy']);
+      if (typeof requestId !== 'string' || requestId.length < 1 || requestId.length > 128 || !allowedDecisions.has(decision) || !allowedClasses.has(predictedClass)) {
+        return res.status(400).json({ error: 'A valid request reference, review decision, and predicted class are required.' });
       }
+      if (typeof reasonText === 'string' && reasonText.length > 2000) return res.status(400).json({ error: 'Review text exceeds the allowed length.' });
 
       const feedbackRecord = {
         feedbackId: `fb_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         requestId,
         decision,
-        predictedClass: predictedClass || 'healthy',
+        predictedClass,
         reasonCode: reasonCode || null,
         reasonText: reasonText || '',
         timestamp: timestamp || new Date().toISOString(),
@@ -535,7 +498,11 @@ async function startServer() {
   });
 
   function readFeedbackRecords() {
-    return readEncryptedJsonl<Record<string, any>>(feedbackFile, auditEncryptionKey).records;
+    const records = readEncryptedJsonl<Record<string, any>>(feedbackFile, auditEncryptionKey).records;
+    // Historical bootstrap records were synthetic examples. Keep the on-disk source untouched,
+    // but exclude those exact IDs from operational counts and history.
+    return records.filter((record) => !(['fb_01', 'fb_02', 'fb_03', 'fb_04'].includes(record.feedbackId)
+      && /^req_demo[1-4]$/.test(record.requestId || '')));
   }
 
   // GET /api/v1/feedback/stats

@@ -1,6 +1,6 @@
 import { AnalyzePayload, AnalyzeResponse } from '../api/types';
 
-export type EngineMode = 'mock' | 'live' | 'fallback';
+export type EngineMode = 'gateway' | 'live' | 'unavailable';
 
 export interface PredictionEngine {
   readonly name: string;

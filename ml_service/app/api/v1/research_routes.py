@@ -79,6 +79,18 @@ def _onboarding_service() -> CohortOnboardingService:
     return CohortOnboardingService()
 
 
+def _require_isolated_synthetic_test() -> None:
+    """Keep generated phantom demonstrations behind the explicit test environment."""
+    if os.environ.get("OSTEO_ENV", "development").strip().lower() != "test":
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error_code": "SYNTHETIC_DEMO_NOT_AVAILABLE",
+                "detail": "Synthetic phantom demonstrations are available only in isolated test runs.",
+            },
+        )
+
+
 def _require_onboarding_role(principal, allowed_roles=ONBOARDING_ROLES):
     if not principal["roles"].intersection(allowed_roles):
         raise HTTPException(status_code=403, detail="Dataset onboarding role is required.")
@@ -581,6 +593,7 @@ def run_radiomics_demo(
     request: RadiomicsDemoRequest,
     service: ResearchService = Depends(get_research_service),
 ) -> RadiomicsDemoResponse:
+    _require_isolated_synthetic_test()
     return service.run_radiomics_demo(request)
 
 
@@ -594,6 +607,7 @@ def run_biomechanics_geometry(
     request: BiomechanicsGeometryRequest,
     service: ResearchService = Depends(get_research_service),
 ) -> BiomechanicsGeometryResponse:
+    _require_isolated_synthetic_test()
     return service.run_biomechanics_geometry(request)
 
 
@@ -620,6 +634,7 @@ def run_explainability_demo(
     request: ExplainabilityDemoRequest,
     service: ResearchService = Depends(get_research_service),
 ) -> ExplainabilityDemoResponse:
+    _require_isolated_synthetic_test()
     return service.run_explainability_demo(request)
 
 
@@ -633,6 +648,7 @@ def run_uncertainty_demo(
     request: UncertaintyDemoRequest,
     service: ResearchService = Depends(get_research_service),
 ) -> UncertaintyDemoResponse:
+    _require_isolated_synthetic_test()
     return service.run_uncertainty_demo(request)
 
 
@@ -646,4 +662,5 @@ def run_synthetic_workbench(
     request: SyntheticWorkbenchRunRequest,
     service: ResearchService = Depends(get_research_service),
 ) -> SyntheticWorkbenchRunResponse:
+    _require_isolated_synthetic_test()
     return service.run_synthetic_workbench(request)
