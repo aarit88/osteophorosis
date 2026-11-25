@@ -37,7 +37,7 @@ test('Track D remains blocked and mobile navigation exposes implemented pages', 
   await page.goto('/workbench');
   await expect(page.getByRole('heading', { name: 'Workbench' })).toBeVisible();
   await page.getByLabel('Research track').selectOption('track_d');
-  await expect(page.getByText('FOUR_CLASS_MODEL_NOT_READY')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Model readiness' }).getByText('FOUR_CLASS_MODEL_NOT_READY')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Review governance' })).toHaveAttribute('href', '/governance');
 
   await page.getByRole('button', { name: 'Open navigation menu' }).click();
