@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
-  ArrowDown,
   ArrowRight,
   Bone,
   CheckCircle2,
@@ -17,13 +15,6 @@ import {
   ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
-import { UploadZone } from '../components/UploadZone';
-import { Toast } from '../components/Toast';
-import { Loader } from '../components/Loader';
-import type { ModalityType } from '../api/types';
-import { useAnalysis } from '../context/AnalysisContext';
-import { requestFourClassInference } from '../api/client';
-import type { BlockedInferenceResponse } from '../api/types';
 
 const CONDITIONS = [
   { id: 'SECONDARY_BONE_METASTASIS', label: 'Secondary bone metastasis', note: 'Metastatic disease involving the skeleton' },
@@ -31,12 +22,6 @@ const CONDITIONS = [
   { id: 'OSTEOGENESIS_IMPERFECTA', label: 'Osteogenesis imperfecta', note: 'A genetic connective tissue and bone disorder' },
   { id: 'HEALTHY_SKELETAL_CONTROL', label: 'Healthy skeletal control', note: 'A carefully defined comparison cohort' },
 ] as const;
-
-const MODALITIES: Array<{ value: ModalityType; label: string; detail: string }> = [
-  { value: 'xray', label: 'X-ray', detail: 'Planar radiography' },
-  { value: 'bone_scan', label: 'Bone scintigraphy', detail: 'Nuclear medicine imaging' },
-  { value: 'ct', label: 'CT', detail: 'Cross-sectional imaging' },
-];
 
 const workflow = [
   { icon: Layers3, title: 'Explore research tracks', body: 'Review the scope and status of the existing fracture, scintigraphy, and frozen multi-center research tracks.' },
@@ -53,34 +38,8 @@ const GOVERNANCE_FEATURES: Array<{ icon: LucideIcon; title: string; body: string
 ];
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const { executeAnalysisWithQueue, isAnalyzing, error, setError } = useAnalysis();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedModality, setSelectedModality] = useState<ModalityType>('xray');
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [readiness, setReadiness] = useState<BlockedInferenceResponse | null>(null);
-  const [readinessUnavailable, setReadinessUnavailable] = useState(false);
-
-  useEffect(() => {
-    requestFourClassInference()
-      .then(setReadiness)
-      .catch(() => setReadinessUnavailable(true));
-  }, []);
-
-  const runPrototypeAnalysis = async () => {
-    if (!selectedFile || readiness?.status !== 'READY') return;
-    try {
-      await executeAnalysisWithQueue({ image: selectedFile, modality: selectedModality });
-      navigate('/results');
-    } catch {
-      // The shared analysis context presents the current backend or simulation error.
-    }
-  };
-
   return (
     <div className="space-y-16 pb-8 sm:space-y-20">
-      <Toast message={error} onClose={() => setError(null)} />
-
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/80 px-5 py-12 shadow-2xl shadow-cyan-950/20 sm:px-10 sm:py-16 lg:px-14" aria-labelledby="home-title">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,rgba(8,145,178,.16),transparent_46%),radial-gradient(ellipse_at_bottom_left,rgba(13,148,136,.11),transparent_42%)]" />
         <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr]">
@@ -97,14 +56,11 @@ const Home: React.FC = () => {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/workbench" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300">
-                Open research workbench <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <ScanLine className="h-4 w-4" aria-hidden="true" /> Open X-ray scan portal
               </Link>
               <Link to="/tracks" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">
                 Explore research tracks
               </Link>
-              <button type="button" onClick={() => { setWorkspaceOpen(true); document.getElementById('prototype-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="inline-flex min-h-12 items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">
-                View image readiness <ArrowDown className="h-4 w-4" aria-hidden="true" />
-              </button>
             </div>
           </div>
 
@@ -156,7 +112,11 @@ const Home: React.FC = () => {
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
           <div className="flex items-start gap-3"><div className="rounded-xl border border-teal-900 bg-teal-950/50 p-2.5 text-teal-300"><ScanLine className="h-5 w-5" aria-hidden="true" /></div><div><h3 className="text-lg font-bold text-white">Imaging modalities</h3><p className="mt-1 text-sm text-slate-400">Handled as distinct imaging pathways; they are not silently combined.</p></div></div>
-          <ul className="mt-5 space-y-3">{MODALITIES.map(({ value, label, detail }) => <li key={value} className="flex items-center justify-between gap-4 border-t border-slate-800 pt-3"><div><p className="text-sm font-semibold text-slate-100">{label}</p><p className="text-xs text-slate-500">{detail}</p></div><span className="rounded-full border border-slate-700 px-2.5 py-1 text-[10px] font-mono uppercase text-slate-400">{value.replace('_', ' ')}</span></li>)}</ul>
+          <ul className="mt-5 space-y-3">{[
+            ['X-ray', 'Planar radiography · Track A scan portal is available when its checkpoint is configured'],
+            ['Bone scintigraphy', 'Separate preliminary research pathway'],
+            ['CT', 'Separate research pathway'],
+          ].map(([label, detail]) => <li key={label} className="flex items-center justify-between gap-4 border-t border-slate-800 pt-3"><div><p className="text-sm font-semibold text-slate-100">{label}</p><p className="text-xs text-slate-500">{detail}</p></div></li>)}</ul>
           <p className="mt-5 rounded-lg bg-slate-950/70 p-3 text-xs leading-5 text-amber-200/90">Availability of a modality in the interface does not mean an authorized clinical cohort or validated model exists for it.</p>
         </div>
       </section>
@@ -175,24 +135,7 @@ const Home: React.FC = () => {
 
       <section className="rounded-3xl bg-gradient-to-r from-cyan-950/60 to-slate-900 px-5 py-8 text-center ring-1 ring-cyan-900/60 sm:px-10 sm:py-10" aria-labelledby="next-step-title">
         <h2 id="next-step-title" className="text-2xl font-bold text-white sm:text-3xl">Start with the research, not a diagnosis.</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-300">Explore implemented research demonstrations, inspect the track boundaries, or review the source governance workflow.</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/workbench" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300">Open Workbench <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link><Link to="/tracks" className="inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">Research tracks</Link><Link to="/about" className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">About the project</Link></div>
-      </section>
-
-      <section id="prototype-workspace" className="scroll-mt-24" aria-labelledby="workspace-title">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-slate-800 bg-slate-900/55 p-5 sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-slate-500">Backend readiness controlled</p><h2 id="workspace-title" className="mt-1 text-xl font-bold text-white">Image analysis availability</h2><p className="mt-2 max-w-2xl text-xs leading-5 text-slate-400">Image submission is enabled only when the backend reports that the verified model has cleared its readiness gate. This application does not generate simulated patient predictions.</p></div><button type="button" className="min-h-10 rounded-lg border border-slate-700 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400" onClick={() => setWorkspaceOpen((open) => !open)} aria-expanded={workspaceOpen}>{workspaceOpen ? 'Close status' : 'View status'}</button></div>
-            {workspaceOpen && <div className="mt-6 space-y-5 border-t border-slate-800 pt-5">
-              {readinessUnavailable && <div role="alert" className="rounded-xl border border-rose-800 bg-rose-950/30 p-4 text-sm text-rose-100">Readiness is unavailable. Image submission remains disabled because the gate could not be verified.</div>}
-              {!readinessUnavailable && !readiness && <p role="status" className="text-sm text-slate-300">Checking backend readiness…</p>}
-              {readiness && readiness.status !== 'READY' && <div role="alert" className="space-y-2 rounded-xl border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-100"><p className="font-bold">{readiness.error_code}</p><p>{readiness.message}</p>{readiness.blockers.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs">{readiness.blockers.map((blocker, index) => <li key={`${index}-${blocker}`}>{blocker}</li>)}</ul>}<Link className="inline-block rounded underline underline-offset-4" to="/governance">Review governance readiness</Link></div>}
-              {readiness?.status === 'READY' && <>
-                <p className="text-sm leading-6 text-amber-200/90">Use only images you are authorized to process. Uploads are sent to the configured, server-gated ML service.</p>
-                <fieldset disabled={isAnalyzing} className="grid gap-2 sm:grid-cols-3"><legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Select an input modality</legend>{MODALITIES.map(({ value, label, detail }) => <button type="button" key={value} aria-pressed={selectedModality === value} onClick={() => setSelectedModality(value)} className={`rounded-xl border p-3 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400 ${selectedModality === value ? 'border-cyan-600 bg-cyan-950/40 text-cyan-100' : 'border-slate-800 bg-slate-950/60 text-slate-300'}`}><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-slate-500">{detail}</span></button>)}</fieldset>
-                <UploadZone selectedFile={selectedFile} onSelectFile={setSelectedFile} onError={setError} disabled={isAnalyzing} />
-                {isAnalyzing ? <div role="status" aria-live="polite" className="rounded-xl border border-slate-800 bg-slate-950 p-4"><Loader message="Submitting to the gated ML service…" /></div> : <button type="button" onClick={runPrototypeAnalysis} disabled={!selectedFile} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-300">Run authorized analysis <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>}
-              </>}
-            </div>}
-          </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/workbench" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300"><ScanLine className="h-4 w-4" aria-hidden="true" />Open X-ray scan portal</Link><Link to="/tracks" className="inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">Research tracks</Link><Link to="/about" className="inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300">About the project</Link></div>
       </section>
 
       <nav aria-label="Explore OsteoGuard pages" className="border-t border-slate-800 pt-6">

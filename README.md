@@ -121,15 +121,23 @@ python -m uvicorn ml_service.app.main:app --host 127.0.0.1 --port 8000
 
 ### 2. Launch Frontend Research Prototype (React + Vite)
 ```powershell
-# From osteophorosis-main/ directory
-cd osteophorosis-main
-npm run dev -- --host 127.0.0.1 --port 3000
+# From the repository root, in a second terminal
+$env:BACKEND_URL = "http://127.0.0.1:8000"
+npm run dev
 ```
 - Web Application: `http://127.0.0.1:3000`
-- Synthetic Workbench: `http://127.0.0.1:3000/workbench`
+- X-ray scan portal and research workbench: `http://127.0.0.1:3000/workbench`
 - Research Tracks: `http://127.0.0.1:3000/tracks`
 - Safety Gate Testing: `http://127.0.0.1:3000/architecture`
 - Full-Stack Swagger UI: `http://127.0.0.1:3000/docs`
+
+### Run the existing Track A X-ray research model
+
+The Workbench's **Track A · FracAtlas fracture research** panel accepts one PNG, JPEG, or WebP X-ray at a time. The gateway strips image metadata and forwards the image in memory to the separate FastAPI endpoint. It runs the existing binary fracture research model only; it does not calculate accuracy from one image and is not the four-class Track D model.
+
+The genuine Track A checkpoint is not committed to Git. The default expected location is `ml_artifacts/fracatlas_full_training/best_checkpoint.pt`. If your authorized trained checkpoint is stored elsewhere, place it inside the configured artifact directory and set `OSTEO_TRACK_A_CHECKPOINT_PATH` to a path relative to `OSTEO_ARTIFACTS_DIR` (or an absolute path inside that directory) before starting FastAPI. The status panel at `/workbench` confirms whether the service can see it. If the checkpoint is absent or invalid, the scan button remains disabled or the backend returns an explicit unavailable response without generating a prediction.
+
+The FastAPI service and Express/Vite gateway must both be running. Start FastAPI in one terminal using the command above, then start Express in a second terminal with `BACKEND_URL=http://127.0.0.1:8000`; open `/workbench` and inspect the checkpoint status before selecting an image. Track D remains separately gated with HTTP 503 `FOUR_CLASS_MODEL_NOT_READY`.
 
 ### 3. Run Automated Test Suites
 ```powershell

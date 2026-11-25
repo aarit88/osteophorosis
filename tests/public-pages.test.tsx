@@ -10,18 +10,10 @@ import type { ArchitectureReadinessResponse } from '../src/api/types';
 
 const mocks = vi.hoisted(() => ({
   getArchitectureReadiness: vi.fn(),
-  requestFourClassInference: vi.fn(),
-  executeAnalysisWithQueue: vi.fn(),
-  setError: vi.fn(),
 }));
 
 vi.mock('../src/api/client', () => ({
   getArchitectureReadiness: mocks.getArchitectureReadiness,
-  requestFourClassInference: mocks.requestFourClassInference,
-}));
-
-vi.mock('../src/context/AnalysisContext', () => ({
-  useAnalysis: () => ({ executeAnalysisWithQueue: mocks.executeAnalysisWithQueue, isAnalyzing: false, error: null, setError: mocks.setError }),
 }));
 
 const readinessFixture: ArchitectureReadinessResponse = {
@@ -46,36 +38,19 @@ describe('public project pages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getArchitectureReadiness.mockResolvedValue(readinessFixture);
-    mocks.requestFourClassInference.mockResolvedValue({
-      status: 'BLOCKED',
-      error_code: 'FOUR_CLASS_MODEL_NOT_READY',
-      message: 'Four-class inference remains unavailable.',
-      target_classes: [],
-      blockers: ['No validated clinical model.'],
-      mandatory_safeguard: 'Inference is disabled.',
-    });
   });
 
-  it('renders the homepage with accurate scope, direct Workbench and Tracks links, and no invented metrics', async () => {
+  it('renders the homepage with a direct X-ray scan portal and no invented metrics', () => {
     renderAt('/', <Home />);
-    await screen.findByRole('button', { name: 'View status' });
     expect(screen.getByRole('heading', { name: /A research framework for bone imaging/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open research workbench/ })).toHaveAttribute('href', '/workbench');
+    expect(screen.getAllByRole('link', { name: /Open X-ray scan portal/ })[0]).toHaveAttribute('href', '/workbench');
     expect(screen.getByRole('link', { name: /Explore research tracks/ })).toHaveAttribute('href', '/tracks');
     expect(screen.getByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
     expect(screen.getByText(/SECONDARY_BONE_METASTASIS/)).toBeInTheDocument();
     expect(screen.getByText(/PAGETS_DISEASE/)).toBeInTheDocument();
     expect(screen.queryByText(/accuracy|patients analyzed|clinical approval/i)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Four target categories, three distinct modalities' }).closest('section')).toHaveClass('lg:grid-cols-[1fr_.8fr]');
-    expect(screen.getByRole('heading', { name: 'Image analysis availability' }).closest('section')).toHaveClass('scroll-mt-24');
-  });
-
-  it('keeps image submission disabled when the backend readiness gate is blocked', async () => {
-    renderAt('/', <Home />);
-    fireEvent.click(screen.getByRole('button', { name: 'View status' }));
-    expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Run authorized analysis' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Review governance readiness' })).toHaveAttribute('href', '/governance');
+    expect(screen.queryByRole('heading', { name: 'Image analysis availability' })).not.toBeInTheDocument();
   });
 
   it('explains motivation, ontology, modality scope, current implementation, and limits on About', () => {

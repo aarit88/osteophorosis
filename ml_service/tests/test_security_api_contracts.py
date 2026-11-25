@@ -40,6 +40,8 @@ def test_gateway_hmac_accepts_valid_signed_payload(monkeypatch):
 def test_readiness_governance_and_track_d_route_contracts():
     app = create_app()
     paths = app.openapi()["paths"]
+    assert "get" in paths["/api/v1/preliminary/track-a/status"]
+    assert "post" in paths["/api/v1/preliminary/track-a/analyze"]
     assert "get" in paths["/api/v1/datasets/readiness"]
     assert "get" in paths["/api/v1/datasets/governance-status"]
     assert "post" in paths["/api/v1/diagnostic/four-class"]
@@ -51,6 +53,24 @@ def test_readiness_governance_and_track_d_route_contracts():
     governance = ResearchService().get_dataset_governance_status().model_dump()
     assert {"readiness_status", "ready_for_training", "manifest_schema_validation", "protected_holdouts"} <= readiness.keys()
     assert {"governance_gate_status", "pending_ethics_approvals_count", "pending_duas_count"} <= governance.keys()
+
+
+def test_track_a_gateway_signature_binds_the_selected_operating_point(monkeypatch):
+    secret, body = "t" * 32, b"sanitized image bytes"
+    signed_path = "/api/v1/preliminary/track-a/analyze?operating_point=best_f1"
+    monkeypatch.setenv("OSTEO_ENV", "test")
+    monkeypatch.setenv("OSTEO_GATEWAY_HMAC_SECRET", secret)
+    timestamp = str(int(time.time()))
+    payload = f"{timestamp}:POST:{signed_path}:{hashlib.sha256(body).hexdigest()}".encode()
+    signature = "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    _verify_gateway_hmac("POST", signed_path, body, timestamp, signature)
+
+    try:
+        _verify_gateway_hmac("POST", "/api/v1/preliminary/track-a/analyze", body, timestamp, signature)
+    except HTTPException as exc:
+        assert exc.status_code == 401
+    else:
+        raise AssertionError("Changing the Track A operating point did not invalidate the gateway signature")
 
 
 def test_workflow_transition_rejects_self_reported_reviewer_identity_or_role():

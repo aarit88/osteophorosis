@@ -12,6 +12,9 @@ import {
   ValidationError,
   ServerError,
   OsteoGuardError,
+  TrackAInferenceResponse,
+  TrackAOperatingPoint,
+  TrackAStatusResponse,
 } from './types';
 
 const RAW_BASE_URL = ((import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL) ?? '';
@@ -40,6 +43,20 @@ export const API_BASE_URL = resolveApiBaseUrl(RAW_BASE_URL);
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const MAX_RETRIES = 2;
+
+function extractErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') return fallback;
+  const value = body as { error?: unknown; message?: unknown; detail?: unknown };
+  if (typeof value.error === 'string') return value.error;
+  if (typeof value.message === 'string') return value.message;
+  if (typeof value.detail === 'string') return value.detail;
+  if (value.detail && typeof value.detail === 'object') {
+    const nested = value.detail as { detail?: unknown; error_code?: unknown };
+    if (typeof nested.detail === 'string') return nested.detail;
+    if (typeof nested.error_code === 'string') return nested.error_code;
+  }
+  return fallback;
+}
 
 /**
  * Normalizes relative URLs (e.g. /uploads/xyz.png) to be prefixed with API_BASE_URL.
@@ -82,8 +99,7 @@ async function fetchWithResilience(
       if (response.status === 400 || response.status === 422) {
         let errMessage = 'Validation failed';
         try {
-          const json = await response.json();
-          if (json.error) errMessage = json.error;
+          errMessage = extractErrorMessage(await response.json(), errMessage);
         } catch {}
         throw new ValidationError(errMessage);
       }
@@ -91,8 +107,7 @@ async function fetchWithResilience(
       if (response.status >= 500) {
         let errMessage = `Server encountered error (${response.status})`;
         try {
-          const json = await response.json();
-          if (json.error) errMessage = json.error;
+          errMessage = extractErrorMessage(await response.json(), errMessage);
         } catch {}
         throw new ServerError(errMessage, response.status);
       }
@@ -162,6 +177,33 @@ export async function analyzeImage(payload: AnalyzePayload, customBaseUrl?: stri
   });
 
   return (await response.json()) as AnalyzeResponse;
+}
+
+export async function getTrackAStatus(): Promise<TrackAStatusResponse> {
+  const response = await fetchWithResilience(`${API_BASE_URL}/api/v1/preliminary/track-a/status`, { method: 'GET' }, 1, 8000);
+  if (response.status === 401) throw new Error('TRACK_A_AUTHENTICATION_REQUIRED');
+  if (response.status === 403) throw new Error('TRACK_A_ACCESS_FORBIDDEN');
+  if (!response.ok) throw new Error('TRACK_A_STATUS_UNAVAILABLE');
+  return (await response.json()) as TrackAStatusResponse;
+}
+
+export async function runTrackAInference(
+  image: File,
+  operatingPoint: TrackAOperatingPoint,
+): Promise<TrackAInferenceResponse> {
+  const form = new FormData();
+  form.append('image', image);
+  form.append('operating_point', operatingPoint);
+  const response = await fetchWithResilience(
+    `${API_BASE_URL}/api/v1/preliminary/track-a/analyze`,
+    { method: 'POST', body: form },
+    0,
+    120000,
+  );
+  if (response.status === 401) throw new Error('TRACK_A_AUTHENTICATION_REQUIRED');
+  if (response.status === 403) throw new Error('TRACK_A_ACCESS_FORBIDDEN');
+  if (!response.ok) throw new Error('TRACK_A_INFERENCE_UNAVAILABLE');
+  return (await response.json()) as TrackAInferenceResponse;
 }
 
 /**

@@ -8,6 +8,7 @@ import hmac
 import io
 import os
 import time
+from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
 from PIL import Image
 
@@ -20,6 +21,12 @@ from ml_service.app.schemas.ml_status import (
 from ml_service.app.schemas.research import BlockedInferenceResponse
 from ml_service.app.services.readiness_service import MLReadinessService
 from ml_service.config.settings import MLSettings, get_settings
+from ml_service.inference.fracatlas_inference import (
+    FracAtlasFractureClassifier,
+    TRACK_A_CLASSES,
+    TRACK_A_OPERATING_THRESHOLDS,
+    preprocess_fracatlas_bytes,
+)
 from ml_service.inference.four_class_inference import FourClassClinicalInferenceEngine
 from ml_service.utils.logging import logger
 from osteoguard.data.sanitizer import PatientPrivacySanitizer
@@ -27,6 +34,81 @@ from osteoguard.data.sanitizer import PatientPrivacySanitizer
 router = APIRouter(prefix="/api", tags=["ML Operations"])
 
 _INFERENCE_ENGINE: FourClassClinicalInferenceEngine | None = None
+_TRACK_A_ENGINE: FracAtlasFractureClassifier | None = None
+_TRACK_A_ENGINE_FINGERPRINT: tuple[str, int, int] | None = None
+
+
+def _track_a_checkpoint(settings: MLSettings) -> tuple[Path | None, str | None]:
+    """Resolve the configured preliminary checkpoint inside the artifact root only."""
+    artifact_root = settings.resolve_path(settings.artifacts_dir).resolve()
+    configured = settings.track_a_checkpoint_path
+    if not configured.is_absolute():
+        configured = artifact_root / configured
+    try:
+        if configured.is_symlink():
+            return None, "TRACK_A_CHECKPOINT_PATH_INVALID"
+        resolved = configured.resolve(strict=True)
+        resolved.relative_to(artifact_root)
+        if not resolved.is_file() or resolved.suffix.lower() not in {".pt", ".pth"}:
+            return None, "TRACK_A_CHECKPOINT_PATH_INVALID"
+        return resolved, None
+    except FileNotFoundError:
+        return None, "TRACK_A_CHECKPOINT_NOT_AVAILABLE"
+    except (OSError, ValueError):
+        return None, "TRACK_A_CHECKPOINT_PATH_INVALID"
+
+
+def _load_track_a_engine(checkpoint: Path) -> FracAtlasFractureClassifier:
+    """Load and cache the actual Track A model; never substitute demo weights."""
+    global _TRACK_A_ENGINE, _TRACK_A_ENGINE_FINGERPRINT
+    stat = checkpoint.stat()
+    fingerprint = (str(checkpoint), stat.st_size, stat.st_mtime_ns)
+    if _TRACK_A_ENGINE is None or _TRACK_A_ENGINE_FINGERPRINT != fingerprint:
+        _TRACK_A_ENGINE = FracAtlasFractureClassifier(checkpoint_path=checkpoint)
+        _TRACK_A_ENGINE_FINGERPRINT = fingerprint
+    return _TRACK_A_ENGINE
+
+
+def _predict_track_a_bytes(raw_bytes: bytes, operating_point: str, settings: MLSettings) -> dict:
+    """Validate and run one in-memory Track A image; shared by the route and focused tests."""
+    if len(raw_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail={"error_code": "IMAGE_TOO_LARGE", "detail": "Image exceeds the 15 MB limit."})
+    if operating_point not in TRACK_A_OPERATING_THRESHOLDS:
+        raise HTTPException(status_code=422, detail={"error_code": "INVALID_OPERATING_POINT", "detail": "Select a documented Track A operating point."})
+
+    checkpoint, error_code = _track_a_checkpoint(settings)
+    if checkpoint is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error_code": error_code or "TRACK_A_CHECKPOINT_NOT_AVAILABLE",
+                "detail": "The Track A checkpoint is missing or its configured path is not allowed. No prediction was generated.",
+            },
+        )
+
+    try:
+        image_tensor = preprocess_fracatlas_bytes(raw_bytes)
+    except (OSError, ValueError, Image.UnidentifiedImageError):
+        raise HTTPException(status_code=415, detail={"error_code": "INVALID_XRAY_IMAGE", "detail": "Upload a valid PNG, JPEG, or WebP radiograph image."})
+
+    try:
+        engine = _load_track_a_engine(checkpoint)
+        result = engine.predict_tensor(image_tensor, threshold=TRACK_A_OPERATING_THRESHOLDS[operating_point])
+    except Exception:
+        logger.error("Track A inference failed while loading or running the configured checkpoint")
+        raise HTTPException(
+            status_code=503,
+            detail={"error_code": "TRACK_A_CHECKPOINT_INVALID", "detail": "The configured Track A checkpoint could not be loaded. No prediction was generated."},
+        )
+
+    return {
+        **result,
+        "track_id": "track_a",
+        "modality": "xray",
+        "operating_point": operating_point,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "disclaimer": "Preliminary binary fracture research output only. Not a four-class differential diagnosis or clinical assessment. Per-image output does not measure accuracy.",
+    }
 
 
 def get_inference_engine(settings: MLSettings = Depends(get_settings)) -> FourClassClinicalInferenceEngine:
@@ -132,6 +214,49 @@ def get_dataset_status(service: MLReadinessService = Depends(get_readiness_servi
 def get_model_status(service: MLReadinessService = Depends(get_readiness_service)) -> ModelStatusResponse:
     logger.info("Evaluating model readiness and checkpoint validity")
     return service.get_model_status()
+
+
+@router.get(
+    "/v1/preliminary/track-a/status",
+    summary="Track A FracAtlas X-ray checkpoint availability",
+)
+def get_track_a_status(settings: MLSettings = Depends(get_settings)):
+    checkpoint, error_code = _track_a_checkpoint(settings)
+    return {
+        "track_id": "track_a",
+        "model_name": "FracAtlas ResNet-101 binary fracture research classifier",
+        "modality": "xray",
+        "input_size": [224, 224],
+        "classes": [TRACK_A_CLASSES[index] for index in sorted(TRACK_A_CLASSES)],
+        "checkpoint_available": checkpoint is not None,
+        "checkpoint_size_bytes": checkpoint.stat().st_size if checkpoint is not None else None,
+        "status": "CHECKPOINT_PRESENT_LOAD_ON_RUN" if checkpoint is not None else "CHECKPOINT_UNAVAILABLE",
+        "error_code": error_code,
+        "clinical_use": False,
+    }
+
+
+@router.post(
+    "/v1/preliminary/track-a/analyze",
+    summary="Run the existing Track A binary fracture research classifier",
+)
+async def analyze_track_a_radiograph(
+    image: UploadFile = File(...),
+    operating_point: str = Form("high_sensitivity_screening"),
+    x_osteoguard_timestamp: str | None = Header(default=None),
+    x_osteoguard_signature: str | None = Header(default=None),
+    settings: MLSettings = Depends(get_settings),
+):
+    """Run actual Track A inference only; this endpoint is separate from the gated Track D API."""
+    raw_bytes = await image.read(15 * 1024 * 1024 + 1)
+    _verify_gateway_hmac(
+        "POST",
+        f"/api/v1/preliminary/track-a/analyze?operating_point={operating_point}",
+        raw_bytes,
+        x_osteoguard_timestamp,
+        x_osteoguard_signature,
+    )
+    return _predict_track_a_bytes(raw_bytes, operating_point, settings)
 
 
 @router.post(

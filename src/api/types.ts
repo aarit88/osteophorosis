@@ -74,6 +74,44 @@ export interface AnalyzePayload {
   modality: ModalityType;
 }
 
+export type TrackAOperatingPoint =
+  | 'high_sensitivity_screening'
+  | 'best_youden_j'
+  | 'best_f1'
+  | 'default_0_50';
+
+export interface TrackAStatusResponse {
+  track_id: 'track_a';
+  model_name: string;
+  modality: 'xray';
+  input_size: [number, number];
+  classes: string[];
+  checkpoint_available: boolean;
+  checkpoint_size_bytes: number | null;
+  status: string;
+  error_code: string | null;
+  clinical_use: false;
+}
+
+export interface TrackAInferenceResponse {
+  track_id: 'track_a';
+  track: string;
+  model_version: string;
+  checkpoint_epoch: number | null;
+  checkpoint_sha256: string;
+  checkpoint_size_bytes: number;
+  modality: 'xray';
+  prob_non_fractured: number;
+  prob_fractured: number;
+  active_threshold: number;
+  predicted_class_idx: 0 | 1;
+  predicted_class_name: 'candidate_control_radiograph' | 'acute_bone_fracture';
+  operating_point: TrackAOperatingPoint;
+  timestamp: string;
+  research_notice: string;
+  disclaimer: string;
+}
+
 // ━━━ Clinician Feedback & Audit Types (EU AI Act Art. 14) ━━━
 export type ClinicianDecision = 'agree' | 'disagree' | 'unsure';
 

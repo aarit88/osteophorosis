@@ -3,9 +3,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResearchWorkbenchPage } from '../src/pages/ResearchWorkbenchPage';
-import type { ResearchTracksResponse, TrackDDatasetReadinessResponse } from '../src/api/types';
+import type { ResearchTracksResponse, TrackAInferenceResponse, TrackAStatusResponse, TrackDDatasetReadinessResponse } from '../src/api/types';
 
-const mocks = vi.hoisted(() => ({ getResearchTracks: vi.fn(), getTrackDDatasetReadiness: vi.fn(), runSyntheticWorkbench: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getResearchTracks: vi.fn(), getTrackDDatasetReadiness: vi.fn(), getTrackAStatus: vi.fn(), runTrackAInference: vi.fn() }));
 vi.mock('../src/api/client', () => mocks);
 
 const tracks: ResearchTracksResponse = {
@@ -16,6 +16,20 @@ const tracks: ResearchTracksResponse = {
   ], disclaimer: 'Research metadata only.',
 };
 const readiness = { readiness_status: 'NOT_AVAILABLE', blockers: ['Genuine authorized clinical data are unavailable.'] } as TrackDDatasetReadinessResponse;
+const trackAUnavailable: TrackAStatusResponse = {
+  track_id: 'track_a', model_name: 'FracAtlas ResNet-101 binary fracture research classifier', modality: 'xray',
+  input_size: [224, 224], classes: ['candidate_control_radiograph', 'acute_bone_fracture'],
+  checkpoint_available: false, checkpoint_size_bytes: null, status: 'CHECKPOINT_UNAVAILABLE',
+  error_code: 'TRACK_A_CHECKPOINT_NOT_AVAILABLE', clinical_use: false,
+};
+const trackAReady: TrackAStatusResponse = { ...trackAUnavailable, checkpoint_available: true, checkpoint_size_bytes: 1234, status: 'CHECKPOINT_PRESENT_LOAD_ON_RUN', error_code: null };
+const inferenceFixture: TrackAInferenceResponse = {
+  track_id: 'track_a', track: 'Track A FracAtlas research fixture', model_version: '1.0.0', checkpoint_epoch: 9,
+  checkpoint_sha256: 'a'.repeat(64), checkpoint_size_bytes: 1234, modality: 'xray',
+  prob_non_fractured: 0.2, prob_fractured: 0.8, active_threshold: 0.31,
+  predicted_class_idx: 1, predicted_class_name: 'acute_bone_fracture', operating_point: 'high_sensitivity_screening',
+  timestamp: '2026-11-25T00:00:00Z', research_notice: 'Synthetic UI test response only.', disclaimer: 'Synthetic UI test response only.',
+};
 const renderPage = () => render(<MemoryRouter><ResearchWorkbenchPage /></MemoryRouter>);
 
 describe('research workbench', () => {
@@ -23,6 +37,7 @@ describe('research workbench', () => {
     vi.clearAllMocks();
     mocks.getResearchTracks.mockResolvedValue(tracks);
     mocks.getTrackDDatasetReadiness.mockResolvedValue(readiness);
+    mocks.getTrackAStatus.mockResolvedValue(trackAUnavailable);
   });
 
   it('loads the live track registry and displays modality/status without exposing metrics', async () => {
@@ -38,10 +53,10 @@ describe('research workbench', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'FracAtlas fracture research' });
     fireEvent.change(screen.getByRole('combobox', { name: 'Research track' }), { target: { value: 'track_d' } });
-    expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
+    expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY', { selector: 'p' })).toBeInTheDocument();
     expect(await screen.findByText('Genuine authorized clinical data are unavailable.')).toBeInTheDocument();
     expect(mocks.getTrackDDatasetReadiness).toHaveBeenCalledTimes(1);
-    expect(mocks.runSyntheticWorkbench).not.toHaveBeenCalled();
+    expect(mocks.runTrackAInference).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: /Review governance/ })).toHaveAttribute('href', '/governance');
   });
 
@@ -53,7 +68,36 @@ describe('research workbench', () => {
       const article = screen.getByRole('heading', { name }).closest('article');
       expect(article && within(article).getByRole('link', { name: 'Open module' })).toHaveAttribute('href', href);
     }
-    expect(mocks.runSyntheticWorkbench).not.toHaveBeenCalled();
+    expect(mocks.runTrackAInference).not.toHaveBeenCalled();
+  });
+
+  it('keeps the local X-ray portal visible and blocks inference when the real checkpoint is missing', async () => {
+    renderPage();
+    expect(await screen.findByText(/Track A scan is unavailable: no checkpoint file is configured/)).toBeInTheDocument();
+    const input = screen.getByLabelText('Select a local X-ray image') as HTMLInputElement;
+    expect(input).toBeEnabled();
+    fireEvent.change(input, { target: { files: [new File(['synthetic image fixture'], 'synthetic-xray.png', { type: 'image/png' })] } });
+    expect(await screen.findByText(/X-ray selected/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run X-ray scan' })).toBeDisabled();
+    expect(mocks.runTrackAInference).not.toHaveBeenCalled();
+    expect(screen.queryByText('synthetic-xray.png')).not.toBeInTheDocument();
+  });
+
+  it('submits only after an explicit action and renders the backend Track A response', async () => {
+    mocks.getTrackAStatus.mockResolvedValueOnce(trackAReady);
+    mocks.runTrackAInference.mockResolvedValueOnce(inferenceFixture);
+    renderPage();
+    const input = await screen.findByLabelText('Select a local X-ray image');
+    fireEvent.change(input, { target: { files: [new File(['synthetic image fixture'], 'synthetic-xray.png', { type: 'image/png' })] } });
+    const button = await screen.findByRole('button', { name: 'Run X-ray scan' });
+    expect(button).toBeEnabled();
+    expect(mocks.runTrackAInference).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    expect(await screen.findByText('Actual Track A backend response')).toBeInTheDocument();
+    expect(screen.getByText('Acute bone fracture class')).toBeInTheDocument();
+    expect(mocks.runTrackAInference).toHaveBeenCalledTimes(1);
+    expect(mocks.runTrackAInference.mock.calls[0][1]).toBe('high_sensitivity_screening');
+    expect(screen.queryByText(/^accuracy:?$/i)).not.toBeInTheDocument();
   });
 
   it('handles unavailable track and readiness endpoints without displaying raw exceptions', async () => {

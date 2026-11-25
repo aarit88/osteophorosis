@@ -17,6 +17,7 @@ Authoritative Stage 09 / Stage 10 Specifications:
 """
 
 import hashlib
+import io
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -75,6 +76,23 @@ def preprocess_fracatlas_image(
     ])
 
     with Image.open(p) as img:
+        img_rgb = img.convert("RGB")
+    return transform(img_rgb)
+
+
+def preprocess_fracatlas_bytes(
+    image_bytes: bytes,
+    img_size: tuple[int, int] = (224, 224),
+) -> torch.Tensor:
+    """Preprocess an uploaded radiograph in memory; never writes patient images to disk."""
+    if not image_bytes:
+        raise ValueError("Radiograph image is empty")
+    transform = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+    ])
+    with Image.open(io.BytesIO(image_bytes)) as img:
         img_rgb = img.convert("RGB")
     return transform(img_rgb)
 

@@ -68,13 +68,18 @@ def png_fixture() -> bytes:
     )
 
 
-def multipart(payload: bytes, media_type: str = "image/png") -> tuple[bytes, str]:
+def multipart(payload: bytes, media_type: str = "image/png", fields: dict[str, str] | None = None) -> tuple[bytes, str]:
     boundary = "og-smoke-" + secrets.token_hex(12)
-    body = (
+    parts = [(
         f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"fixture.png\"\r\n"
         f"Content-Type: {media_type}\r\n\r\n"
-    ).encode() + payload + f"\r\n--{boundary}--\r\n".encode()
-    return body, boundary
+    ).encode() + payload + b"\r\n"]
+    for name, value in (fields or {}).items():
+        parts.append(
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n".encode()
+        )
+    parts.append(f"--{boundary}--\r\n".encode())
+    return b"".join(parts), boundary
 
 
 def stop_process(process: subprocess.Popen | None, name: str, logs) -> bool:
@@ -183,6 +188,17 @@ def main() -> int:
 
             status, body = request(f"{gateway_url}/api/v1/research/status")
             assert status == 200, body.decode("utf-8", "replace")
+            status, _ = request(f"{gateway_url}/api/v1/preliminary/track-a/status")
+            assert status == 401, f"Unauthenticated Track A status request returned HTTP {status}"
+            status, body = request(
+                f"{gateway_url}/api/v1/preliminary/track-a/status",
+                headers={"Authorization": f"Bearer {gateway_token}"},
+            )
+            assert status == 200, body.decode("utf-8", "replace")
+            track_a_status = json.loads(body)
+            assert track_a_status["track_id"] == "track_a"
+            assert track_a_status["checkpoint_available"] is False
+            assert track_a_status["error_code"] == "TRACK_A_CHECKPOINT_NOT_AVAILABLE"
             status, body = request(f"{gateway_url}/api/v1/datasets/governance-status")
             assert status == 200, body.decode("utf-8", "replace")
             status, _ = request(f"{gateway_url}/api/v1/dataset-onboarding/sources")
@@ -213,6 +229,15 @@ def main() -> int:
             assert status == 503, f"Track D should remain blocked without clinical evidence; got HTTP {status}: {body[:300]!r}"
             assert b"FOUR_CLASS_MODEL_NOT_READY" in body or b"CLINICAL_INFERENCE_BLOCKED" in body or b"not ready" in body.lower()
 
+            track_a_png, boundary = multipart(png_fixture(), fields={"operating_point": "high_sensitivity_screening"})
+            track_a_auth = {
+                "Authorization": f"Bearer {gateway_token}",
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            }
+            status, body = request(f"{gateway_url}/api/v1/preliminary/track-a/analyze", "POST", track_a_auth, track_a_png)
+            assert status == 503, f"Track A must not generate a prediction without its real checkpoint; got HTTP {status}: {body[:300]!r}"
+            assert b"TRACK_A_CHECKPOINT_NOT_AVAILABLE" in body
+
             invalid, boundary = multipart(b"not an image")
             invalid_auth = {"Authorization": f"Bearer {gateway_token}", "Content-Type": f"multipart/form-data; boundary={boundary}"}
             status, _ = request(f"{gateway_url}/api/v1/analyze", "POST", invalid_auth, invalid)
@@ -235,7 +260,7 @@ def main() -> int:
             assert status == 503 and json.loads(body)["status"] == "not_ready"
             status, body = request(f"{gateway_url}/api/health")
             assert status == 503 and json.loads(body)["mode"] == "unavailable"
-            print("Deployment smoke passed: startup, health, gateway connectivity, governance, auth, upload guards, dependency failure, Track D block.")
+            print("Deployment smoke passed: startup, health, gateway connectivity, governance, auth, upload guards, dependency failure, Track A missing-checkpoint block, and Track D block.")
         finally:
             if gateway is not None and gateway.poll() is None:
                 shutdown_results.append(stop_process(gateway, "Express gateway", gateway_logs))

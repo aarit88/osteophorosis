@@ -63,6 +63,12 @@ class MLSettings(BaseSettings):
         description="Path to authenticated model checkpoint weights. None if untrained."
     )
 
+    # Separate preliminary Track A X-ray classifier. This never supplies Track D inference.
+    track_a_checkpoint_path: Path = Field(
+        default=Path("fracatlas_full_training/best_checkpoint.pt"),
+        description="Track A FracAtlas binary checkpoint, relative to artifacts_dir unless absolute.",
+    )
+
     # Security & CORS
     cors_origins: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: [

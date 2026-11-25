@@ -469,6 +469,81 @@ async function startServer() {
   app.post('/api/v1/analyze', requireClinicalToken, upload.single('image'), handleAnalyze);
   app.post('/api/analyze', requireClinicalToken, upload.single('image'), handleAnalyze);
 
+  // Track A is a separate binary FracAtlas X-ray research model; it never calls the Track D route.
+  app.get('/api/v1/preliminary/track-a/status', requireClinicalToken, async (_req, res) => {
+    if (!EXPLICIT_BACKEND_URL) {
+      return res.json({
+        track_id: 'track_a',
+        model_name: 'FracAtlas ResNet-101 binary fracture research classifier',
+        modality: 'xray',
+        input_size: [224, 224],
+        classes: ['candidate_control_radiograph', 'acute_bone_fracture'],
+        checkpoint_available: false,
+        checkpoint_size_bytes: null,
+        status: 'ML_SERVICE_NOT_CONFIGURED',
+        error_code: 'ML_SERVICE_NOT_CONFIGURED',
+        clinical_use: false,
+      });
+    }
+    try {
+      const response = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/preliminary/track-a/status`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body || typeof body.checkpoint_available !== 'boolean') {
+        return res.status(response.status || 502).json({ error_code: 'TRACK_A_STATUS_UNAVAILABLE', detail: 'Track A checkpoint status could not be retrieved.' });
+      }
+      return res.json(body);
+    } catch {
+      return res.status(503).json({ error_code: 'ML_SERVICE_UNAVAILABLE', detail: 'The ML service could not be reached.' });
+    }
+  });
+
+  app.post('/api/v1/preliminary/track-a/analyze', requireClinicalToken, upload.single('image'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error_code: 'IMAGE_REQUIRED', detail: 'Upload an X-ray image to run Track A research inference.' });
+    if (!EXPLICIT_BACKEND_URL) {
+      return res.status(503).json({ error_code: 'ML_SERVICE_NOT_CONFIGURED', detail: 'The Track A inference service is not configured.' });
+    }
+
+    let sanitizedBuffer: Buffer;
+    try {
+      sanitizedBuffer = await stripImageMetadataAndEncodePng(req.file.buffer);
+    } catch {
+      return res.status(415).json({ error_code: 'INVALID_XRAY_IMAGE', detail: 'Upload a valid PNG, JPEG, or WebP radiograph image.' });
+    }
+
+    const selectedOperatingPoint = String(req.body.operating_point || 'high_sensitivity_screening');
+    const allowedOperatingPoints = new Set(['high_sensitivity_screening', 'best_youden_j', 'best_f1', 'default_0_50']);
+    if (!allowedOperatingPoints.has(selectedOperatingPoint)) {
+      return res.status(400).json({ error_code: 'INVALID_OPERATING_POINT', detail: 'Select a documented Track A operating point.' });
+    }
+    const form = new FormData();
+    form.append('image', new Blob([new Uint8Array(sanitizedBuffer)], { type: 'image/png' }), 'radiograph.png');
+    form.append('operating_point', selectedOperatingPoint);
+    const headers: Record<string, string> = {};
+    if (GATEWAY_HMAC_SECRET) {
+      const signedPath = `/api/v1/preliminary/track-a/analyze?operating_point=${selectedOperatingPoint}`;
+      Object.assign(headers, signGatewayHeaders('POST', signedPath, sanitizedBuffer, GATEWAY_HMAC_SECRET));
+    }
+
+    try {
+      const response = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/preliminary/track-a/analyze`, {
+        method: 'POST',
+        headers,
+        body: form,
+        signal: AbortSignal.timeout(120000),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return res.status(response.status).json(body ?? { error_code: 'TRACK_A_INFERENCE_REJECTED', detail: 'Track A rejected the image; no prediction was generated.' });
+      if (!body || body.track_id !== 'track_a' || !Number.isFinite(body.prob_fractured) || !Number.isFinite(body.prob_non_fractured)) {
+        return res.status(502).json({ error_code: 'INVALID_TRACK_A_RESPONSE', detail: 'The ML service returned an invalid Track A response.' });
+      }
+      return res.json(body);
+    } catch {
+      return res.status(503).json({ error_code: 'ML_SERVICE_UNAVAILABLE', detail: 'The ML service could not complete Track A inference.' });
+    }
+  });
+
   // POST /api/v1/feedback (AES-256-GCM encrypted at rest)
   app.post('/api/v1/feedback', requireClinicalToken, (req, res) => {
     try {
