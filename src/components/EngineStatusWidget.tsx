@@ -18,19 +18,26 @@ export const EngineStatusWidget: React.FC<EngineStatusWidgetProps> = ({ mode }) 
       badgeClass: 'bg-emerald-950/70 border-emerald-800 text-emerald-300',
       desc: 'Connected to active production ML inference server via VITE_API_BASE_URL_LIVE.',
     },
+    simulation: {
+      label: 'Prototype Sim',
+      shortLabel: 'Sim',
+      dotColor: 'bg-teal-400',
+      badgeClass: 'bg-teal-950/70 border-teal-800 text-teal-200',
+      desc: 'Research Prototype Simulation active. Performs RAM-only EXIF stripping and deterministic multi-modal bone pathology + XAI simulation while trained 4-class weights remain offline.',
+    },
     gateway: {
       label: 'Gated Research API',
       shortLabel: 'Gated API',
       dotColor: 'bg-cyan-400',
       badgeClass: 'bg-cyan-950/70 border-cyan-800 text-cyan-300',
-      desc: 'Connected to the OsteoGuard gateway. Image inference is forwarded to the backend and remains blocked until its readiness checks pass.',
+      desc: 'Connected to the OsteoGuard gateway. Image inference is forwarded to the backend.',
     },
     unavailable: {
       label: 'Backend unavailable',
       shortLabel: 'Offline',
       dotColor: 'bg-amber-400',
       badgeClass: 'bg-amber-950/70 border-amber-800 text-amber-300',
-      desc: 'The API gateway could not be reached. No simulation fallback is available.',
+      desc: 'The API gateway could not be reached.',
     },
   }[mode] || {
     label: 'Engine: Auto',

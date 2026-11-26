@@ -5,6 +5,7 @@ import { UploadCloud, FileImage, X, CheckCircle2, AlertTriangle, Sparkles } from
 interface UploadZoneProps {
   selectedFile: File | null;
   onSelectFile: (file: File | null) => void;
+  onSelectMultipleFiles?: (files: File[]) => void;
   onError: (errorMessage: string) => void;
   disabled?: boolean;
 }
@@ -12,6 +13,7 @@ interface UploadZoneProps {
 export const UploadZone: React.FC<UploadZoneProps> = ({
   selectedFile,
   onSelectFile,
+  onSelectMultipleFiles,
   onError,
   disabled = false,
 }) => {
@@ -49,6 +51,36 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     [onSelectFile, onError]
   );
 
+  const handleFilesSelection = useCallback(
+    (fileList: FileList | null) => {
+      if (!fileList || fileList.length === 0) return;
+      const files = Array.from(fileList);
+      if (files.length === 1) {
+        validateAndHandle(files[0]);
+        return;
+      }
+      const validFiles = files.filter((file) => {
+        if (file.size > 15 * 1024 * 1024) {
+          onError(`File ${file.name} exceeds 15 MB limit.`);
+          return false;
+        }
+        if (!file.type.startsWith('image/')) {
+          onError(`Unsupported file type for ${file.name}.`);
+          return false;
+        }
+        return true;
+      });
+      if (validFiles.length > 0) {
+        if (onSelectMultipleFiles) {
+          onSelectMultipleFiles(validFiles);
+        } else {
+          onSelectFile(validFiles[0]);
+        }
+      }
+    },
+    [onError, onSelectFile, onSelectMultipleFiles, validateAndHandle]
+  );
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (disabled) return;
@@ -64,9 +96,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     e.preventDefault();
     setIsDragOver(false);
     if (disabled) return;
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      validateAndHandle(e.dataTransfer.files[0]);
-    }
+    handleFilesSelection(e.dataTransfer.files);
   };
 
   const handleClick = () => {
@@ -101,12 +131,9 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
       <input
         ref={fileInputRef}
         type="file"
+        multiple={Boolean(onSelectMultipleFiles)}
         accept="image/png,image/jpeg,image/webp,image/jpg"
-        onChange={(e) => {
-          if (e.target.files && e.target.files[0]) {
-            validateAndHandle(e.target.files[0]);
-          }
-        }}
+        onChange={(e) => handleFilesSelection(e.target.files)}
         className="hidden"
         disabled={disabled}
       />

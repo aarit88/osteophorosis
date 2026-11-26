@@ -5,7 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResearchWorkbenchPage } from '../src/pages/ResearchWorkbenchPage';
 import type { ResearchTracksResponse, TrackAInferenceResponse, TrackAStatusResponse, TrackDDatasetReadinessResponse } from '../src/api/types';
 
-const mocks = vi.hoisted(() => ({ getResearchTracks: vi.fn(), getTrackDDatasetReadiness: vi.fn(), getTrackAStatus: vi.fn(), runTrackAInference: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getResearchTracks: vi.fn(),
+  getTrackDDatasetReadiness: vi.fn(),
+  getTrackAStatus: vi.fn(),
+  runTrackAInference: vi.fn(),
+  runSyntheticWorkbench: vi.fn(),
+}));
 vi.mock('../src/api/client', () => mocks);
 
 const tracks: ResearchTracksResponse = {
@@ -60,13 +66,12 @@ describe('research workbench', () => {
     expect(screen.getByRole('link', { name: /Review governance/ })).toHaveAttribute('href', '/governance');
   });
 
-  it('shows module availability and never invokes the synthetic workbench endpoint', async () => {
+  it('shows module availability and links cleanly without firing inference prematurely', async () => {
     renderPage();
-    expect(await screen.findByRole('heading', { name: 'Research module availability' })).toBeInTheDocument();
-    expect(screen.getByText(/No synthetic image-derived outputs/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Interactive XAI & Diagnostic Research Modules/i })).toBeInTheDocument();
     for (const [name, href] of [['Radiomics', '/radiomics'], ['Biomechanics', '/biomechanics'], ['Explainability', '/explainability'], ['Uncertainty', '/uncertainty']]) {
       const article = screen.getByRole('heading', { name }).closest('article');
-      expect(article && within(article).getByRole('link', { name: 'Open module' })).toHaveAttribute('href', href);
+      expect(article && within(article).getByRole('link', { name: /Open interactive module/i })).toHaveAttribute('href', href);
     }
     expect(mocks.runTrackAInference).not.toHaveBeenCalled();
   });

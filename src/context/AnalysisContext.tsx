@@ -148,6 +148,10 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
+export function useOptionalAnalysis() {
+  return useContext(AnalysisContext) ?? null;
+}
+
 export function useAnalysis() {
   const context = useContext(AnalysisContext);
   if (!context) {

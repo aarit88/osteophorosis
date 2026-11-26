@@ -46,17 +46,25 @@ describe('Express research API contracts', () => {
     expect(response.body).toMatchObject({ error_code: 'FOUR_CLASS_MODEL_NOT_READY' });
   });
 
-  it('does not expose synthetic radiomics, geometry, explanation, uncertainty, or workbench fixtures at runtime', async () => {
-    for (const path of [
-      '/api/v1/radiomics/demo',
-      '/api/v1/biomechanics/geometry',
-      '/api/v1/explainability/demo',
-      '/api/v1/uncertainty/demo',
-      '/api/v1/workbench/run-demo',
-    ]) {
-      const response = await invoke('POST', path);
-      expect(response.status).toBe(404);
-      expect(response.body).toMatchObject({ error_code: 'SYNTHETIC_DEMO_NOT_AVAILABLE' });
-    }
+  it('serves interactive synthetic research demonstrations for radiomics, geometry, explainability, uncertainty, and workbench', async () => {
+    const radiomics = await invoke('POST', '/api/v1/radiomics/demo');
+    expect(radiomics.status).toBe(200);
+    expect(radiomics.body.verified_features_count).toBe(81);
+
+    const geometry = await invoke('POST', '/api/v1/biomechanics/geometry');
+    expect(geometry.status).toBe(200);
+    expect(geometry.body.pixel_spacing_mm).toEqual([0.5, 0.5]);
+
+    const explain = await invoke('POST', '/api/v1/explainability/demo');
+    expect(explain.status).toBe(200);
+    expect(Array.isArray(explain.body.heatmap_grid_sample)).toBe(true);
+
+    const uncertainty = await invoke('POST', '/api/v1/uncertainty/demo');
+    expect(uncertainty.status).toBe(200);
+    expect(uncertainty.body).toHaveProperty('normalized_entropy');
+
+    const workbench = await invoke('POST', '/api/v1/workbench/run-demo');
+    expect(workbench.status).toBe(200);
+    expect(workbench.body.four_class_system_status).toBe('FOUR_CLASS_MODEL_NOT_READY');
   });
 });

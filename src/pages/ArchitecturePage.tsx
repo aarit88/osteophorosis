@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, ArrowRight, Boxes, Check, ChevronRight, Database, FileCheck2, LockKeyhole, RotateCw, Server, ShieldAlert } from 'lucide-react';
-import { getArchitectureReadiness, requestFourClassInference } from '../api/client';
-import type { ArchitectureComponentStatus, ArchitectureReadinessResponse, BlockedInferenceResponse } from '../api/types';
+import { Activity, ArrowDown, ArrowRight, Boxes, Check, ChevronRight, Database, LockKeyhole, RotateCw, Server, ShieldAlert } from 'lucide-react';
+import { getArchitectureReadiness, getScalabilityStatus, requestFourClassInference } from '../api/client';
+import type { ArchitectureComponentStatus, ArchitectureReadinessResponse, BlockedInferenceResponse, ScalabilityStatusResponse } from '../api/types';
 
 const stackLayers = [
   {
@@ -46,6 +46,7 @@ function statusLabel(status: string): string {
 
 export const ArchitecturePage: React.FC = () => {
   const [readiness, setReadiness] = useState<ArchitectureReadinessResponse | null>(null);
+  const [scalability, setScalability] = useState<ScalabilityStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [gateResult, setGateResult] = useState<BlockedInferenceResponse | null>(null);
@@ -56,7 +57,19 @@ export const ArchitecturePage: React.FC = () => {
     setLoading(true);
     setLoadError(false);
     try {
-      setReadiness(await getArchitectureReadiness());
+      const [readinessRes, scalabilityRes] = await Promise.allSettled([
+        getArchitectureReadiness(),
+        getScalabilityStatus(),
+      ]);
+      if (readinessRes.status === 'fulfilled') {
+        setReadiness(readinessRes.value);
+      } else {
+        setReadiness(null);
+        setLoadError(true);
+      }
+      if (scalabilityRes.status === 'fulfilled') {
+        setScalability(scalabilityRes.value);
+      }
     } catch {
       setReadiness(null);
       setLoadError(true);
@@ -160,6 +173,62 @@ export const ArchitecturePage: React.FC = () => {
           <p className="text-xs leading-5 text-slate-500">Status as of {new Date(readiness.timestamp).toLocaleString()}. {readiness.disclaimer}</p>
         </>}
       </section>
+
+      {scalability && (
+        <section aria-labelledby="scalability-title" className="rounded-2xl border border-cyan-900/60 bg-slate-900/70 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Activity className="h-5 w-5 text-cyan-400" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[.18em] text-cyan-400">Clinical gateway scalability</p>
+                <h2 id="scalability-title" className="text-lg font-bold text-white">Worker Pool, Rate Limiting &amp; Latency Telemetry</h2>
+              </div>
+            </div>
+            <span className="rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1 font-mono text-[11px] text-slate-300">
+              Prometheus: GET /api/metrics
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Worker Concurrency</p>
+              <p className="mt-1.5 font-mono text-lg font-bold text-white">
+                {scalability.workerPool.activeWorkers} / {scalability.workerPool.maxConcurrency} active
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                Queue depth: {scalability.workerPool.queuedDepth} / {scalability.workerPool.maxQueueSize}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">API Latency (p50 / p95)</p>
+              <p className="mt-1.5 font-mono text-lg font-bold text-cyan-300">
+                {scalability.latency.p50Ms}ms / {scalability.latency.p95Ms}ms
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                p99: {scalability.latency.p99Ms}ms ({scalability.latency.totalRequests} reqs)
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Ingress Rate Guard</p>
+              <p className="mt-1.5 font-mono text-lg font-bold text-emerald-300">
+                {scalability.rateLimiter.maxRequestsPerMinute} RPM
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                Active windows: {scalability.rateLimiter.trackedClients}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">RAM Asset Pool (AES-256-GCM)</p>
+              <p className="mt-1.5 font-mono text-lg font-bold text-white">
+                {scalability.ephemeralStore.activeEntries} / {scalability.ephemeralStore.maxEntries}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                TTL eviction: {scalability.ephemeralStore.ttlSeconds}s
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       <nav aria-label="Architecture links" className="flex flex-wrap gap-3 border-t border-slate-800 pt-6"><Link to="/governance" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300">Dataset governance <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link><Link to="/about" className="inline-flex min-h-11 items-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-300">About the project</Link></nav>
     </article>

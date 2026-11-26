@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FeedbackRecord, FeedbackStats, SecurityStatusResponse } from '../api/types';
-import { getFeedbackList, getFeedbackStats, getSecurityStatus } from '../api/client';
+import { getFeedbackExportUrl, getFeedbackList, getFeedbackStats, getSecurityStatus } from '../api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Scale, CheckCircle2, XCircle, HelpCircle, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Scale, CheckCircle2, XCircle, HelpCircle, ShieldCheck, RefreshCw, Download } from 'lucide-react';
 
 const COLORS = {
   agree: '#10B981',
@@ -80,6 +80,24 @@ export const AuditPage: React.FC = () => {
                 <span>{securityStatus.encryptionAtRest.algorithm} Encrypted Ledger</span>
               </span>
             )}
+
+            <a
+              href={getFeedbackExportUrl('csv')}
+              download="osteoguard-feedback-ledger.csv"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold border border-slate-700 transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </a>
+
+            <a
+              href={getFeedbackExportUrl('json')}
+              download="osteoguard-feedback-ledger.json"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export JSON</span>
+            </a>
 
             <button
               onClick={loadData}

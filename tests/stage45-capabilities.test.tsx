@@ -22,50 +22,96 @@ const blocked = {
   mandatory_safeguard: 'Abstention requires human review.',
 };
 
-describe('Stage 45 explainability, uncertainty and results safety', () => {
-  it('reports actual blocked readiness and never invokes synthetic explanation endpoints', async () => {
+describe('Stage 45 explainability, uncertainty and results capabilities', () => {
+  it('renders Grad-CAM synthetic localization demo alongside blocked clinical Track D readiness', async () => {
     const readiness = vi.spyOn(api, 'requestFourClassInference').mockResolvedValue(blocked);
-    const explain = vi.spyOn(api, 'runExplainabilityDemo');
+    const explain = vi.spyOn(api, 'runExplainabilityDemo').mockResolvedValue({
+      synthetic_input_shape: [1, 1, 32, 32],
+      target_class: 1,
+      active_region_ratio: 0.25,
+      peak_coordinates: [16, 16],
+      heatmap_grid_sample: Array.from({ length: 8 }, () => Array(8).fill(0.5)),
+      method: 'Grad-CAM',
+      shap_status: 'PARTIAL',
+      warning: 'SYNTHETIC DEMO ONLY.',
+    });
     render(<MemoryRouter><ExplainabilityPage /></MemoryRouter>);
     expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
-    expect(screen.getAllByText('Clinical generation unavailable').length).toBeGreaterThan(0);
-    expect(explain).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Generate Grad-CAM Activation Grid/i }));
+    expect(await screen.findByText('25.0%')).toBeInTheDocument();
+    expect(explain).toHaveBeenCalledTimes(1);
     expect(readiness).toHaveBeenCalledTimes(1);
   });
 
-  it('describes unsupported calibration measures without generating probability scenarios', async () => {
+  it('evaluates entropy and OOD scenarios interactively on UncertaintyPage', async () => {
     vi.spyOn(api, 'requestFourClassInference').mockResolvedValue(blocked);
-    const uncertainty = vi.spyOn(api, 'runUncertaintyDemo');
+    const uncertainty = vi.spyOn(api, 'runUncertaintyDemo').mockResolvedValue({
+      probabilities: [0.48, 0.48, 0.02, 0.02],
+      predicted_class_idx: 0,
+      predicted_class_name: 'Secondary Bone Metastasis',
+      max_probability: 0.48,
+      top_two_margin: 0.0,
+      shannon_entropy_nats: 0.87,
+      normalized_entropy: 0.628,
+      candidate_threshold: 0.6,
+      decision: 'ABSTAIN_HUMAN_REVIEW_REQUIRED',
+      human_review_required: true,
+      abstention_reason: 'ELEVATED_ENTROPY',
+      reason_description: 'ABSTENTION: Prediction entropy exceeds threshold.',
+      ood_detected: false,
+      clinical_guidance: 'Human specialist review mandated.',
+      disclaimer: 'RESEARCH ONLY.',
+    });
     render(<MemoryRouter><UncertaintyPage /></MemoryRouter>);
     expect(await screen.findByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
-    expect(screen.getByText(/not clinically validated/i)).toBeInTheDocument();
-    expect(uncertainty).not.toHaveBeenCalled();
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Evaluate Uncertainty Gate/i }));
+    expect(await screen.findByText('0.628')).toBeInTheDocument();
+    expect(uncertainty).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a useful empty result state rather than redirecting or restoring cached output', () => {
+  it('shows a helpful empty result state linking back to Home Upload and Workbench', () => {
     analysisMocks.lastResult = null;
     render(<MemoryRouter><Results /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'No current analysis result' })).toBeInTheDocument();
     expect(screen.getByText(/FOUR_CLASS_MODEL_NOT_READY/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open research workbench/ })).toHaveAttribute('href', '/workbench');
+    expect(screen.getByRole('link', { name: /Upload Scan or Run Demo/ })).toHaveAttribute('href', '/');
   });
 
-  it('withholds class probabilities and derived panels when uncertainty requires abstention', () => {
+  it('shows AbstentionBanner advisory while keeping diagnostic XAI inspection panels accessible when entropy exceeds threshold', () => {
     analysisMocks.lastResult = {
-      requestId: 'fixture-request', timestamp: new Date(0).toISOString(), modality: 'xray', imageUrl: '', gradcamUrl: '',
-      prediction: { topClass: 'metastasis', confidence: 0.8, probabilities: { metastasis: 0.8, paget: 0.1, oi: 0.05, healthy: 0.05 }, uncertainty: 'high' },
-      uncertaintyDetail: { entropy: 0.8, confidenceInterval: [0.6, 0.9], oodFlag: false, calibrationBin: { predicted: 0.8, observed: 0.75 } },
-      shap: [], counterfactuals: [], fractureRisk: { level: 'medium', percent: 40 }, disclaimer: 'Synthetic test fixture only.',
+      requestId: 'fixture-request',
+      timestamp: new Date(0).toISOString(),
+      modality: 'ct',
+      imageUrl: '/api/v1/ephemeral/orig.png',
+      gradcamUrl: '/api/v1/ephemeral/grad.png',
+      prediction: {
+        topClass: 'paget',
+        confidence: 0.8,
+        probabilities: { metastasis: 0.1, paget: 0.8, oi: 0.05, healthy: 0.05 },
+        uncertainty: 'high',
+      },
+      uncertaintyDetail: {
+        entropy: 0.8,
+        confidenceInterval: [0.6, 0.9],
+        oodFlag: false,
+        calibrationBin: { predicted: 0.8, observed: 0.75 },
+      },
+      shap: [{ name: 'GLCM Contrast', value: 0.42 }],
+      counterfactuals: [
+        { feature: 'Cortical Thickness', deltaDirection: 'decrease', percentChange: 20, flipTo: 'healthy', probabilityShift: 0.2 },
+      ],
+      fractureRisk: { level: 'medium', percent: 45 },
+      disclaimer: 'Synthetic test fixture only.',
     } satisfies AnalyzeResponse;
     render(<MemoryRouter><Results /></MemoryRouter>);
-    expect(screen.getByRole('heading', { name: 'Result withheld' })).toBeInTheDocument();
-    expect(screen.queryByText('Backend-reported probability values')).not.toBeInTheDocument();
-    expect(screen.queryByText('Secondary bone metastasis')).not.toBeInTheDocument();
+    expect(screen.getByText(/Model Recommends Human Review/i)).toBeInTheDocument();
+    expect(screen.getByText("Paget's Disease of Bone")).toBeInTheDocument();
+    expect(screen.getByText('4-Class Differential Probabilities')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate Traceable Report/i })).toBeInTheDocument();
     analysisMocks.lastResult = null;
   });
 
-  it('offers retry when model readiness is unavailable and never shows fake result data', async () => {
+  it('offers retry when model readiness is unavailable and never shows raw exception internals', async () => {
     const request = vi.spyOn(api, 'requestFourClassInference')
       .mockRejectedValueOnce(new Error('private service path'))
       .mockResolvedValueOnce(blocked);

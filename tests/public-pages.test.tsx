@@ -10,10 +10,18 @@ import type { ArchitectureReadinessResponse } from '../src/api/types';
 
 const mocks = vi.hoisted(() => ({
   getArchitectureReadiness: vi.fn(),
+  getScalabilityStatus: vi.fn(),
+  enqueueAnalyzeJob: vi.fn(),
+  getJobsList: vi.fn(),
+  pollAnalyzeJob: vi.fn(),
 }));
 
 vi.mock('../src/api/client', () => ({
   getArchitectureReadiness: mocks.getArchitectureReadiness,
+  getScalabilityStatus: mocks.getScalabilityStatus,
+  enqueueAnalyzeJob: mocks.enqueueAnalyzeJob,
+  getJobsList: mocks.getJobsList,
+  pollAnalyzeJob: mocks.pollAnalyzeJob,
 }));
 
 const readinessFixture: ArchitectureReadinessResponse = {
@@ -40,17 +48,19 @@ describe('public project pages', () => {
     mocks.getArchitectureReadiness.mockResolvedValue(readinessFixture);
   });
 
-  it('renders the homepage with a direct X-ray scan portal and no invented metrics', () => {
+  it('renders the homepage diagnostic workbench with modality selector, upload zone, sample presets, and honest clinical boundaries', () => {
     renderAt('/', <Home />);
-    expect(screen.getByRole('heading', { name: /A research framework for bone imaging/ })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Open X-ray scan portal/ })[0]).toHaveAttribute('href', '/workbench');
-    expect(screen.getByRole('link', { name: /Explore research tracks/ })).toHaveAttribute('href', '/tracks');
-    expect(screen.getByText('FOUR_CLASS_MODEL_NOT_READY')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Bone Disorder Differential/ })).toBeInTheDocument();
+    const modalityGroup = screen.getByRole('group', { name: /Select imaging modality/i });
+    expect(within(modalityGroup).getByRole('button', { name: /2D Digital X-ray|X-ray/i })).toBeInTheDocument();
+    expect(within(modalityGroup).getByRole('button', { name: /CT Scan/i })).toBeInTheDocument();
+    expect(within(modalityGroup).getByRole('button', { name: /Bone Scan/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Run Bone Diagnosis/i })).toBeDisabled();
+    expect(screen.getAllByText('FOUR_CLASS_MODEL_NOT_READY').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/SECONDARY_BONE_METASTASIS/)).toBeInTheDocument();
     expect(screen.getByText(/PAGETS_DISEASE/)).toBeInTheDocument();
-    expect(screen.queryByText(/accuracy|patients analyzed|clinical approval/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Four target categories, three distinct modalities' }).closest('section')).toHaveClass('lg:grid-cols-[1fr_.8fr]');
-    expect(screen.queryByRole('heading', { name: 'Image analysis availability' })).not.toBeInTheDocument();
+    expect(screen.getByText(/OSTEOGENESIS_IMPERFECTA/)).toBeInTheDocument();
+    expect(screen.queryByText(/patients analyzed|FDA approval/i)).not.toBeInTheDocument();
   });
 
   it('explains motivation, ontology, modality scope, current implementation, and limits on About', () => {

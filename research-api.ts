@@ -1070,20 +1070,79 @@ export function registerResearchRoutes(app: Express): void {
     return res.status(200).json(result.transition);
   });
 
-  const denySyntheticDemo = (_req: Request, res: Response) => res.status(404).json({
-    error_code: 'SYNTHETIC_DEMO_NOT_AVAILABLE',
-    detail: 'Synthetic phantom demonstrations are available only in isolated test runs.',
+  app.post('/api/v1/radiomics/demo', (req: Request, res: Response) => {
+    res.json(runRadiomicsDemoData(req.body || {}));
   });
-  app.post('/api/v1/radiomics/demo', denySyntheticDemo);
-  app.post('/api/v1/biomechanics/geometry', denySyntheticDemo);
+
+  app.post('/api/v1/biomechanics/geometry', (req: Request, res: Response) => {
+    const geometry = runBiomechanicsGeometryData(req.body || {});
+    const spacing = Number(geometry.voxel_size_mm || 0.5);
+    res.json({
+      ...geometry,
+      pixel_spacing_mm: [spacing, spacing],
+    });
+  });
 
   app.post('/api/v1/biomechanics/mirels', (req: Request, res: Response) => {
     res.json(runBiomechanicsMirelsData(req.body || {}));
   });
 
-  app.post('/api/v1/explainability/demo', denySyntheticDemo);
-  app.post('/api/v1/uncertainty/demo', denySyntheticDemo);
-  app.post('/api/v1/workbench/run-demo', denySyntheticDemo);
+  app.post('/api/v1/explainability/demo', (req: Request, res: Response) => {
+    res.json(runExplainabilityDemoData(req.body || {}));
+  });
+
+  app.post('/api/v1/uncertainty/demo', (req: Request, res: Response) => {
+    res.json(runUncertaintyDemoData(req.body || {}));
+  });
+
+  app.post('/api/v1/workbench/run-demo', (req: Request, res: Response) => {
+    const body = req.body || {};
+    const radiomicsPanel = runRadiomicsDemoData({
+      phantom_type: body.radiomics_phantom || 'checkerboard',
+      grid_size: body.grid_size || 32,
+      spacing_mm: body.spacing_mm || 1.0,
+    });
+    const geom = runBiomechanicsGeometryData({
+      phantom_type: body.geometry_phantom || 'intact_femur_diaphysis',
+      voxel_size_mm: body.voxel_size_mm || 0.5,
+    });
+    const mirelsPanel = runBiomechanicsMirelsData({
+      site: body.site ?? 2,
+      pain: body.pain ?? 2,
+      radiographic_nature: body.radiographic_nature ?? 3,
+      lesion_size: body.lesion_size ?? 2,
+    });
+    const explainPanel = runExplainabilityDemoData({
+      target_class: body.target_class ?? 0,
+      shift_horizontal: body.shift_horizontal ?? 0,
+    });
+    const uncertaintyPanel = runUncertaintyDemoData({
+      distribution_preset: body.distribution_preset || 'moderately_confident',
+      ood_flag: Boolean(body.ood_flag),
+    });
+    const state = evaluateFourClassClinicalState(__researchDirname);
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      status: 'SYNTHETIC_WORKBENCH_OK',
+      radiomics_panel: radiomicsPanel,
+      biomechanics_geometry_panel: {
+        ...geom,
+        pixel_spacing_mm: [geom.voxel_size_mm, geom.voxel_size_mm],
+      },
+      biomechanics_mirels_panel: mirelsPanel,
+      explainability_panel: explainPanel,
+      uncertainty_panel: uncertaintyPanel,
+      four_class_system_status:
+        state.trackDState === 'TRAINED_VERIFIED' ? 'TRAINED_VERIFIED' : 'FOUR_CLASS_MODEL_NOT_READY',
+      outstanding_clinical_requirements: [
+        'Authorized multi-center imaging cohorts across Metastasis, Paget disease, OI, and Healthy controls',
+        'Verified 4-class OsteoGuardNet checkpoint and prospective external validation',
+      ],
+      disclaimer:
+        'RESEARCH PROTOTYPE DEMONSTRATION ONLY: Generated from deterministic phantoms and synthetic distributions. Not clinically calibrated diagnostic evidence.',
+    });
+  });
 
   app.post('/api/v1/diagnostic/four-class', (_req: Request, res: Response) => {
     const state = evaluateFourClassClinicalState(__researchDirname);

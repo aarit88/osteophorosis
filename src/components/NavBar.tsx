@@ -16,7 +16,7 @@ const researchRoutes = visibleRoutes.filter((route) => route.navigation === 'res
 const supportRoutes = visibleRoutes.filter((route) => route.navigation === 'support');
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+  `inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
     isActive ? 'border border-cyan-800/60 bg-cyan-950/50 text-cyan-300' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
   }`;
 
@@ -52,28 +52,25 @@ export const NavBar: React.FC = () => {
     <>
       <nav aria-label="Primary navigation" className="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur-md transition-colors dark:bg-slate-950/95 light:bg-white/95">
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
-          <div className="flex min-h-14 items-center justify-between gap-2 sm:min-h-16">
-            <NavLink to="/" end aria-label="OsteoGuard AI home" className="group flex min-w-0 items-center gap-2 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:gap-2.5">
+          <div className="flex min-h-14 items-center justify-between gap-3 sm:min-h-16">
+            <NavLink to="/" end aria-label="OsteoGuard AI home" className="group flex shrink-0 items-center gap-2 rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:gap-2.5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-700 to-teal-400 text-white shadow-lg shadow-cyan-500/20 transition-transform group-hover:scale-105 sm:h-9 sm:w-9">
                 <Bone className="h-4 w-4 rotate-45 sm:h-5 sm:w-5" aria-hidden="true" />
               </span>
-              <span className="min-w-0">
-                <span className="flex items-center gap-1 text-base font-black tracking-tight text-white dark:text-white light:text-slate-900 sm:text-lg">
-                  <span className="truncate">Osteo<span className="text-cyan-400">Guard</span></span>
-                  <span className="shrink-0 rounded-full border border-cyan-800 bg-cyan-950/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300">AI</span>
-                </span>
-                <span className="hidden text-[10px] text-slate-400 xl:block">Bone pathology research prototype</span>
+              <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-base font-black tracking-tight text-white dark:text-white light:text-slate-900 sm:text-lg">
+                <span>Osteo<span className="text-cyan-400">Guard</span></span>
+                <span className="rounded-md border border-cyan-800 bg-cyan-950/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300">AI</span>
               </span>
             </NavLink>
 
-            <div className="hidden items-center gap-1 lg:flex" aria-label="Application pages">
+            <div className="hidden items-center gap-0.5 lg:flex" aria-label="Application pages">
               {primaryRoutes.map((route) => {
                 const Icon = route.icon;
-                return <NavLink key={route.path} to={route.path} end={route.path === '/'} className={linkClass} title={route.description}><Icon className="h-3.5 w-3.5" aria-hidden="true" /><span>{route.title}</span></NavLink>;
+                return <NavLink key={route.path} to={route.path} end={route.path === '/'} className={linkClass} title={route.description}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span>{route.title}</span></NavLink>;
               })}
               <div className="relative">
                 <button type="button" aria-haspopup="true" aria-expanded={isResearchOpen} onClick={() => { setIsResearchOpen((open) => !open); setIsSupportOpen(false); }} className={`${linkClass({ isActive: hasActiveResearch })}`}>
-                  Research tools <ChevronDown className={`h-3 w-3 transition-transform ${isResearchOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  XAI &amp; Labs <ChevronDown className={`h-3 w-3 transition-transform ${isResearchOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </button>
                 <AnimatePresence>
                   {isResearchOpen && <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-900 p-1.5 shadow-xl" role="menu" aria-label="Research tools">
@@ -93,7 +90,7 @@ export const NavBar: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <div className="flex shrink-0 items-center gap-1.5">
               <QueueIndicator activeCount={activeQueueCount} queuedCount={queuedJobsCount} />
               <button type="button" onClick={() => setIsDrawerOpen(true)} className="relative rounded-xl border border-slate-800 p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white sm:p-2" title="Recent analyses cache" aria-label="Open recent analyses history drawer">
                 <History className="h-4 w-4" aria-hidden="true" />

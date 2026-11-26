@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, ArrowRight, BookOpen, CheckCircle2, Database, FileCheck2, Layers, LockKeyhole, RotateCw, ScanLine, ShieldAlert, ShieldCheck, Trash2, UploadCloud } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getResearchTracks, getTrackAStatus, getTrackDDatasetReadiness, runTrackAInference } from '../api/client';
-import type { ResearchTrackDetail, ResearchTracksResponse, TrackAInferenceResponse, TrackAOperatingPoint, TrackAStatusResponse, TrackDDatasetReadinessResponse } from '../api/types';
+import { getResearchTracks, getTrackAStatus, getTrackDDatasetReadiness, runSyntheticWorkbench, runTrackAInference } from '../api/client';
+import type { ResearchTrackDetail, ResearchTracksResponse, SyntheticWorkbenchRunResponse, TrackAInferenceResponse, TrackAOperatingPoint, TrackAStatusResponse, TrackDDatasetReadinessResponse } from '../api/types';
 
 const linkClass = 'inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:border-cyan-600 hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400';
 const panelClass = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-5';
@@ -48,6 +48,9 @@ export const ResearchWorkbenchPage: React.FC = () => {
   const [scanResult, setScanResult] = useState<TrackAInferenceResponse | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanRunning, setScanRunning] = useState(false);
+  const [workbenchRun, setWorkbenchRun] = useState<SyntheticWorkbenchRunResponse | null>(null);
+  const [workbenchRunning, setWorkbenchRunning] = useState(false);
+  const [workbenchError, setWorkbenchError] = useState<string | null>(null);
 
   const loadTracks = useCallback(async () => {
     setTracksLoading(true);
@@ -108,6 +111,18 @@ export const ResearchWorkbenchPage: React.FC = () => {
     setScanImage(null);
     setScanResult(null);
     setScanError(null);
+  };
+
+  const executeCombinedWorkbench = async () => {
+    setWorkbenchRunning(true);
+    setWorkbenchError(null);
+    try {
+      setWorkbenchRun(await runSyntheticWorkbench());
+    } catch {
+      setWorkbenchError('Combined research pipeline demonstration could not be executed. Check the API connection and retry.');
+    } finally {
+      setWorkbenchRunning(false);
+    }
   };
 
   useEffect(() => { void loadTracks(); }, [loadTracks]);
@@ -200,11 +215,64 @@ export const ResearchWorkbenchPage: React.FC = () => {
       </section>
 
       <section className={panelClass} aria-labelledby="methods-title">
-        <h2 id="methods-title" className="text-xl font-bold text-white">Research module availability</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">These routes describe implemented methods and their current input limitations. Generated phantom values are not produced from this user-facing workspace.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{methodLinks.map((item) => <article key={item.path} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4"><h3 className="font-semibold text-slate-100">{item.title}</h3><p className="mt-2 min-h-10 text-xs leading-5 text-slate-400">{item.description}</p><Link className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-cyan-200 underline underline-offset-4" to={item.path}>Open module <ArrowRight size={13} aria-hidden="true" /></Link></article>)}</div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="methods-title" className="text-xl font-bold text-white">Interactive XAI &amp; Diagnostic Research Modules</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">Launch the full X-ray/CT 4-class diagnosis flow on the Home Workbench or run all 4 validated engineering engines together on synthetic Stage 31 fixtures.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void executeCombinedWorkbench()}
+              disabled={workbenchRunning}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-950/60 px-4 py-2 text-xs font-bold text-cyan-200 hover:bg-cyan-900/60 disabled:opacity-50"
+            >
+              {workbenchRunning ? <RotateCw size={14} className="animate-spin" aria-hidden="true" /> : <Activity size={14} aria-hidden="true" />}
+              Run Combined Stage 31 Pipeline
+            </button>
+            <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-600">
+              <ScanLine size={14} aria-hidden="true" />
+              4-Class X-ray / CT Diagnosis Workbench
+            </Link>
+          </div>
+        </div>
+        {workbenchError && <p role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-xs text-rose-200">{workbenchError}</p>}
+        {workbenchRun && (
+          <div className="mt-4 space-y-3 rounded-xl border border-cyan-800/70 bg-slate-950/80 p-4" aria-label="Combined synthetic pipeline output">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">Synchronized 4-Engine Stage 31 Output</span>
+              <span className="rounded bg-amber-950/70 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-200 border border-amber-800/80">
+                {workbenchRun.four_class_system_status}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                <p className="font-semibold text-slate-400">IBSI Radiomics</p>
+                <p className="mt-1 font-mono font-bold text-white">{workbenchRun.radiomics_panel.verified_features_count}/{workbenchRun.radiomics_panel.total_features_count} Verified</p>
+                <p className="mt-1 text-[11px] text-slate-400">Phantom: {workbenchRun.radiomics_panel.phantom_type}</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                <p className="font-semibold text-slate-400">Biomechanics &amp; Mirels</p>
+                <p className="mt-1 font-mono font-bold text-white">Score {workbenchRun.biomechanics_mirels_panel.total_score}/12 · {workbenchRun.biomechanics_mirels_panel.fracture_risk_percent}%</p>
+                <p className="mt-1 text-[11px] text-slate-400">J: {workbenchRun.biomechanics_geometry_panel.polar_J_mm4.toFixed(1)} mm⁴</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                <p className="font-semibold text-slate-400">Grad-CAM Localization</p>
+                <p className="mt-1 font-mono font-bold text-white">{(workbenchRun.explainability_panel.active_region_ratio * 100).toFixed(1)}% Active Region</p>
+                <p className="mt-1 text-[11px] text-slate-400">Peak: [{workbenchRun.explainability_panel.peak_coordinates.join(', ')}]</p>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                <p className="font-semibold text-slate-400">Uncertainty Triage</p>
+                <p className="mt-1 font-mono font-bold text-white">{workbenchRun.uncertainty_panel.decision} ({workbenchRun.uncertainty_panel.normalized_entropy.toFixed(3)})</p>
+                <p className="mt-1 text-[11px] text-slate-400">{workbenchRun.uncertainty_panel.predicted_class_name}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{methodLinks.map((item) => <article key={item.path} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4"><h3 className="font-semibold text-slate-100">{item.title}</h3><p className="mt-2 min-h-10 text-xs leading-5 text-slate-400">{item.description}</p><Link className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-cyan-200 underline underline-offset-4" to={item.path}>Open interactive module <ArrowRight size={13} aria-hidden="true" /></Link></article>)}</div>
       </section>
 
-      <section className="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs leading-5 text-slate-400"><strong className="text-slate-200">Analysis history:</strong> this application does not persist patient images or show server-side recent scan history. Track A results stay in this browser session and are cleared when you use “Clear scan.” The separate four-class Track D route remains unavailable with <code>FOUR_CLASS_MODEL_NOT_READY</code>.</section>
+      <section className="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs leading-5 text-slate-400"><strong className="text-slate-200">Session Boundary:</strong> Track A results and 4-class simulation runs stay in this browser session only and are cleared when cleared manually. The clinical Track D diagnostic gate remains enforced with <code>FOUR_CLASS_MODEL_NOT_READY</code> until clinical cohorts are verified.</section>
       <footer className="flex flex-wrap gap-2 border-t border-slate-800 pt-5" aria-label="Research navigation"><Link className={linkClass} to="/tracks">Tracks</Link><Link className={linkClass} to="/governance">Governance</Link><Link className={linkClass} to="/evidence">Evidence</Link><Link className={linkClass} to="/results">Results</Link></footer>
     </main>
   );

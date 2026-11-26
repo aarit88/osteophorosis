@@ -170,6 +170,9 @@ export async function analyzeImage(payload: AnalyzePayload, customBaseUrl?: stri
   const formData = new FormData();
   formData.append('image', payload.image);
   formData.append('modality', payload.modality);
+  if (payload.sampleCase) {
+    formData.append('sample_case', payload.sampleCase);
+  }
 
   const response = await fetchWithResilience(url, {
     method: 'POST',
@@ -259,12 +262,60 @@ export async function logTelemetryEvent(event: Omit<EventPayload, 'timestamp'>):
 }
 
 /**
+ * POST /api/v1/jobs/analyze (Enqueue background scan triage job)
+ */
+export async function enqueueAnalyzeJob(payload: AnalyzePayload, customBaseUrl?: string): Promise<JobStatusResponse> {
+  const base = (customBaseUrl ?? API_BASE_URL).replace(/\/+$/, '');
+  const url = `${base}/api/v1/jobs/analyze`;
+  const formData = new FormData();
+  formData.append('image', payload.image);
+  formData.append('modality', payload.modality);
+  if (payload.sampleCase) {
+    formData.append('sample_case', payload.sampleCase);
+  }
+  const response = await fetchWithResilience(url, {
+    method: 'POST',
+    body: formData,
+  });
+  return (await response.json()) as JobStatusResponse;
+}
+
+/**
+ * GET /api/v1/jobs (List queued and completed triage worklist jobs)
+ */
+export async function getJobsList(): Promise<JobStatusResponse[]> {
+  const url = `${API_BASE_URL}/api/v1/jobs`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  const data = (await response.json()) as { items?: JobStatusResponse[] };
+  return data.items || [];
+}
+
+/**
  * GET /api/v1/jobs/:id (Async polling seam)
  */
 export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {
   const url = `${API_BASE_URL}/api/v1/jobs/${jobId}`;
   const response = await fetchWithResilience(url, { method: 'GET' });
   return (await response.json()) as JobStatusResponse;
+}
+
+/**
+ * Poll queued analysis job until done or failed
+ */
+export async function pollAnalyzeJob(jobId: string, intervalMs = 350, maxWaitMs = 45000): Promise<JobStatusResponse> {
+  const started = Date.now();
+  while (Date.now() - started < maxWaitMs) {
+    const job = await getJobStatus(jobId);
+    if (job.status === 'done' || job.status === 'failed') {
+      return job;
+    }
+    await new Promise((res) => setTimeout(res, intervalMs));
+  }
+  throw new TimeoutError(`Clinical analysis job ${jobId} timed out while awaiting completion.`);
+}
+
+export function getFeedbackExportUrl(format: 'csv' | 'json' = 'csv'): string {
+  return `${API_BASE_URL}/api/v1/feedback/export?format=${format}`;
 }
 
 /**
@@ -420,6 +471,12 @@ export async function getSecurityStatus(): Promise<import('./types').SecuritySta
   const url = `${API_BASE_URL}/api/v1/security/status`;
   const response = await fetchWithResilience(url, { method: 'GET' });
   return (await response.json()) as import('./types').SecurityStatusResponse;
+}
+
+export async function getScalabilityStatus(): Promise<import('./types').ScalabilityStatusResponse> {
+  const url = `${API_BASE_URL}/api/v1/system/scalability`;
+  const response = await fetchWithResilience(url, { method: 'GET' });
+  return (await response.json()) as import('./types').ScalabilityStatusResponse;
 }
 
 export async function getClinicalTrainingStatus(): Promise<import('./types').ClinicalTrainingStatusResponse> {

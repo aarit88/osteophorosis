@@ -29,38 +29,72 @@ describe('Stage 44 research modules', () => {
     expect(screen.queryByText(/SHA-256/)).not.toBeInTheDocument();
   });
 
-  it('documents actual radiomics families while keeping synthetic feature values out of the runtime UI', () => {
+  it('runs digital phantom radiomics extraction on RadiomicsPage', async () => {
+    mocks.runRadiomicsDemo.mockResolvedValue({
+      phantom_type: 'checkerboard',
+      grid_size: 32,
+      spacing_mm: 1.0,
+      verified_features_count: 81,
+      unverified_features_count: 21,
+      total_features_count: 102,
+      specification_status: '102-D SPECIFICATION NOT VERIFIED',
+      verified_features_sample: { firstorder_Mean: 124.5 },
+      unverified_features_sample: { cortical_heuristic_v1: 0.42 },
+      disclaimer: 'DEMONSTRATION ONLY.',
+    });
     renderPage(<RadiomicsPage />);
     expect(screen.getByRole('heading', { name: 'Implemented feature families' })).toBeInTheDocument();
     expect(screen.getByText('GLCM')).toBeInTheDocument();
-    expect(screen.getByText(/81 feature dimensions as analytically verified/)).toBeInTheDocument();
-    expect(screen.getByText(/21 dimensions were described as engineering heuristics/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Run phantom/i })).not.toBeInTheDocument();
-    expect(mocks.runRadiomicsDemo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Extract Radiomics Features/i }));
+    expect(await screen.findByText('81 features')).toBeInTheDocument();
+    expect(mocks.runRadiomicsDemo).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps geometry outputs unavailable without a governed image segmentation input', () => {
+  it('computes 2D cross-section cortical geometry on BiomechanicsPage', async () => {
+    mocks.runBiomechanicsGeometry.mockResolvedValue({
+      phantom_type: 'intact_femur_diaphysis',
+      voxel_size_mm: 0.5,
+      pixel_spacing_mm: [0.5, 0.5],
+      area_mm2: 312.5,
+      centroid_x_mm: 25,
+      centroid_y_mm: 25,
+      I_xx_mm4: 4800,
+      I_yy_mm4: 4800,
+      I_xy_mm4: 0,
+      polar_J_mm4: 9600,
+      area_retention_ratio: 1,
+      bending_retention_ratio_x: 1,
+      bending_retention_ratio_y: 1,
+      torsion_retention_ratio: 1,
+      warning: 'MATHEMATICAL DEMONSTRATION ONLY.',
+    });
     renderPage(<BiomechanicsPage />);
-    expect(screen.getByRole('heading', { name: 'Cross-section geometry' })).toBeInTheDocument();
-    expect(screen.getByText(/no governed image-segmentation input/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Calculate geometry' })).not.toBeInTheDocument();
-    expect(mocks.runBiomechanicsGeometry).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Calculate geometry/i }));
+    expect(await screen.findByText('312.5 mm²')).toBeInTheDocument();
+    expect(mocks.runBiomechanicsGeometry).toHaveBeenCalledTimes(1);
   });
 
-  it('validates Mirels factor inputs and shows only the arithmetic score', async () => {
-    mocks.runBiomechanicsMirels.mockResolvedValue({ total_score: 9, fracture_risk_percent: 33.3, recommendation_tier: 'HIGH_RISK', prophylactic_fixation_indicated: true, clinical_guidance: 'Not a patient evaluation.', disclaimer: 'Conventional rule only.' });
+  it('validates Mirels factor inputs and shows full score, risk %, tier, and clinical guidance', async () => {
+    mocks.runBiomechanicsMirels.mockResolvedValue({
+      total_score: 9,
+      fracture_risk_percent: 33.3,
+      recommendation_tier: 'HIGH_RISK',
+      prophylactic_fixation_indicated: true,
+      clinical_guidance: 'Prophylactic fixation strongly indicated.',
+      disclaimer: 'Conventional rule only.',
+    });
     renderPage(<BiomechanicsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Calculate hypothetical score' }));
+    fireEvent.click(screen.getByRole('button', { name: /Calculate Mirels Fracture Risk/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose all four scoring categories');
     expect(mocks.runBiomechanicsMirels).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole('combobox', { name: 'Anatomic site' }), { target: { value: '2' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Pain category' }), { target: { value: '2' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Radiographic nature' }), { target: { value: '3' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Lesion size' }), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Calculate hypothetical score' }));
+    fireEvent.click(screen.getByRole('button', { name: /Calculate Mirels Fracture Risk/i }));
     expect(await screen.findByText('Total score: 9 / 12')).toBeInTheDocument();
-    expect(screen.queryByText('33.3%')).not.toBeInTheDocument();
-    expect(screen.queryByText('HIGH RISK')).not.toBeInTheDocument();
+    expect(screen.getByText('33.3%')).toBeInTheDocument();
+    expect(screen.getByText(/HIGH RISK/)).toBeInTheDocument();
     expect(mocks.runBiomechanicsMirels).toHaveBeenCalledWith({ site: 2, pain: 2, radiographic_nature: 3, lesion_size: 2 });
   });
 });

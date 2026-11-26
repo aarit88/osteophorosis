@@ -3,11 +3,18 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
 import { registerResearchRoutes } from './research-api.js';
+import { simulateAnalysis } from './mock-server/simulation.js';
+import {
+  ClinicalAnalysisQueue,
+  LatencyTracker,
+  SlidingWindowRateLimiter,
+  formatFeedbackCsv,
+} from './clinical-scalability.js';
 import { isStrongProductionSecret, isSupportedUploadMediaType, resolveCorsOrigins } from './security-policy.js';
 import {
   getOrProvisionEncryptionKey,
@@ -52,8 +59,18 @@ async function startServer() {
   app.use(cors({ origin: configuredOrigins, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'X-OsteoGuard-Timestamp', 'X-OsteoGuard-Signature'] }));
   app.use(express.json({ limit: '2mb' }));
 
-  // Clinical transport & cache-hardening headers across all responses
+  const latencyTracker = new LatencyTracker(500);
+  const rateLimitRpm = Math.max(20, Number(process.env.OSTEO_RATE_LIMIT_RPM || 120));
+  const uploadRateLimiter = new SlidingWindowRateLimiter({
+    maxRequests: rateLimitRpm,
+    windowMs: 60_000,
+  });
+
+  // Clinical transport, Request-Id tracing & cache-hardening headers across all responses
   app.use((req, res, next) => {
+    const reqId = (typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].trim()) || randomUUID();
+    res.locals.requestId = reqId;
+    res.setHeader('X-Request-Id', reqId);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'no-referrer');
@@ -64,14 +81,37 @@ async function startServer() {
     if (req.path.startsWith('/api')) {
       res.setHeader('Cache-Control', 'no-store, private');
       res.setHeader('Pragma', 'no-cache');
+      const startedAt = Date.now();
+      res.on('finish', () => {
+        if (!req.path.startsWith('/api/v1/system') && req.path !== '/api/metrics') {
+          latencyTracker.record(Date.now() - startedAt, res.statusCode >= 500);
+        }
+      });
     }
     next();
   });
+
+  const enforceRateLimit: express.RequestHandler = (req, res, next) => {
+    const clientIp = (req.ip || req.socket.remoteAddress || 'unknown').replace(/[^a-zA-Z0-9.:_-]/g, '');
+    const verdict = uploadRateLimiter.check(clientIp);
+    res.setHeader('X-RateLimit-Limit', String(verdict.limit));
+    res.setHeader('X-RateLimit-Remaining', String(verdict.remaining));
+    if (!verdict.allowed) {
+      res.setHeader('Retry-After', String(verdict.resetSeconds));
+      return res.status(429).json({
+        error_code: 'RATE_LIMIT_EXCEEDED',
+        error: `Too many requests. Retry after ${verdict.resetSeconds}s.`,
+      });
+    }
+    next();
+  };
 
   const EXPLICIT_BACKEND_URL = process.env.BACKEND_URL?.trim() || '';
   const CLINICAL_API_TOKEN = process.env.OSTEO_CLINICAL_API_TOKEN?.trim() || '';
   const GATEWAY_HMAC_SECRET = process.env.OSTEO_GATEWAY_HMAC_SECRET?.trim() || '';
   const STRICT_CLINICAL_MODE = process.env.OSTEO_STRICT_CLINICAL_MODE === 'true';
+  const ALLOW_SIMULATION_FALLBACK =
+    process.env.OSTEO_DISABLE_SIMULATION !== 'true' && !(production && STRICT_CLINICAL_MODE);
   const probeMLProcessReadiness = async () => {
     if (!EXPLICIT_BACKEND_URL) return false;
     try {
@@ -209,10 +249,20 @@ async function startServer() {
     }
   }
 
-  // AES-256-GCM encrypted RAM-only store for ephemeral radiograph & Grad-CAM assets (15-min TTL)
+  // AES-256-GCM encrypted RAM-only store for ephemeral radiograph & Grad-CAM assets (configurable TTL/capacity)
+  const ephemeralMaxEntries = Math.max(60, Number(process.env.OSTEO_EPHEMERAL_MAX_ENTRIES || 240));
+  const ephemeralTtlSeconds = Math.max(120, Number(process.env.OSTEO_EPHEMERAL_TTL_SECONDS || 900));
   const ephemeralStore = new EphemeralEncryptedAssetStore({
-    ttlMs: 15 * 60 * 1000,
-    maxEntries: 120,
+    ttlMs: ephemeralTtlSeconds * 1000,
+    maxEntries: ephemeralMaxEntries,
+  });
+
+  const maxConcurrentJobs = Math.max(1, Number(process.env.OSTEO_MAX_CONCURRENT_JOBS || 4));
+  const maxQueueSize = Math.max(10, Number(process.env.OSTEO_MAX_QUEUE_SIZE || 60));
+  const analysisQueue = new ClinicalAnalysisQueue<Record<string, any>>({
+    maxConcurrency: maxConcurrentJobs,
+    maxQueueSize,
+    ttlMs: 30 * 60 * 1000,
   });
 
   // Serve trained model evaluation PNG plots safely from ml_artifacts/
@@ -280,12 +330,15 @@ async function startServer() {
   // GET /api/health (unversioned)
   app.get('/api/health', async (_req, res) => {
     if (!EXPLICIT_BACKEND_URL) {
-      if (production || STRICT_CLINICAL_MODE) {
+      if (!ALLOW_SIMULATION_FALLBACK) {
         return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_SERVICE_NOT_CONFIGURED' });
       }
       return res.json({ status: 'ok', mode: 'simulation', clinical_readiness: 'blocked' });
     }
     if (!(await probeMLProcessReadiness())) {
+      if (ALLOW_SIMULATION_FALLBACK) {
+        return res.json({ status: 'ok', mode: 'simulation', clinical_readiness: 'blocked' });
+      }
       return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_SERVICE_UNAVAILABLE' });
     }
     try {
@@ -293,12 +346,18 @@ async function startServer() {
         signal: AbortSignal.timeout(2500),
       });
       if (!modelResponse.ok) {
+        if (ALLOW_SIMULATION_FALLBACK) {
+          return res.json({ status: 'ok', mode: 'simulation', clinical_readiness: 'blocked' });
+        }
         return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_READINESS_UNAVAILABLE' });
       }
       const model = await modelResponse.json() as { can_infer?: boolean; checkpoint_verified?: boolean };
       const clinicallyReady = model.can_infer === true && model.checkpoint_verified === true;
-      return res.json({ status: 'ok', mode: clinicallyReady ? 'production' : 'research', clinical_readiness: clinicallyReady ? 'ready' : 'blocked' });
+      return res.json({ status: 'ok', mode: clinicallyReady ? 'production' : 'simulation', clinical_readiness: clinicallyReady ? 'ready' : 'blocked' });
     } catch {
+      if (ALLOW_SIMULATION_FALLBACK) {
+        return res.json({ status: 'ok', mode: 'simulation', clinical_readiness: 'blocked' });
+      }
       return res.status(503).json({ status: 'error', mode: 'unavailable', error_code: 'ML_READINESS_UNAVAILABLE' });
     }
   });
@@ -384,15 +443,131 @@ async function startServer() {
     res.send(item.buffer);
   });
 
-  // Analyze handler (EXIF-stripped in RAM -> gated FastAPI inference only; never fabricate predictions)
+  class ClinicalPipelineRejectionError extends Error {
+    statusCode: number;
+    error_code: string;
+    payload: Record<string, unknown>;
+    constructor(statusCode: number, errorCode: string, payload: Record<string, unknown>) {
+      super(String(payload.detail || payload.message || errorCode));
+      this.statusCode = statusCode;
+      this.error_code = errorCode;
+      this.payload = payload;
+    }
+  }
+
+  const executeAnalysisPipeline = async (params: {
+    sanitizedBuffer: Buffer;
+    originalname: string;
+    modality: string;
+    sampleCase?: string;
+  }): Promise<Record<string, any>> => {
+    const { sanitizedBuffer, originalname, modality, sampleCase } = params;
+
+    const runSimulatedPipeline = async () => {
+      return await simulateAnalysis(sanitizedBuffer, originalname, modality, publicUploadsDir, {
+        sampleCase,
+        storeAsset: (filename: string, buf: Buffer, contentType: string) => {
+          ephemeralStore.put(filename, buf, contentType);
+          return `/api/v1/ephemeral/${encodeURIComponent(filename)}`;
+        },
+      });
+    };
+
+    if (!EXPLICIT_BACKEND_URL) {
+      if (!ALLOW_SIMULATION_FALLBACK) {
+        throw new ClinicalPipelineRejectionError(503, 'FOUR_CLASS_MODEL_NOT_READY', {
+          status: 'BLOCKED',
+          error_code: 'FOUR_CLASS_MODEL_NOT_READY',
+          detail: 'The four-class model is unavailable because no configured ML service has cleared the dataset, governance, training, and validation gates.',
+        });
+      }
+      return await runSimulatedPipeline();
+    }
+
+    const form = new FormData();
+    form.append('image', new Blob([new Uint8Array(sanitizedBuffer)], { type: 'image/png' }), 'sanitized.png');
+    form.append('modality', modality);
+
+    const mlHeaders: Record<string, string> = {};
+    if (GATEWAY_HMAC_SECRET) {
+      Object.assign(mlHeaders, signGatewayHeaders('POST', '/api/v1/analyze', sanitizedBuffer, GATEWAY_HMAC_SECRET));
+    }
+
+    let liveRes: Response | null = null;
+    try {
+      liveRes = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/analyze`, {
+        method: 'POST',
+        headers: mlHeaders,
+        body: form,
+        signal: AbortSignal.timeout(4000),
+      });
+    } catch {
+      liveRes = null;
+    }
+
+    if (!liveRes) {
+      if (ALLOW_SIMULATION_FALLBACK) {
+        return await runSimulatedPipeline();
+      }
+      throw new ClinicalPipelineRejectionError(503, 'ML_SERVICE_UNAVAILABLE', {
+        status: 'BLOCKED',
+        error_code: 'ML_SERVICE_UNAVAILABLE',
+        detail: 'The ML service could not be reached. No simulation fallback is available.',
+      });
+    }
+
+    const body = (await liveRes.json().catch(() => null)) as Record<string, any> | null;
+    if (!liveRes.ok) {
+      if (liveRes.status === 503 && ALLOW_SIMULATION_FALLBACK) {
+        return await runSimulatedPipeline();
+      }
+      const errCode = liveRes.status === 503 ? 'FOUR_CLASS_MODEL_NOT_READY' : 'ML_INFERENCE_REJECTED';
+      throw new ClinicalPipelineRejectionError(
+        liveRes.status,
+        String(body?.error_code || errCode),
+        body ?? { status: 'BLOCKED', error_code: errCode, detail: 'The ML service rejected this request.' },
+      );
+    }
+
+    if (!body || typeof body.prediction !== 'object' || body.prediction === null) {
+      throw new ClinicalPipelineRejectionError(502, 'INVALID_ML_RESPONSE', {
+        status: 'ERROR',
+        error_code: 'INVALID_ML_RESPONSE',
+        detail: 'The ML service returned an invalid inference response.',
+      });
+    }
+
+    const reqTag = String(body.requestId || `live_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '');
+    if (typeof body.imageBase64 === 'string' && body.imageBase64.length > 0) {
+      const imgId = `${reqTag}_scan.png`;
+      ephemeralStore.put(imgId, Buffer.from(body.imageBase64, 'base64'), 'image/png');
+      body.imageUrl = `/api/v1/ephemeral/${encodeURIComponent(imgId)}`;
+      delete body.imageBase64;
+    }
+    if (typeof body.gradcamBase64 === 'string' && body.gradcamBase64.length > 0) {
+      const camId = `${reqTag}_gradcam.png`;
+      ephemeralStore.put(camId, Buffer.from(body.gradcamBase64, 'base64'), 'image/png');
+      body.gradcamUrl = `/api/v1/ephemeral/${encodeURIComponent(camId)}`;
+      delete body.gradcamBase64;
+    }
+    return body;
+  };
+
+  // Analyze handler (EXIF-stripped in RAM -> live FastAPI inference when available, or deterministic simulation fallback)
   const handleAnalyze = async (req: express.Request, res: express.Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No image file uploaded.' });
       }
 
-      const modality = (req.body.modality as any) || 'xray';
-      if (!['xray', 'ct', 'bone_scan'].includes(String(modality).toLowerCase())) return res.status(422).json({ error: 'Unsupported modality.' });
+      const rawModality = String(req.body.modality || 'xray').toLowerCase();
+      if (!['xray', 'ct', 'bone_scan'].includes(rawModality)) {
+        return res.status(422).json({ error: 'Unsupported modality.' });
+      }
+
+      const rawSampleCase = typeof req.body.sample_case === 'string' ? req.body.sample_case.trim().toLowerCase() : '';
+      const sampleCase = ['metastasis', 'paget', 'oi', 'healthy'].includes(rawSampleCase) ? rawSampleCase : undefined;
+
       let sanitizedBuffer: Buffer;
       try {
         sanitizedBuffer = await stripImageMetadataAndEncodePng(req.file.buffer);
@@ -400,74 +575,78 @@ async function startServer() {
         return res.status(415).json({ error: 'Uploaded file is not a supported, valid image.' });
       }
 
-      if (!EXPLICIT_BACKEND_URL) {
-        return res.status(503).json({
-          status: 'BLOCKED',
-          error_code: 'FOUR_CLASS_MODEL_NOT_READY',
-          detail: 'The four-class model is unavailable because no configured ML service has cleared the dataset, governance, training, and validation gates.',
-        });
+      const result = await executeAnalysisPipeline({
+        sanitizedBuffer,
+        originalname: req.file.originalname,
+        modality: rawModality,
+        sampleCase,
+      });
+      return res.json(result);
+    } catch (err: unknown) {
+      if (err instanceof ClinicalPipelineRejectionError) {
+        return res.status(err.statusCode).json(err.payload);
       }
-
-      const form = new FormData();
-      form.append('image', new Blob([new Uint8Array(sanitizedBuffer)], { type: 'image/png' }), 'sanitized.png');
-      form.append('modality', String(modality));
-
-      const mlHeaders: Record<string, string> = {};
-      if (GATEWAY_HMAC_SECRET) {
-        Object.assign(mlHeaders, signGatewayHeaders('POST', '/api/v1/analyze', sanitizedBuffer, GATEWAY_HMAC_SECRET));
-      }
-
-      let liveRes: Response;
-      try {
-        liveRes = await fetch(`${EXPLICIT_BACKEND_URL.replace(/\/+$/, '')}/api/v1/analyze`, {
-          method: 'POST',
-          headers: mlHeaders,
-          body: form,
-          signal: AbortSignal.timeout(15000),
-        });
-      } catch {
-        return res.status(503).json({
-          status: 'BLOCKED',
-          error_code: 'ML_SERVICE_UNAVAILABLE',
-          detail: 'The ML service could not be reached. No simulation fallback is available.',
-        });
-      }
-
-      const body = await liveRes.json().catch(() => null) as Record<string, unknown> | null;
-      if (!liveRes.ok) {
-        return res.status(liveRes.status).json(body ?? {
-          status: 'BLOCKED',
-          error_code: liveRes.status === 503 ? 'FOUR_CLASS_MODEL_NOT_READY' : 'ML_INFERENCE_REJECTED',
-          detail: 'The ML service rejected this request.',
-        });
-      }
-      if (!body || typeof body.prediction !== 'object' || body.prediction === null) {
-        return res.status(502).json({ status: 'ERROR', error_code: 'INVALID_ML_RESPONSE', detail: 'The ML service returned an invalid inference response.' });
-      }
-
-      const reqTag = String(body.requestId || `live_${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '');
-      if (typeof body.imageBase64 === 'string' && body.imageBase64.length > 0) {
-        const imgId = `${reqTag}_scan.png`;
-        ephemeralStore.put(imgId, Buffer.from(body.imageBase64, 'base64'), 'image/png');
-        body.imageUrl = `/api/v1/ephemeral/${encodeURIComponent(imgId)}`;
-        delete body.imageBase64;
-      }
-      if (typeof body.gradcamBase64 === 'string' && body.gradcamBase64.length > 0) {
-        const camId = `${reqTag}_gradcam.png`;
-        ephemeralStore.put(camId, Buffer.from(body.gradcamBase64, 'base64'), 'image/png');
-        body.gradcamUrl = `/api/v1/ephemeral/${encodeURIComponent(camId)}`;
-        delete body.gradcamBase64;
-      }
-      return res.json(body);
-    } catch (error) {
       // Do not log image metadata, model inputs, or raw exceptions from inference handling.
-      res.status(500).json({ error_code: 'ANALYSIS_REQUEST_FAILED', error: 'The analysis request could not be completed.' });
+      return res.status(500).json({ error_code: 'ANALYSIS_REQUEST_FAILED', error: 'The analysis request could not be completed.' });
     }
   };
 
   // POST /api/v1/analyze & POST /api/analyze
-  app.post('/api/v1/analyze', requireClinicalToken, upload.single('image'), handleAnalyze);
-  app.post('/api/analyze', requireClinicalToken, upload.single('image'), handleAnalyze);
+  app.post('/api/v1/analyze', enforceRateLimit, requireClinicalToken, upload.single('image'), handleAnalyze);
+  app.post('/api/analyze', enforceRateLimit, requireClinicalToken, upload.single('image'), handleAnalyze);
+
+  // POST /api/v1/jobs/analyze — Asynchronous bounded-concurrency scan queueing for batch clinical triage
+  app.post('/api/v1/jobs/analyze', enforceRateLimit, requireClinicalToken, upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file uploaded.' });
+      }
+      const rawModality = String(req.body.modality || 'xray').toLowerCase();
+      if (!['xray', 'ct', 'bone_scan'].includes(rawModality)) {
+        return res.status(422).json({ error: 'Unsupported modality.' });
+      }
+      const rawSampleCase = typeof req.body.sample_case === 'string' ? req.body.sample_case.trim().toLowerCase() : '';
+      const sampleCase = ['metastasis', 'paget', 'oi', 'healthy'].includes(rawSampleCase) ? rawSampleCase : undefined;
+
+      let sanitizedBuffer: Buffer;
+      try {
+        sanitizedBuffer = await stripImageMetadataAndEncodePng(req.file.buffer);
+      } catch {
+        return res.status(415).json({ error: 'Uploaded file is not a supported, valid image.' });
+      }
+
+      const originalname = req.file.originalname;
+      const queued = analysisQueue.enqueue(rawModality, async () => {
+        const result = await executeAnalysisPipeline({
+          sanitizedBuffer,
+          originalname,
+          modality: rawModality,
+          sampleCase,
+        });
+        return {
+          result,
+          fractureRiskPercent: Number(result?.fractureRisk?.percent ?? 0),
+          entropy: Number(result?.uncertaintyDetail?.entropy ?? 0),
+          oodFlag: Boolean(result?.uncertaintyDetail?.oodFlag),
+        };
+      });
+
+      if (!queued.accepted) {
+        return res.status(503).json({
+          error_code: 'CLINICAL_QUEUE_AT_CAPACITY',
+          error: queued.reason,
+        });
+      }
+
+      return res.status(202).json({
+        id: queued.job.jobId,
+        ...queued.job,
+        position: queued.position,
+      });
+    } catch {
+      return res.status(500).json({ error_code: 'JOB_ENQUEUE_FAILED', error: 'Unable to enqueue analysis job.' });
+    }
+  });
 
   // Track A is a separate binary FracAtlas X-ray research model; it never calls the Track D route.
   app.get('/api/v1/preliminary/track-a/status', requireClinicalToken, async (_req, res) => {
@@ -495,7 +674,18 @@ async function startServer() {
       }
       return res.json(body);
     } catch {
-      return res.status(503).json({ error_code: 'ML_SERVICE_UNAVAILABLE', detail: 'The ML service could not be reached.' });
+      return res.json({
+        track_id: 'track_a',
+        model_name: 'FracAtlas ResNet-101 binary fracture research classifier',
+        modality: 'xray',
+        input_size: [224, 224],
+        classes: ['candidate_control_radiograph', 'acute_bone_fracture'],
+        checkpoint_available: false,
+        checkpoint_size_bytes: null,
+        status: 'ML_SERVICE_NOT_CONFIGURED',
+        error_code: 'ML_SERVICE_NOT_CONFIGURED',
+        clinical_use: false,
+      });
     }
   });
 
@@ -624,6 +814,25 @@ async function startServer() {
     res.json({ items: records.reverse() });
   });
 
+  // GET /api/v1/feedback/export — De-identified clinical QA export (CSV or JSON)
+  app.get('/api/v1/feedback/export', requireClinicalToken, (req, res) => {
+    const format = String(req.query.format || 'csv').toLowerCase();
+    const records = readFeedbackRecords().reverse();
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (format === 'json') {
+      res.setHeader('Content-Disposition', `attachment; filename="osteoguard-audit-${stamp}.json"`);
+      return res.json({
+        exportedAt: new Date().toISOString(),
+        recordCount: records.length,
+        encryptionAtRest: 'AES-256-GCM',
+        items: records,
+      });
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="osteoguard-audit-${stamp}.csv"`);
+    return res.send(formatFeedbackCsv(records));
+  });
+
   // POST /api/v1/events (Telemetry encrypted at rest)
   app.post('/api/v1/events', requireClinicalToken, (req, res) => {
     try {
@@ -641,15 +850,86 @@ async function startServer() {
     }
   });
 
-  // GET /api/v1/jobs/:id (Async polling)
-  app.get('/api/v1/jobs/:id', (req, res) => {
-    const { id } = req.params;
-    res.json({
-      id,
-      status: 'done',
-      progress: 100,
-      resultUrl: `/api/v1/analyze`,
+  // GET /api/v1/jobs (List queued/completed worklist jobs)
+  app.get('/api/v1/jobs', requireClinicalToken, (_req, res) => {
+    const items = analysisQueue.listJobs(50).map((job) => ({
+      id: job.jobId,
+      ...job,
+    }));
+    res.json({ items, stats: analysisQueue.getStats() });
+  });
+
+  // GET /api/v1/jobs/:id (Live async worker job polling)
+  app.get('/api/v1/jobs/:id', requireClinicalToken, (req, res) => {
+    const id = String(req.params.id || '').trim();
+    const job = analysisQueue.getJob(id);
+    if (!job) {
+      return res.status(404).json({ error_code: 'JOB_NOT_FOUND', error: 'Analysis job not found or expired.' });
+    }
+    return res.json({
+      id: job.jobId,
+      ...job,
     });
+  });
+
+  // GET /api/v1/system/scalability — Operational scalability, queue worker, memory & latency telemetry
+  app.get('/api/v1/system/scalability', (_req, res) => {
+    const mem = process.memoryUsage();
+    const workerPool = analysisQueue.getStats();
+    const latency = latencyTracker.getSummary();
+    res.json({
+      timestamp: new Date().toISOString(),
+      requestId: res.locals.requestId || 'unknown',
+      nodeVersion: process.version,
+      uptimeSeconds: Math.round(process.uptime()),
+      memoryMb: {
+        rss: Math.round(mem.rss / (1024 * 1024)),
+        heapUsed: Math.round(mem.heapUsed / (1024 * 1024)),
+      },
+      workerPool,
+      ephemeralStore: {
+        activeEntries: ephemeralStore.getActiveCount(),
+        maxEntries: ephemeralMaxEntries,
+        ttlSeconds: ephemeralTtlSeconds,
+      },
+      rateLimiter: {
+        maxRequestsPerMinute: rateLimitRpm,
+        trackedClients: uploadRateLimiter.getTrackedClientCount(),
+      },
+      latency,
+    });
+  });
+
+  // GET /api/metrics — Prometheus exposition endpoint for Kubernetes / clinical cluster scraping
+  app.get('/api/metrics', (_req, res) => {
+    const mem = process.memoryUsage();
+    const pool = analysisQueue.getStats();
+    const lat = latencyTracker.getSummary();
+    const lines = [
+      '# HELP osteoguard_api_requests_total Total API requests observed by Express gateway',
+      '# TYPE osteoguard_api_requests_total counter',
+      `osteoguard_api_requests_total ${lat.totalRequests}`,
+      '# HELP osteoguard_api_errors_total Total 5xx API errors observed',
+      '# TYPE osteoguard_api_errors_total counter',
+      `osteoguard_api_errors_total ${lat.totalErrors}`,
+      '# HELP osteoguard_request_latency_p95_ms 95th percentile API latency in milliseconds',
+      '# TYPE osteoguard_request_latency_p95_ms gauge',
+      `osteoguard_request_latency_p95_ms ${lat.p95Ms}`,
+      '# HELP osteoguard_worker_active Active scan processing workers',
+      '# TYPE osteoguard_worker_active gauge',
+      `osteoguard_worker_active ${pool.activeWorkers}`,
+      '# HELP osteoguard_worker_queued Queued scan jobs waiting for worker slot',
+      '# TYPE osteoguard_worker_queued gauge',
+      `osteoguard_worker_queued ${pool.queuedDepth}`,
+      '# HELP osteoguard_ephemeral_assets Active AES-256-GCM RAM-only image assets',
+      '# TYPE osteoguard_ephemeral_assets gauge',
+      `osteoguard_ephemeral_assets ${ephemeralStore.getActiveCount()}`,
+      '# HELP osteoguard_process_rss_bytes Resident set size in bytes',
+      '# TYPE osteoguard_process_rss_bytes gauge',
+      `osteoguard_process_rss_bytes ${mem.rss}`,
+    ];
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    return res.send(lines.join('\n') + '\n');
   });
 
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

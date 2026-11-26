@@ -147,6 +147,42 @@ export const EvidenceRegistryPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Historical Headline Metrics from ml_artifacts */}
+              {Object.keys(activeTrainedModel.headline_metrics || {}).length > 0 && (
+                <div className="space-y-2.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Archived Holdout Evaluation Metrics ({activeTrainedModel.modality})
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {Object.entries(activeTrainedModel.headline_metrics).map(([metricKey, metricVal]) => {
+                      const label = metricKey
+                        .replace(/_/g, ' ')
+                        .replace(/\broc auc\b/i, 'ROC-AUC')
+                        .replace(/\bpr auc\b/i, 'PR-AUC');
+                      const displayVal =
+                        metricVal === null || metricVal === undefined
+                          ? 'Unavailable'
+                          : metricVal <= 1
+                          ? `${(metricVal * 100).toFixed(1)}%`
+                          : metricVal.toFixed(3);
+                      return (
+                        <div
+                          key={metricKey}
+                          className="rounded-xl border border-slate-800 bg-slate-950/80 p-3"
+                        >
+                          <span className="block text-[11px] font-semibold capitalize text-slate-400">
+                            {label}
+                          </span>
+                          <span className="mt-1 block font-mono text-lg font-black text-cyan-300">
+                            {displayVal}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Evaluation Plots Gallery */}
               {activeTrainedModel.plots.length > 0 && (
                 <div className="space-y-3">

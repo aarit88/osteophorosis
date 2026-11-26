@@ -61,6 +61,11 @@ export async function simulateAnalysis(
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
+  const sampleCase =
+    optionsOrStoreAsset && typeof optionsOrStoreAsset === 'object' && typeof optionsOrStoreAsset.sampleCase === 'string' && CLASSES.includes(optionsOrStoreAsset.sampleCase)
+      ? optionsOrStoreAsset.sampleCase
+      : null;
+
   // 0. Strip any EXIF / XMP / GPS PHI metadata in RAM before hashing or rendering
   let sanitizedBuffer = imageBuffer;
   try {
@@ -70,8 +75,10 @@ export async function simulateAnalysis(
     sanitizedBuffer = imageBuffer;
   }
 
-  // 1. Compute SHA-256 hash from sanitized image bytes for deterministic reproducibility
-  const sha256 = crypto.createHash('sha256').update(sanitizedBuffer).digest('hex');
+  // 1. Compute SHA-256 hash from sanitized image bytes + modality (+ optional sample tag) for deterministic reproducibility
+  const seedHasher = crypto.createHash('sha256').update(sanitizedBuffer).update(`|${modality}`);
+  if (sampleCase) seedHasher.update(`|${sampleCase}`);
+  const sha256 = seedHasher.digest('hex');
   const seed = parseInt(sha256.substring(0, 8), 16);
   const rng = createRng(seed);
 
@@ -79,15 +86,15 @@ export async function simulateAnalysis(
   const timestamp = new Date().toISOString();
 
   // 2. Determine top class and probabilities
-  const classIndex = Math.floor(rng() * 4);
+  const classIndex = sampleCase ? CLASSES.indexOf(sampleCase) : Math.floor(rng() * 4);
   const topClass = CLASSES[classIndex];
 
-  // Top class confidence between 0.56 and 0.94
-  const confidence = parseFloat((0.56 + rng() * 0.36).toFixed(3));
+  // Top class confidence between 0.58 and 0.94 (higher clarity on curated reference presets)
+  const confidence = parseFloat((sampleCase ? 0.74 + rng() * 0.18 : 0.56 + rng() * 0.36).toFixed(3));
   const remaining = 1.0 - confidence;
 
   // Split remaining amongst the other 3 classes
-  const rawOthers = [rng() + 0.05, rng() + 0.05, rng() + 0.05];
+  const rawOthers = sampleCase ? [rng() + 0.25, rng() + 0.12, rng() + 0.08] : [rng() + 0.05, rng() + 0.05, rng() + 0.05];
   const sumRaw = rawOthers.reduce((a, b) => a + b, 0);
   const otherProbabilities = rawOthers.map((v) => parseFloat(((v / sumRaw) * remaining).toFixed(3)));
 
@@ -117,8 +124,8 @@ export async function simulateAnalysis(
     parseFloat(Math.min(0.99, confidence + ciMargin).toFixed(2)),
   ];
 
-  // Out-Of-Distribution (OOD) flag triggered ~10% of the time based on hash
-  const oodFlag = (seed % 10) === 0;
+  // Out-Of-Distribution (OOD) flag triggered ~10% of the time for arbitrary uploads; suppressed on curated reference cases
+  const oodFlag = sampleCase ? false : (seed % 10) === 0;
 
   // Calibration reliability bin (predicted vs empirical observed)
   const calibrationBin = {

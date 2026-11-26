@@ -72,6 +72,7 @@ export interface HealthResponse {
 export interface AnalyzePayload {
   image: File | Blob;
   modality: ModalityType;
+  sampleCase?: BonePathologyClass;
 }
 
 export type TrackAOperatingPoint =
@@ -152,12 +153,62 @@ export interface EventPayload {
   metadata?: Record<string, unknown>;
 }
 
-// ━━━ Asynchronous Inference Job Types ━━━
+// ━━━ Asynchronous Inference Job Types & Clinical Scalability Telemetry ━━━
+export type TriagePriorityTier = 'STAT_URGENT' | 'PRIORITY_REVIEW' | 'ROUTINE';
+
 export interface JobStatusResponse {
   id: string;
+  jobId?: string;
+  modality?: ModalityType;
   status: 'queued' | 'processing' | 'done' | 'failed';
   progress: number;
+  position?: number;
+  createdAt?: string;
+  completedAt?: string | null;
+  latencyMs?: number | null;
+  triagePriority?: TriagePriorityTier | null;
+  triageReason?: string | null;
+  result?: AnalyzeResponse;
   resultUrl?: string;
+  error?: string | { error_code?: string; message?: string };
+}
+
+export interface ScalabilityStatusResponse {
+  timestamp: string;
+  requestId: string;
+  nodeVersion: string;
+  uptimeSeconds: number;
+  memoryMb: {
+    rss: number;
+    heapUsed: number;
+  };
+  workerPool: {
+    maxConcurrency: number;
+    maxQueueSize: number;
+    activeWorkers: number;
+    queuedDepth: number;
+    retainedJobs: number;
+    completedCount: number;
+    failedCount: number;
+  };
+  ephemeralStore: {
+    activeEntries: number;
+    maxEntries: number;
+    ttlSeconds: number;
+  };
+  rateLimiter: {
+    maxRequestsPerMinute: number;
+    trackedClients: number;
+  };
+  latency: {
+    totalRequests: number;
+    totalErrors: number;
+    sampleCount: number;
+    avgMs: number;
+    p50Ms: number;
+    p95Ms: number;
+    p99Ms: number;
+  };
 }
 
 // ━━━ Production Error Unions ━━━

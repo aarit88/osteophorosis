@@ -4,7 +4,8 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { AnalyzeResponse } from '../api/types';
 import { resolveApiAssetUrl } from '../api/client';
-import { X, Download, Printer, ShieldCheck, QrCode, FileText, CheckCircle2 } from 'lucide-react';
+import { buildFhirDiagnosticReport } from '../utils/fhirExport';
+import { X, Download, Printer, FileText, FileJson } from 'lucide-react';
 
 interface TraceableReportModalProps {
   isOpen: boolean;
@@ -57,6 +58,19 @@ export const TraceableReportModal: React.FC<TraceableReportModalProps> = ({
     }
   };
 
+  const handleDownloadFhir = () => {
+    const bundle = buildFhirDiagnosticReport(result);
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/fhir+json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `OsteoGuard_FHIR_${result.requestId}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const topClass = result.prediction.topClass;
   const confidencePercent = Math.round(result.prediction.confidence * 100);
 
@@ -64,30 +78,41 @@ export const TraceableReportModal: React.FC<TraceableReportModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
       <div className="bg-white text-slate-900 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-6 border border-slate-300">
         {/* Action Header bar (no-print) */}
-        <div className="no-print flex items-center justify-between px-6 py-4 bg-slate-900 text-white border-b border-slate-800">
+        <div className="no-print flex flex-wrap items-center justify-between gap-2 px-6 py-4 bg-slate-900 text-white border-b border-slate-800">
           <div className="flex items-center space-x-2">
             <FileText className="w-5 h-5 text-cyan-400" />
             <span className="text-sm font-bold">Traceable Clinical Decision Support Dossier</span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
+              onClick={handleDownloadFhir}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-semibold shadow-md transition cursor-pointer"
+            >
+              <FileJson className="w-4 h-4" />
+              <span>Export FHIR R4 JSON</span>
+            </button>
+            <button
+              type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition disabled:opacity-60"
+              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition disabled:opacity-60 cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>{isGeneratingPdf ? 'Rendering PDF…' : 'Export Multi-Page PDF'}</span>
             </button>
             <button
+              type="button"
               onClick={() => window.print()}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Print</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
               aria-label="Close report modal"
             >
               <X className="w-5 h-5" />

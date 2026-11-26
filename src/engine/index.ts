@@ -36,10 +36,10 @@ export async function createPredictionEngine(): Promise<PredictionEngine> {
     return new GatewayEngine(true);
   }
 
-  // Unified deployment checks the API gateway; inference remains server-gated.
-  const gateway = new GatewayEngine(false);
+  // Unified deployment checks the API gateway (/api/health reports simulation vs production).
+  const gateway = new GatewayEngine('gateway');
   const isGatewayHealthy = await gateway.checkAvailability();
-  return isGatewayHealthy ? gateway : new GatewayEngine(true);
+  return isGatewayHealthy ? gateway : new GatewayEngine('unavailable');
 }
 
 export function getPredictionEngineSync(): PredictionEngine {
