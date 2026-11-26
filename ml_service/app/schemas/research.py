@@ -112,7 +112,15 @@ class DatasetGovernanceResponse(BaseModel):
 
 
 class RadiomicsDemoRequest(BaseModel):
-    phantom_type: Literal["checkerboard", "linear_gradient", "annulus", "uniform"] = Field(default="checkerboard")
+    phantom_type: Literal[
+        "checkerboard",
+        "linear_gradient",
+        "annulus",
+        "uniform",
+        "trabecular_paget",
+        "lytic_metastasis",
+        "osteopenic_oi",
+    ] = Field(default="checkerboard")
     grid_size: int = Field(default=32, ge=8, le=128)
     spacing_mm: float = Field(default=1.0, ge=0.1, le=5.0)
 
@@ -140,6 +148,9 @@ class BiomechanicsGeometryRequest(BaseModel):
         "multiple_small_defects",
         "non_circular_elliptical_annulus",
         "anisotropic_spacing_annulus",
+        "intact_femur_diaphysis",
+        "focal_anterior_defect",
+        "eccentric_thinning",
     ] = Field(default="intact_circular_ring", description="One of the registered synthetic cross-section phantoms")
     voxel_size_mm: float = Field(default=1.0, ge=0.1, le=5.0)
 
@@ -179,7 +190,7 @@ class BiomechanicsMirelsResponse(BaseModel):
 
 
 class ExplainabilityDemoRequest(BaseModel):
-    target_class: int = Field(default=1, ge=0, le=1)
+    target_class: int = Field(default=1, ge=0, le=3)
     shift_horizontal: int = Field(default=0, ge=-8, le=8)
 
 

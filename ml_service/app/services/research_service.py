@@ -497,7 +497,12 @@ class ResearchService:
     def run_radiomics_demo(self, req: RadiomicsDemoRequest) -> RadiomicsDemoResponse:
         # Generate synthetic digital phantom
         shape = (req.grid_size, req.grid_size)
-        ptype = req.phantom_type.lower()
+        radiomics_aliases = {
+            "trabecular_paget": "linear_gradient",
+            "lytic_metastasis": "annulus",
+            "osteopenic_oi": "uniform",
+        }
+        ptype = radiomics_aliases.get(req.phantom_type.lower(), req.phantom_type.lower())
         if ptype == "checkerboard":
             image, mask, _ = SyntheticDigitalPhantomSuite.create_checkerboard_phantom(shape=shape, tile_size=max(2, req.grid_size // 4))
         elif ptype == "linear_gradient":
@@ -505,7 +510,8 @@ class ResearchService:
         elif ptype == "annulus":
             image, mask, _ = SyntheticDigitalPhantomSuite.create_geometric_annulus_phantom(shape=shape)
         elif ptype == "uniform":
-            image, mask, _ = SyntheticDigitalPhantomSuite.create_uniform_phantom(shape=shape, intensity=100.0)
+            intensity = 65.0 if req.phantom_type.lower() == "osteopenic_oi" else 100.0
+            image, mask, _ = SyntheticDigitalPhantomSuite.create_uniform_phantom(shape=shape, intensity=intensity)
 
         spacing = (req.spacing_mm, req.spacing_mm)
         features_dict = self.radiomics_engine.extract_features_dict(image, mask=mask, spacing=spacing)
@@ -529,9 +535,15 @@ class ResearchService:
         )
 
     def run_biomechanics_geometry(self, req: BiomechanicsGeometryRequest) -> BiomechanicsGeometryResponse:
-        # Retrieve synthetic bone phantom from 8 available
+        # Retrieve synthetic bone phantom from registered phantom suite (plus UI aliases)
+        geometry_aliases = {
+            "intact_femur_diaphysis": "intact_circular_ring",
+            "focal_anterior_defect": "lytic_cavity",
+            "eccentric_thinning": "eccentric_cortical_defect",
+        }
+        canonical_phantom = geometry_aliases.get(req.phantom_type, req.phantom_type)
         phantoms = SyntheticBonePhantomSuite.get_all_phantoms()
-        phantom = phantoms[req.phantom_type]
+        phantom = phantoms[canonical_phantom]
         # The anisotropic fixture carries its own validated non-square spacing.
         # Other phantoms use the requested isotropic spacing for all reported geometry.
         pixel_spacing = (
@@ -593,7 +605,7 @@ class ResearchService:
         center_x = max(4, min(28, 16 + req.shift_horizontal))
         x[0, 0, 14:18, center_x - 2 : center_x + 2] = 2.0  # Bright spot
 
-        heatmap = explainer.generate_cam(x, target_class_idx=req.target_class)
+        heatmap = explainer.generate_cam(x, target_class_idx=int(req.target_class) % 2)
         explainer.remove_hooks()
 
         # Sample 8x8 coarse grid for JSON serialization

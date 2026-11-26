@@ -50,12 +50,14 @@ NUM_CLASSES: int = len(TARGET_CLASSES)
 class ModalityType(str, Enum):
     XRAY = "xray"
     CT = "ct"
+    MRI = "mri"
     BONE_SCAN = "bone_scan"
 
 
 SUPPORTED_MODALITIES: Tuple[str, ...] = (
     ModalityType.XRAY.value,
     ModalityType.CT.value,
+    ModalityType.MRI.value,
     ModalityType.BONE_SCAN.value,
 )
 

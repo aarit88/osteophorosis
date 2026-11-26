@@ -31,13 +31,13 @@ import {
 } from '../utils/pathologyCatalog';
 
 const ORDERED_CLASSES: BonePathologyClass[] = ['metastasis', 'paget', 'oi', 'healthy'];
-const MODALITIES: ModalityType[] = ['xray', 'ct', 'bone_scan'];
+const MODALITIES: ModalityType[] = ['xray', 'ct', 'mri', 'bone_scan'];
 
 const WORKFLOW_STEPS = [
   {
     icon: ScanLine,
     title: '1. Multimodal intake',
-    body: 'Upload planar X-rays, CT bone-window slices, or Tc-99m scintigraphy scans with automatic RAM-only EXIF metadata removal.',
+    body: 'Upload planar X-rays, CT bone-window slices, MRI marrow scans, or Tc-99m scintigraphy with RAM-only EXIF metadata removal.',
   },
   {
     icon: Layers3,
@@ -233,7 +233,7 @@ export const Home: React.FC = () => {
   const handleRunDiagnosis = async () => {
     if (!selectedFile || isRunning) {
       if (!selectedFile) {
-        setUploadError('Upload a bone X-ray, CT scan, or Bone Scintigraphy image — or pick a clinical sample case below.');
+        setUploadError('Upload a bone X-ray, CT scan, MRI, or Bone Scintigraphy image — or pick a clinical sample case below.');
       }
       return;
     }
@@ -262,7 +262,7 @@ export const Home: React.FC = () => {
                 Bone Disorder Differential <span className="text-cyan-400">Workbench</span>
               </h1>
               <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
-                Analyze skeletal <strong className="text-white">X-ray</strong>, <strong className="text-white">CT scan</strong>, and <strong className="text-white">Bone Scintigraphy</strong> images for <strong className="text-cyan-200">Secondary Bone Metastasis</strong>, <strong className="text-amber-200">Paget&apos;s Disease</strong>, <strong className="text-sky-200">Osteogenesis Imperfecta (OI)</strong>, and <strong className="text-emerald-200">Healthy Control</strong> evaluation with Grad-CAM, SHAP radiomics, Fracture Risk, and Traceable PDF reporting.
+                Analyze skeletal <strong className="text-white">X-ray</strong>, <strong className="text-white">CT scan</strong>, <strong className="text-white">MRI</strong>, and <strong className="text-white">Bone Scintigraphy</strong> images for <strong className="text-cyan-200">Secondary Bone Metastasis</strong>, <strong className="text-amber-200">Paget&apos;s Disease</strong>, <strong className="text-sky-200">Osteogenesis Imperfecta (OI)</strong>, and <strong className="text-emerald-200">Healthy Control</strong> evaluation with Grad-CAM, SHAP radiomics, Fracture Risk, and Traceable PDF reporting.
               </p>
             </div>
 
@@ -272,7 +272,7 @@ export const Home: React.FC = () => {
                 <span className="text-xs font-bold uppercase tracking-[.16em] text-cyan-300">1. Select Imaging Modality</span>
                 <span className="font-mono text-[11px] text-slate-400">RAM-only EXIF strip</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {MODALITIES.map((mod) => {
                   const spec = MODALITY_SPECS[mod];
                   const active = modality === mod;
@@ -291,8 +291,8 @@ export const Home: React.FC = () => {
                           : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-600 hover:text-white'
                       }`}
                     >
-                      <span className="block text-xs font-bold sm:text-sm">{spec.shortLabel}</span>
-                      <span className="mt-0.5 block text-[10px] text-slate-400 truncate">{spec.id.toUpperCase()}</span>
+                      <span className="block whitespace-nowrap text-xs font-bold sm:text-sm">{spec.shortLabel}</span>
+                      <span className="mt-0.5 block truncate font-mono text-[10px] text-slate-400">{spec.id.toUpperCase()}</span>
                     </button>
                   );
                 })}
@@ -316,7 +316,7 @@ export const Home: React.FC = () => {
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950/70 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-600 hover:text-cyan-200"
               >
                 <ScanLine className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-                Track A Binary X-ray Portal
+                X-ray, CT &amp; MRI Workbench Portals
               </Link>
               <Link
                 to="/tracks"
@@ -534,7 +534,7 @@ export const Home: React.FC = () => {
         <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[.2em] text-cyan-400">Four-class diagnostic ontology</p>
           <h2 id="scope-title" className="mt-2 text-2xl font-bold text-white sm:text-3xl">
-            Supported pathologies across X-ray, CT Scan, &amp; Bone Scintigraphy
+            Supported pathologies across X-ray, CT Scan, MRI, &amp; Bone Scintigraphy
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
             Each uploaded scan is evaluated across four skeletal categories alongside IBSI radiomics features and Mirels biomechanical fracture scoring.

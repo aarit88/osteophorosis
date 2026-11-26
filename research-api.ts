@@ -64,7 +64,7 @@ function generateRadiomicsPhantom(phantomType: string, gridSize: number): { imag
         mask[idx] = 1;
       }
     }
-  } else if (ptype === 'linear_gradient') {
+  } else if (ptype === 'linear_gradient' || ptype === 'trabecular_paget') {
     const denom = Math.max(1, 2 * (gridSize - 1));
     for (let y = 0; y < gridSize; y++) {
       for (let x = 0; x < gridSize; x++) {
@@ -73,7 +73,7 @@ function generateRadiomicsPhantom(phantomType: string, gridSize: number): { imag
         mask[idx] = 1;
       }
     }
-  } else if (ptype === 'annulus') {
+  } else if (ptype === 'annulus' || ptype === 'lytic_metastasis') {
     const cy = (gridSize - 1) / 2.0;
     const cx = (gridSize - 1) / 2.0;
     const rOuter = gridSize * 0.42;
@@ -92,8 +92,9 @@ function generateRadiomicsPhantom(phantomType: string, gridSize: number): { imag
       }
     }
   } else {
+    const intensity = ptype === 'osteopenic_oi' ? 65.0 : 100.0;
     for (let i = 0; i < n; i++) {
-      image[i] = 100.0;
+      image[i] = intensity;
       mask[i] = 1;
     }
   }
@@ -240,14 +241,17 @@ function generateBoneCrossSectionMask(phantomType: string, gridSize = 100, spaci
         active = r >= 11.5 && r <= outerR;
       } else if (phantomType === 'severe_osteopenia' || phantomType === 'uniform_cortical_thinning') {
         active = r >= 13.0 && r <= outerR;
-      } else if (phantomType === 'small_lytic_defect') {
+      } else if (phantomType === 'small_lytic_defect' || phantomType === 'lytic_cavity' || phantomType === 'focal_anterior_defect') {
         const inAnnulus = r >= innerR && r <= outerR;
-        const inCavity = Math.hypot(xm - (cx + 12.5), ym - cy) <= 2.2;
+        const inCavity = Math.hypot(xm - (cx + 12.5), ym - cy) <= 2.8;
         active = inAnnulus && !inCavity;
-      } else if (phantomType === 'med_lytic_defect' || phantomType === 'cortical_defect_33') {
+      } else if (phantomType === 'med_lytic_defect' || phantomType === 'cortical_defect_33' || phantomType === 'symmetric_cortical_defect') {
         const inAnnulus = r >= innerR && r <= outerR;
         const inWedge = Math.abs(angle) <= (Math.PI / 3.0);
         active = inAnnulus && !inWedge;
+      } else if (phantomType === 'eccentric_thinning' || phantomType === 'eccentric_cortical_defect') {
+        const shiftedInner = Math.hypot(dx - 1.8, dy) >= 10.6;
+        active = r <= outerR && shiftedInner;
       } else if (phantomType === 'large_lytic_defect') {
         const inAnnulus = r >= innerR && r <= outerR;
         const inWedge = Math.abs(angle) <= (2.0 * Math.PI / 3.0);

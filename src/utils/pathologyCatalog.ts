@@ -117,6 +117,13 @@ export const MODALITY_SPECS: Record<ModalityType, ModalitySpec> = {
     protocolNote: 'Cross-sectional computed tomography slice — resolves endosteal scalloping, fine trabecular mosaic, and Hounsfield attenuation.',
     typicalFindings: 'Multi-planar trabecular & cortical bone-window radiomic profiling',
   },
+  mri: {
+    id: 'mri',
+    label: 'MRI (Marrow & Soft-Tissue)',
+    shortLabel: 'MRI Scan',
+    protocolNote: 'T1/T2 & STIR marrow signal normalization — characterizes intramedullary infiltration, marrow edema, and periosteal extension.',
+    typicalFindings: 'Percentile-clipped marrow contrast profiling paired with trabecular entropy',
+  },
   bone_scan: {
     id: 'bone_scan',
     label: 'Bone Scintigraphy (Tc-99m)',

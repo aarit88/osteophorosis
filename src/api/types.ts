@@ -1,4 +1,4 @@
-export type ModalityType = 'xray' | 'ct' | 'bone_scan';
+export type ModalityType = 'xray' | 'ct' | 'mri' | 'bone_scan';
 
 export type BonePathologyClass = 'metastasis' | 'paget' | 'oi' | 'healthy';
 

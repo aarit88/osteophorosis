@@ -21,9 +21,10 @@ describe('pathologyCatalog pure helpers', () => {
     assert.equal(healthy.accentTone, 'emerald');
   });
 
-  it('supports xray, ct, and bone_scan modalities cleanly', () => {
+  it('supports xray, ct, mri, and bone_scan modalities cleanly', () => {
     assert.match(getModalitySpec('xray').label, /X-ray/i);
     assert.match(getModalitySpec('ct').label, /CT Scan/i);
+    assert.match(getModalitySpec('mri').label, /MRI/i);
     assert.match(getModalitySpec('bone_scan').label, /Scintigraphy/i);
   });
 

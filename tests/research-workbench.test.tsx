@@ -6,9 +6,11 @@ import { ResearchWorkbenchPage } from '../src/pages/ResearchWorkbenchPage';
 import type { ResearchTracksResponse, TrackAInferenceResponse, TrackAStatusResponse, TrackDDatasetReadinessResponse } from '../src/api/types';
 
 const mocks = vi.hoisted(() => ({
+  analyzeImage: vi.fn(),
   getResearchTracks: vi.fn(),
   getTrackDDatasetReadiness: vi.fn(),
   getTrackAStatus: vi.fn(),
+  requestFourClassInference: vi.fn(),
   runTrackAInference: vi.fn(),
   runSyntheticWorkbench: vi.fn(),
 }));
@@ -86,6 +88,61 @@ describe('research workbench', () => {
     expect(screen.getByRole('button', { name: 'Run X-ray scan' })).toBeDisabled();
     expect(mocks.runTrackAInference).not.toHaveBeenCalled();
     expect(screen.queryByText('synthetic-xray.png')).not.toBeInTheDocument();
+  });
+
+  it('renders dedicated CT scan and MRI upload portals integrated with FastAPI research endpoints', async () => {
+    mocks.requestFourClassInference.mockResolvedValue({
+      status: 'BLOCKED',
+      error_code: 'FOUR_CLASS_MODEL_NOT_READY',
+      message: 'Track D clinical gate enforced.',
+      target_classes: ['metastasis', 'paget', 'oi', 'healthy'],
+      blockers: ['Missing multi-center training cohort'],
+      mandatory_safeguard: 'Gate active',
+    });
+    mocks.runSyntheticWorkbench.mockResolvedValue({
+      timestamp: '2026-11-26T00:00:00Z',
+      status: 'SYNTHETIC_WORKBENCH_OK',
+      four_class_system_status: 'FOUR_CLASS_MODEL_NOT_READY',
+      outstanding_clinical_requirements: [],
+      disclaimer: 'Research prototype only.',
+      radiomics_panel: { phantom_type: 'trabecular_paget', grid_size: 32, spacing_mm: 1, verified_features_count: 81, unverified_features_count: 21, total_features_count: 102, specification_status: 'OK', verified_features_sample: {}, unverified_features_sample: {}, disclaimer: '' },
+      biomechanics_geometry_panel: { phantom_type: 'eccentric_thinning', voxel_size_mm: 0.5, pixel_spacing_mm: [0.5, 0.5], area_mm2: 240, centroid_x_mm: 25, centroid_y_mm: 25, I_xx_mm4: 3200, I_yy_mm4: 3200, I_xy_mm4: 0, polar_J_mm4: 6400, area_retention_ratio: 0.85, bending_retention_ratio_x: 0.82, bending_retention_ratio_y: 0.82, torsion_retention_ratio: 0.82, warning: '' },
+      biomechanics_mirels_panel: { total_score: 8, fracture_risk_percent: 33, recommendation_tier: 'IMPENDING_FRACTURE', prophylactic_fixation_indicated: true, clinical_guidance: 'Consider fixation', disclaimer: '' },
+      explainability_panel: { synthetic_input_shape: [1, 1, 32, 32], target_class: 1, active_region_ratio: 0.25, peak_coordinates: [16, 18], heatmap_grid_sample: [[0.5]], method: 'Grad-CAM', shap_status: 'PARTIAL', warning: '' },
+      uncertainty_panel: { probabilities: [0.2, 0.65, 0.1, 0.05], predicted_class_idx: 1, predicted_class_name: "Paget's Disease of Bone", max_probability: 0.65, top_two_margin: 0.45, shannon_entropy_nats: 0.9, normalized_entropy: 0.42, candidate_threshold: 0.6, decision: 'CONFIDENT', human_review_required: false, abstention_reason: 'NONE', reason_description: 'OK', ood_detected: false, clinical_guidance: 'OK', disclaimer: '' },
+    });
+    mocks.analyzeImage.mockResolvedValue({
+      requestId: 'req_mri_fixture',
+      timestamp: '2026-11-26T00:00:00Z',
+      modality: 'mri',
+      imageUrl: '/api/v1/ephemeral/scan.png',
+      gradcamUrl: '/api/v1/ephemeral/cam.png',
+      prediction: { topClass: 'paget', confidence: 0.81, probabilities: { metastasis: 0.08, paget: 0.81, oi: 0.06, healthy: 0.05 }, uncertainty: 'low' },
+      uncertaintyDetail: { entropy: 0.38, confidenceInterval: [0.74, 0.88], oodFlag: false, calibrationBin: { predicted: 0.81, observed: 0.79 } },
+      shap: [{ name: 'GLCM Contrast', value: 0.42 }],
+      counterfactuals: [],
+      fractureRisk: { level: 'medium', percent: 48 },
+      disclaimer: 'Prototype simulation.',
+    });
+
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'CT Scan Upload Portal' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'MRI Upload Portal' })).toBeInTheDocument();
+
+    const ctInput = screen.getByLabelText('Select a local CT Scan image') as HTMLInputElement;
+    fireEvent.change(ctInput, { target: { files: [new File(['ct slice bytes'], 'femur-ct.png', { type: 'image/png' })] } });
+    expect(await screen.findByText(/CT Scan selected/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run CT Scan Analysis' })).toBeEnabled();
+
+    const mriInput = screen.getByLabelText('Select a local MRI image') as HTMLInputElement;
+    fireEvent.change(mriInput, { target: { files: [new File(['mri slice bytes'], 'pelvis-mri.png', { type: 'image/png' })] } });
+    expect(await screen.findByText(/MRI selected/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run MRI Analysis' }));
+    expect(await screen.findByText('req_mri_fixture')).toBeInTheDocument();
+    expect(mocks.analyzeImage).toHaveBeenCalledWith(expect.objectContaining({ modality: 'mri' }));
+    expect(mocks.requestFourClassInference).toHaveBeenCalledTimes(1);
+    expect(mocks.runSyntheticWorkbench).toHaveBeenCalledWith(expect.objectContaining({ modality: 'mri', radiomics_phantom: 'trabecular_paget' }));
   });
 
   it('submits only after an explicit action and renders the backend Track A response', async () => {

@@ -54,6 +54,7 @@ describe('public project pages', () => {
     const modalityGroup = screen.getByRole('group', { name: /Select imaging modality/i });
     expect(within(modalityGroup).getByRole('button', { name: /2D Digital X-ray|X-ray/i })).toBeInTheDocument();
     expect(within(modalityGroup).getByRole('button', { name: /CT Scan/i })).toBeInTheDocument();
+    expect(within(modalityGroup).getByRole('button', { name: /MRI/i })).toBeInTheDocument();
     expect(within(modalityGroup).getByRole('button', { name: /Bone Scan/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Run Bone Diagnosis/i })).toBeDisabled();
     expect(screen.getAllByText('FOUR_CLASS_MODEL_NOT_READY').length).toBeGreaterThanOrEqual(1);

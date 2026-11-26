@@ -216,7 +216,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                   Drop your bone radiograph here, or <span className="text-cyan-400 hover:underline">browse files</span>
                 </p>
                 <p className="text-xs text-slate-400 mt-1 max-w-md">
-                  Supports X-ray, CT slice, or Bone Scintigraphy (PNG, JPEG up to 15MB).
+                  Supports X-ray, CT slice, MRI, or Bone Scintigraphy (PNG, JPEG, WebP up to 15 MB).
                 </p>
               </div>
 

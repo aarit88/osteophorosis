@@ -561,7 +561,7 @@ async function startServer() {
       }
 
       const rawModality = String(req.body.modality || 'xray').toLowerCase();
-      if (!['xray', 'ct', 'bone_scan'].includes(rawModality)) {
+      if (!['xray', 'ct', 'mri', 'bone_scan'].includes(rawModality)) {
         return res.status(422).json({ error: 'Unsupported modality.' });
       }
 
@@ -602,7 +602,7 @@ async function startServer() {
         return res.status(400).json({ error: 'No image file uploaded.' });
       }
       const rawModality = String(req.body.modality || 'xray').toLowerCase();
-      if (!['xray', 'ct', 'bone_scan'].includes(rawModality)) {
+      if (!['xray', 'ct', 'mri', 'bone_scan'].includes(rawModality)) {
         return res.status(422).json({ error: 'Unsupported modality.' });
       }
       const rawSampleCase = typeof req.body.sample_case === 'string' ? req.body.sample_case.trim().toLowerCase() : '';

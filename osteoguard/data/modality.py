@@ -82,6 +82,20 @@ class ModalityStrategyEngine:
         # Rescale to float [0.0, 1.0]
         return (equalized.astype(np.float32) / 255.0)
 
+    @staticmethod
+    def calibrate_mri_signal(image_array: np.ndarray) -> np.ndarray:
+        """
+        Normalizes non-quantitative T1/T2/STIR MRI marrow intensity into [0.0, 1.0]
+        using robust percentile clipping to mitigate inter-scanner gain drift.
+        """
+        arr = image_array.astype(np.float32)
+        p_low, p_high = np.percentile(arr, [1.0, 99.0])
+        if p_high - p_low < 1e-6:
+            min_v, max_v = float(np.min(arr)), float(np.max(arr))
+            return ((arr - min_v) / (max_v - min_v + 1e-8)).astype(np.float32)
+        clipped = np.clip(arr, p_low, p_high)
+        return ((clipped - p_low) / (p_high - p_low + 1e-8)).astype(np.float32)
+
     @classmethod
     def preprocess_image(
         cls,
@@ -97,6 +111,8 @@ class ModalityStrategyEngine:
             return cls.calibrate_ct_bone_window(image_array, slope, intercept)
         elif mod == ModalityType.XRAY.value:
             return cls.calibrate_xray_clahe(image_array)
+        elif mod == ModalityType.MRI.value:
+            return cls.calibrate_mri_signal(image_array)
         elif mod == ModalityType.BONE_SCAN.value:
             # Nuclear bone scan intensity normalization
             min_v = np.min(image_array)
